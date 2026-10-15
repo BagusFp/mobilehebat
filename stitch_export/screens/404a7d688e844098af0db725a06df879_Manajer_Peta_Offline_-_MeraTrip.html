@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><title>MeraTrip</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100%;min-height:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed-dim": "#aed09e", "on-primary": "#ffffff", "primary": "#04432f", "secondary-container": "#c9edb8", "on-tertiary-container": "#bfc6b9", "outline": "#707973", "surface-bright": "#eafef0", "on-primary-fixed-variant": "#17503b", "inverse-on-surface": "#e1f6e8", "surface-container": "#dff3e5", "inverse-primary": "#9ad3b7", "surface-dim": "#cbdfd1", "surface-variant": "#d3e7da", "primary-fixed-dim": "#9ad3b7", "secondary": "#48663d", "tertiary": "#353c32", "on-secondary": "#ffffff", "surface-container-high": "#d9eddf", "on-primary-fixed": "#002115", "on-primary-container": "#98d1b5", "on-tertiary-fixed-variant": "#42493f", "tertiary-container": "#4c5349", "surface-tint": "#326852", "on-surface-variant": "#404944", "on-error": "#ffffff", "outline-variant": "#c0c9c2", "surface-container-highest": "#d3e7da", "on-surface": "#0e1f17", "on-secondary-container": "#4e6c43", "on-background": "#0e1f17", "surface-container-low": "#e4f9eb", "surface-container-lowest": "#ffffff", "tertiary-fixed": "#dee5d7", "secondary-fixed": "#c9edb8", "on-tertiary": "#ffffff", "inverse-surface": "#23342b", "on-secondary-fixed": "#062102", "surface": "#eafef0", "error-container": "#ffdad6", "error": "#ba1a1a", "primary-fixed": "#b5efd2", "on-secondary-fixed-variant": "#314e27", "on-tertiary-fixed": "#171d15", "background": "#eafef0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#c2c9bb", "primary-container": "#245b45" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1.25rem", "space-sm": "0.5rem", "space-xl": "2rem", "space-lg": "1.5rem", "gutter": "1rem", "space-xs": "0.25rem", "space-md": "1rem" }, "fontFamily": { "body-sm": ["Inter"], "headline-sm": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "display-mobile": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "body-md": ["Inter"], "body-lg": ["Inter"], "headline-md": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"] }, "fontSize": { "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "display-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }] } } } }</script><style>body{min-height:max(884px,100dvh);}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(31,48,39,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Go back" class="w-11 h-11 -ml-2 flex items-center justify-center rounded-full text-on-surface hover:text-primary transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-title-md text-title-md text-on-surface font-semibold">Manajer Peta Offline   Meratrip</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Notifications" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">notifications</span></button><button aria-label="User Profile" class="w-11 h-11 flex items-center justify-center rounded-full p-0.5 hover:ring-2 hover:ring-primary/20 transition-all"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIo1vmynqyruG6Ce_NWbntravR9lopAKd8CwOvv6Zgfg_dXZIpIqdLzmXYyU5Up1CsuLmRDvM19ZcgnbZeAqsxJW1mXR-R8Bn0FLDV2vnjXjwxm68NboTTZuwp34WSZ60mxlkS53um0eg1evkta-XUGhLvsZ8ZaQX5tYOjgOsJY7L4kPYHJBdxYYjcM_atNmUqE8dcADVJz7u0R53p0r05OmUUw0gYLUKkNr57kqc_e4NIQCK8BCE"/></button></div></div></header><main class="flex-1 w-full pt-16 pb-safe bg-surface flex flex-col"><div class="flex flex-col w-full pb-28">
+<!-- Volcanic Trail Status & Offline Readiness Pill -->
+<div class="px-margin pt-4 pb-2">
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between gap-space-sm mb-3">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="relative flex h-3 w-3 shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+</span>
+<span class="font-label-lg text-label-lg text-primary font-semibold truncate">Mode Offline Siap Digunakan</span>
+</div>
+<span class="bg-secondary-container text-on-secondary-container font-label-sm text-label-sm px-2.5 py-1 rounded-full shrink-0 font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">cloud_done</span>
+          Tersinkron
+        </span>
+</div>
+<!-- Storage Progress -->
+<div class="space-y-2">
+<div class="flex justify-between items-baseline text-on-surface">
+<div>
+<span class="font-headline-sm text-headline-sm font-bold text-primary">34.2 MB</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant"> / 512 MB Dialokasikan</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">6.7% Terpakai</span>
+</div>
+<!-- Multi-tone segmented bar representation -->
+<div class="w-full bg-surface-variant h-3 rounded-full overflow-hidden p-0.5 flex">
+<div class="bg-primary h-full rounded-full transition-all duration-500 ease-out" style="width: 6.7%;"></div>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-1 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[16px]">history</span>
+<span>Pembaruan: 18 Okt 2024, 14:20 WIB</span>
+</div>
+<button class="font-label-sm text-label-sm text-secondary hover:text-primary font-semibold flex items-center gap-0.5 transition-colors" id="cleanCacheBtn">
+<span class="material-symbols-outlined text-[14px]">cleaning_services</span>
+            Bersihkan Cache
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Transparent Informative Notice Banner -->
+<div class="px-margin py-2">
+<div class="bg-surface-container-high rounded-xl p-space-md text-on-surface flex items-start gap-3 shadow-sm">
+<div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center shrink-0 text-primary mt-0.5">
+<span class="material-symbols-outlined text-[20px]">offline_bolt</span>
+</div>
+<div class="space-y-1 min-w-0">
+<h2 class="font-title-md text-title-md font-semibold text-primary">Informasi Data Lokal Merapi</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+          Detail destinasi, elevasi kontur, koordinat GPS rute utama, dan kontak pos darurat tersimpan aman secara offline. Fitur asisten AI dan rekomendasi cuaca real-time tetap membutuhkan sinyal internet.
+        </p>
+</div>
+</div>
+</div>
+<!-- Destination Data Packs Section -->
+<div class="px-margin pt-4 pb-2">
+<div class="flex items-center justify-between mb-3">
+<div>
+<h3 class="font-headline-sm text-headline-sm font-bold text-on-surface">Paket Data Kawasan</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Peta topografi, jalur evakuasi, dan POI lokal</p>
+</div>
+<span class="font-label-sm text-label-sm bg-surface-container text-on-surface font-semibold px-2.5 py-1 rounded-full">
+        4 Wilayah
+      </span>
+</div>
+<div class="space-y-3">
+<!-- Item 1: Kaliadem & Cangkringan (Tersimpan) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm space-y-3">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">terrain</span>
+</div>
+<div class="min-w-0">
+<h4 class="font-title-md text-title-md font-bold text-on-surface truncate">Kaliadem &amp; Cangkringan</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-body-sm text-on-surface-variant font-medium">18.4 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-primary font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                  Tersimpan
+                </span>
+</div>
+</div>
+</div>
+<span class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm px-2 py-0.5 rounded font-medium shrink-0">
+            Lengkap
+          </span>
+</div>
+<div class="flex items-center justify-end gap-2 pt-1">
+<button class="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface font-label-md text-label-md font-semibold flex items-center gap-1.5 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+            Perbarui
+          </button>
+<button class="h-10 px-3.5 rounded-lg bg-surface-container text-error font-label-md text-label-md font-semibold flex items-center gap-1.5 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">delete_outline</span>
+            Hapus
+          </button>
+</div>
+</div>
+<!-- Item 2: Kaliurang & Plunyon (Tersimpan) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm space-y-3">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center shrink-0 text-primary">
+<span class="material-symbols-outlined text-[24px]" style="font-variation-settings: 'FILL' 1;">forest</span>
+</div>
+<div class="min-w-0">
+<h4 class="font-title-md text-title-md font-bold text-on-surface truncate">Kaliurang &amp; Plunyon</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-body-sm text-on-surface-variant font-medium">15.8 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-primary font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                  Tersimpan
+                </span>
+</div>
+</div>
+</div>
+<span class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm px-2 py-0.5 rounded font-medium shrink-0">
+            Lengkap
+          </span>
+</div>
+<div class="flex items-center justify-end gap-2 pt-1">
+<button class="h-10 px-3.5 rounded-lg bg-surface-container-low text-on-surface font-label-md text-label-md font-semibold flex items-center gap-1.5 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">sync</span>
+            Perbarui
+          </button>
+<button class="h-10 px-3.5 rounded-lg bg-surface-container text-error font-label-md text-label-md font-semibold flex items-center gap-1.5 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">delete_outline</span>
+            Hapus
+          </button>
+</div>
+</div>
+<!-- Item 3: Jalur Boyolali & Selo (Mengunduh / Active Progress) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm space-y-3">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-12 h-12 rounded-lg bg-surface-container flex items-center justify-center shrink-0 text-secondary">
+<span class="material-symbols-outlined text-[24px] animate-spin" style="animation-duration: 4s;">downloading</span>
+</div>
+<div class="min-w-0">
+<h4 class="font-title-md text-title-md font-bold text-on-surface truncate">Jalur Boyolali &amp; Selo</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-body-sm text-on-surface-variant font-medium">12.1 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">Mengunduh 68%</span>
+</div>
+</div>
+</div>
+<button class="w-9 h-9 rounded-full bg-surface-container-low hover:bg-surface-container text-primary flex items-center justify-center shrink-0 transition-colors" id="pauseDownloadBtn" title="Jeda Unduhan">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">pause</span>
+</button>
+</div>
+<!-- Download Active Progress Bar -->
+<div class="space-y-1.5">
+<div class="w-full bg-surface-variant h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full transition-all duration-300" style="width: 68%;"></div>
+</div>
+<div class="flex items-center justify-between font-label-sm text-label-sm text-on-surface-variant">
+<span>8.2 MB dari 12.1 MB</span>
+<span class="text-primary font-medium">1.4 MB/s • Sisa ~3 dtk</span>
+</div>
+</div>
+</div>
+<!-- Item 4: Geowisata Bebeng & Klangon (Gagal / Error State) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm space-y-3">
+<div class="flex items-start justify-between gap-3">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-12 h-12 rounded-lg bg-error-container flex items-center justify-center shrink-0 text-error">
+<span class="material-symbols-outlined text-[24px]">cloud_off</span>
+</div>
+<div class="min-w-0">
+<h4 class="font-title-md text-title-md font-bold text-on-surface truncate">Geowisata Bebeng &amp; Klangon</h4>
+<div class="flex items-center gap-2 mt-0.5">
+<span class="font-body-sm text-body-sm text-on-surface-variant font-medium">9.5 MB</span>
+<span class="w-1 h-1 rounded-full bg-outline-variant"></span>
+<span class="font-label-sm text-label-sm text-error font-semibold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[13px]">error</span>
+                  Unduhan Gagal
+                </span>
+</div>
+</div>
+</div>
+<span class="bg-error-container text-on-error-container font-label-sm text-label-sm px-2 py-0.5 rounded font-medium shrink-0">
+            Koneksi Terputus
+          </span>
+</div>
+<div class="bg-surface-container-low rounded-lg p-2.5 flex items-center justify-between gap-3">
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Sinyal seluler tidak stabil saat mengunduh tile peta.</span>
+<button class="h-9 px-3 rounded-lg bg-primary text-on-primary font-label-sm text-label-sm font-semibold flex items-center gap-1.5 shrink-0 active:scale-95 transition-all" id="retryBebengBtn">
+<span class="material-symbols-outlined text-[16px]">replay</span>
+            Coba Lagi
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Micro Guide / Database Info Card -->
+<div class="px-margin pt-4 pb-2">
+<div class="bg-surface-container-low rounded-xl p-space-md flex items-center gap-3 shadow-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[20px]">storage</span>
+</div>
+<div class="min-w-0">
+<h5 class="font-title-md text-title-md font-semibold text-primary truncate">Database Enkripsi SQLite &amp; Hive</h5>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Rute geojson diverifikasi berkala oleh Balai TN Merapi.</p>
+</div>
+</div>
+</div>
+<!-- Pinned Sticky Bottom Controls -->
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md shadow-md pb-safe">
+<div class="px-margin pt-3 pb-4 max-w-md mx-auto space-y-3">
+<!-- Wi-Fi Only Preference Toggle -->
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-[20px]">wifi</span>
+<span class="font-label-lg text-label-lg text-on-surface font-medium">Hanya Unduh via Wi-Fi</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" id="wifiToggle" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-variant peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Main Action Button -->
+<button class="w-full h-13 py-3.5 px-space-md rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md active:scale-[0.99] transition-all" id="downloadAllBtn">
+<span class="material-symbols-outlined text-[22px]">cloud_download</span>
+<span>Unduh Semua Data Kawasan Merapi (55 MB)</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  // Micro-interactions for offline management demo
+  const retryBtn = document.getElementById('retryBebengBtn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', function() {
+      const origText = this.innerHTML;
+      this.innerHTML = '<span class="material-symbols-outlined text-[16px] animate-spin">refresh</span> Menghubungkan...';
+      this.disabled = true;
+      setTimeout(() => {
+        this.innerHTML = '<span class="material-symbols-outlined text-[16px]">check</span> Antrean Dimulai';
+        setTimeout(() => {
+          this.innerHTML = origText;
+          this.disabled = false;
+        }, 1800);
+      }, 1200);
+    });
+  }
+
+  const pauseBtn = document.getElementById('pauseDownloadBtn');
+  if (pauseBtn) {
+    let isPaused = false;
+    pauseBtn.addEventListener('click', function() {
+      isPaused = !isPaused;
+      const icon = this.querySelector('span');
+      if (icon) {
+        icon.textContent = isPaused ? 'play_arrow' : 'pause';
+      }
+      this.title = isPaused ? 'Lanjutkan Unduhan' : 'Jeda Unduhan';
+    });
+  }
+
+  const downloadAll = document.getElementById('downloadAllBtn');
+  if (downloadAll) {
+    downloadAll.addEventListener('click', function() {
+      const origHtml = this.innerHTML;
+      this.innerHTML = '<span class="material-symbols-outlined text-[20px] animate-spin">sync</span><span>Memeriksa Paket Tersedia...</span>';
+      setTimeout(() => {
+        this.innerHTML = '<span class="material-symbols-outlined text-[20px]">check</span><span>Sinkronisasi Berjalan</span>';
+        setTimeout(() => {
+          this.innerHTML = origHtml;
+        }, 2000);
+      }, 1000);
+    });
+  }
+
+  const cleanBtn = document.getElementById('cleanCacheBtn');
+  if (cleanBtn) {
+    cleanBtn.addEventListener('click', function() {
+      const confirmed = confirm('Bersihkan cache rute sementara yang tidak terpakai?');
+      if (confirmed) {
+        alert('Cache peta sementara sebesar 6.4 MB berhasil dibersihkan.');
+      }
+    });
+  }
+</script></main></body></html>

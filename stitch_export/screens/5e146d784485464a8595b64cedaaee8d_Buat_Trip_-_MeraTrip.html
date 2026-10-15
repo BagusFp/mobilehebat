@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><title>MeraTrip</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100%;min-height:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed-dim": "#aed09e", "on-primary": "#ffffff", "primary": "#04432f", "secondary-container": "#c9edb8", "on-tertiary-container": "#bfc6b9", "outline": "#707973", "surface-bright": "#eafef0", "on-primary-fixed-variant": "#17503b", "inverse-on-surface": "#e1f6e8", "surface-container": "#dff3e5", "inverse-primary": "#9ad3b7", "surface-dim": "#cbdfd1", "surface-variant": "#d3e7da", "primary-fixed-dim": "#9ad3b7", "secondary": "#48663d", "tertiary": "#353c32", "on-secondary": "#ffffff", "surface-container-high": "#d9eddf", "on-primary-fixed": "#002115", "on-primary-container": "#98d1b5", "on-tertiary-fixed-variant": "#42493f", "tertiary-container": "#4c5349", "surface-tint": "#326852", "on-surface-variant": "#404944", "on-error": "#ffffff", "outline-variant": "#c0c9c2", "surface-container-highest": "#d3e7da", "on-surface": "#0e1f17", "on-secondary-container": "#4e6c43", "on-background": "#0e1f17", "surface-container-low": "#e4f9eb", "surface-container-lowest": "#ffffff", "tertiary-fixed": "#dee5d7", "secondary-fixed": "#c9edb8", "on-tertiary": "#ffffff", "inverse-surface": "#23342b", "on-secondary-fixed": "#062102", "surface": "#eafef0", "error-container": "#ffdad6", "error": "#ba1a1a", "primary-fixed": "#b5efd2", "on-secondary-fixed-variant": "#314e27", "on-tertiary-fixed": "#171d15", "background": "#eafef0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#c2c9bb", "primary-container": "#245b45" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1.25rem", "space-sm": "0.5rem", "space-xl": "2rem", "space-lg": "1.5rem", "gutter": "1rem", "space-xs": "0.25rem", "space-md": "1rem" }, "fontFamily": { "body-sm": ["Inter"], "headline-sm": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "display-mobile": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "body-md": ["Inter"], "body-lg": ["Inter"], "headline-md": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"] }, "fontSize": { "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "display-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }] } } } }</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(31,48,39,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Go back" class="w-11 h-11 -ml-2 flex items-center justify-center rounded-full text-on-surface hover:text-primary transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="MeraTrip Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WtwjOKRm0BjBbLBGHZg7q3NQVEXfoEm_aH1q4x67d64SxmR98JYLcvdmkC5e0s8h6BFS71P7_aNOzv01FdTmHlJkXpwD77QVWxAh_ut82LAXL5oumdMpRvOAhMgfBoJGMbATInFjCZRHgA8cx0StFB7WPv8KlADDzzpWX1JIb0plsN0KtGoeIUi0ZmpNbFKYpEOaN89hHwV1Djk7xFvf8PfOXzoCNUiJ1q6aAmiBEHbGHGItfjVvhDDQ"/><h1 class="font-title-md text-title-md text-on-surface font-semibold">Trail Detail</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Notifications" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">notifications</span></button><button aria-label="User Profile" class="w-11 h-11 flex items-center justify-center rounded-full p-0.5 hover:ring-2 hover:ring-primary/20 transition-all"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIo1vmynqyruG6Ce_NWbntravR9lopAKd8CwOvv6Zgfg_dXZIpIqdLzmXYyU5Up1CsuLmRDvM19ZcgnbZeAqsxJW1mXR-R8Bn0FLDV2vnjXjwxm68NboTTZuwp34WSZ60mxlkS53um0eg1evkta-XUGhLvsZ8ZaQX5tYOjgOsJY7L4kPYHJBdxYYjcM_atNmUqE8dcADVJz7u0R53p0r05OmUUw0gYLUKkNr57kqc_e4NIQCK8BCE"/></button></div></div></header><main class="flex-1 w-full pt-16 pb-safe bg-surface flex flex-col"><div class="flex flex-col w-full">
+<!-- Stepper Progress Bar -->
+<div class="px-margin pt-space-md pb-space-sm bg-surface-container-low shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-secondary font-semibold">Langkah 2 dari 4</span>
+<span class="font-label-md text-label-md text-primary font-semibold">Pilih &amp; Atur Destinasi</span>
+</div>
+<!-- Stepper Icons & Line -->
+<div class="relative flex items-center justify-between">
+<!-- Background Connecting Track -->
+<div class="absolute left-4 right-4 top-1/2 -translate-y-1/2 h-1 bg-surface-variant z-0 rounded-full"></div>
+<!-- Active Progress Track Fill (up to step 2) -->
+<div class="absolute left-4 top-1/2 -translate-y-1/2 h-1 bg-primary z-0 rounded-full" style="width: 33.33%;"></div>
+<!-- Step 1: Informasi (Completed) -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<span class="mt-1 font-label-sm text-label-sm text-on-surface-variant font-medium">Informasi</span>
+</div>
+<!-- Step 2: Destinasi (Active) -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md ring-4 ring-secondary-container/60">
+<span class="material-symbols-outlined text-[18px]">pin_drop</span>
+</div>
+<span class="mt-1 font-label-sm text-label-sm text-primary font-bold">Destinasi</span>
+</div>
+<!-- Step 3: Jadwal -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+</div>
+<span class="mt-1 font-label-sm text-label-sm text-outline font-medium">Jadwal</span>
+</div>
+<!-- Step 4: Review -->
+<div class="relative z-10 flex flex-col items-center">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+</div>
+<span class="mt-1 font-label-sm text-label-sm text-outline font-medium">Budget</span>
+</div>
+</div>
+</div>
+<div class="px-margin flex flex-col gap-space-lg py-space-md pb-28">
+<!-- Trip Metadata Banner -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 w-24 h-24 bg-secondary-container/20 rounded-full blur-xl pointer-events-none"></div>
+<div class="flex items-start justify-between gap-space-sm relative z-10">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-primary">terrain</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Eksplorasi Merapi 1 Hari</h2>
+</div>
+<div class="flex flex-wrap items-center gap-x-2 gap-y-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span>
+              Sabtu, 19 Okt 2024
+            </span>
+<span>•</span>
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">group</span>
+              2 Orang
+            </span>
+<span>•</span>
+<span class="text-primary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">account_balance_wallet</span>
+              Target Rp 400.000
+            </span>
+</div>
+</div>
+<button aria-label="Edit Detail Trip" class="w-9 h-9 rounded-full bg-surface-container-low hover:bg-surface-container flex items-center justify-center text-primary transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+</div>
+</div>
+<!-- Volcanic Advisory Status Ribbon -->
+<div class="bg-surface-container rounded-xl p-space-sm flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-space-sm">
+<span class="relative flex h-3 w-3">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+</span>
+<span class="font-label-sm text-label-sm text-on-surface font-semibold">Status Vulkanik: Siaga Level II (Waspada)</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary bg-surface-container-lowest px-2 py-0.5 rounded-full font-medium shadow-sm">Zona Rute Aman</span>
+</div>
+<!-- Destination Reorderable List Section -->
+<div class="flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<h3 class="font-title-md text-title-md text-on-surface">Destinasi Terpilih</h3>
+<span class="font-label-sm text-label-sm bg-primary-container text-on-primary px-2 py-0.5 rounded-full font-bold">3 Destinasi</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">drag_indicator</span> Geser untuk urutan
+        </span>
+</div>
+<!-- Destination Items List -->
+<div class="flex flex-col gap-space-sm" id="destination-list">
+<!-- Stop 1 -->
+<div class="destination-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" draggable="true">
+<div class="flex gap-space-sm items-start">
+<!-- Drag Handle & Stop Badge -->
+<div class="flex flex-col items-center gap-1 cursor-grab pt-1 text-outline">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+<span class="w-6 h-6 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm flex items-center justify-center font-bold">1</span>
+</div>
+<!-- Thumbnail -->
+<div class="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container relative shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Plunyon Kalikuning Yogyakarta featuring a scenic yellow suspension bridge over a lush pine valley with morning volcanic fog, Mount Merapi in the background, soft morning golden hour lighting, peaceful outdoor highland atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA6HAQwaq7wq_8-eUImi4tjKnM1vOcvJ_hRSUbUz4qWiScVAOeByPmjSysA5H1oEtsz77T4LThBx3IoO2vjKzh9UkywqtgZnQA-kegtLW-VXRTotaUjQY4mslwgaqIKLZddIib6jEl0dPV2yc7jO1LVqhWHzaNMVxTf9uoN_ildf9E3e7ZDAmI0THeQHx_PNJE0fYPIGkL9U5xKrMe-vmrRQuoQFFCeN4liGmmwciXYL7863Q-uKSM"/>
+<div class="absolute bottom-0 inset-x-0 bg-primary/70 text-on-primary font-label-sm text-[10px] text-center py-0.5 font-medium backdrop-blur-sm">07:30 - 09:00</div>
+</div>
+<!-- Content -->
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between">
+<div>
+<h4 class="font-title-md text-title-md text-on-surface leading-tight font-semibold">Plunyon Kalikuning</h4>
+<p class="font-body-sm text-body-sm text-secondary font-medium">Spot Pagi &amp; Jembatan Kabut</p>
+</div>
+<button aria-label="Hapus destinasi" class="text-outline hover:text-error transition-colors p-1 -mr-1">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">timer</span>
+                  1.5 Jam
+                </span>
+<span class="flex items-center gap-1 font-medium text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-secondary">confirmation_number</span>
+                  Rp 12.000 x 2 = Rp 24.000
+                </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Connection Micro-route Tag -->
+<div class="flex items-center justify-center gap-1 font-label-sm text-label-sm text-on-surface-variant py-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>Perjalanan via Jalan Kaliurang (15 mnt • 4.2 km)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+</div>
+<!-- Stop 2 -->
+<div class="destination-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" draggable="true">
+<div class="flex gap-space-sm items-start">
+<!-- Drag Handle & Stop Badge -->
+<div class="flex flex-col items-center gap-1 cursor-grab pt-1 text-outline">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+<span class="w-6 h-6 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm flex items-center justify-center font-bold">2</span>
+</div>
+<!-- Thumbnail -->
+<div class="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container relative shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Bunker Kaliadem near the foot of Mount Merapi volcano, surrounded by black volcanic sand and pine trees, dramatic mountain peak in clear daylight, authentic eco-tourism travel experience." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZH75v3H_TMxQjZHfcUBtUAqj_5mxEGn7WAZEI6GQocm2pLjbV0b3DkA-9r_Jv8IrzDaN3a-7Ih5gNXYzgDusrT-ebJp7qz9hTLf06oKyU11JYAHGT0A8XfDW-7tM18Mv0QGbLseC-JfmVvPY---e-pBz24Jsju0rAH3V0gfqG7t4g1as7mFAVI21gOM_2oeue_dzxY-bUIY8JXnCgUP32iAQ9BiSdn45Tg-qiVl53FrbAu-5Sk-s"/>
+<div class="absolute bottom-0 inset-x-0 bg-primary/70 text-on-primary font-label-sm text-[10px] text-center py-0.5 font-medium backdrop-blur-sm">09:30 - 11:00</div>
+</div>
+<!-- Content -->
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between">
+<div>
+<h4 class="font-title-md text-title-md text-on-surface leading-tight font-semibold">Bunker Kaliadem</h4>
+<p class="font-body-sm text-body-sm text-secondary font-medium">Panorama Puncak &amp; Edukasi Vulkanik</p>
+</div>
+<button aria-label="Hapus destinasi" class="text-outline hover:text-error transition-colors p-1 -mr-1">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">timer</span>
+                  1.5 Jam
+                </span>
+<span class="flex items-center gap-1 font-medium text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-secondary">confirmation_number</span>
+                  Rp 10.000 x 2 = Rp 20.000
+                </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Connection Micro-route Tag -->
+<div class="flex items-center justify-center gap-1 font-label-sm text-label-sm text-on-surface-variant py-0.5">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span>Perjalanan ke Museum (12 mnt • 3.1 km)</span>
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+</div>
+<!-- Stop 3 -->
+<div class="destination-card bg-surface-container-lowest rounded-xl p-space-md shadow-sm transition-all relative overflow-hidden" draggable="true">
+<div class="flex gap-space-sm items-start">
+<!-- Drag Handle & Stop Badge -->
+<div class="flex flex-col items-center gap-1 cursor-grab pt-1 text-outline">
+<span class="material-symbols-outlined text-[20px]">drag_handle</span>
+<span class="w-6 h-6 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm flex items-center justify-center font-bold">3</span>
+</div>
+<!-- Thumbnail -->
+<div class="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-surface-container relative shadow-sm">
+<img class="w-full h-full object-cover" data-alt="Museum Sisa Hartaku Merapi in Yogyakarta, exhibiting melted household relics, an iconic clock frozen at the eruption time, vintage motorcycle frame against rustic wooden backdrop, historic and poignant atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC5LH2AvqiTusX2RgGlXiopRQygq3lbqDOiDkoapnWWdq1mJcZo-6zYBQ8uqVNjoistBtgO7gnwSgQuPA74i7YZnjVdv4ZDg9MhsNCAbsn2zwP2BdnnAn34k2gL8gw0uoE7J5oopEZDt_NMrwj7-IT-HhfyJytQcI9SRMGu3A-wz0ZRsilU8YRG8nn_30BcKeKVSO_6q27cjK4pmm5FtfAgT--4GpGxbfTUHVvzxtqSJeVMw7WUGNQ"/>
+<div class="absolute bottom-0 inset-x-0 bg-primary/70 text-on-primary font-label-sm text-[10px] text-center py-0.5 font-medium backdrop-blur-sm">11:30 - 13:00</div>
+</div>
+<!-- Content -->
+<div class="flex-1 min-w-0">
+<div class="flex items-start justify-between">
+<div>
+<h4 class="font-title-md text-title-md text-on-surface leading-tight font-semibold">Museum Sisa Hartaku</h4>
+<p class="font-body-sm text-body-sm text-secondary font-medium">Museum Memori Erupsi 2010</p>
+</div>
+<button aria-label="Hapus destinasi" class="text-outline hover:text-error transition-colors p-1 -mr-1">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 font-body-sm text-body-sm text-on-surface-variant">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">timer</span>
+                  1.0 Jam
+                </span>
+<span class="flex items-center gap-1 font-medium text-on-surface">
+<span class="material-symbols-outlined text-[14px] text-secondary">volunteer_activism</span>
+                  Estimasi Donasi: Rp 10.000
+                </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Add Destination Action Card -->
+<button class="w-full py-3.5 px-space-md bg-surface-container-low hover:bg-surface-container rounded-xl flex items-center justify-center gap-2 text-primary font-label-lg text-label-lg font-semibold transition-all active:scale-[0.99] shadow-sm">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+        Tambah Destinasi Lain di Sekitar Merapi
+      </button>
+</div>
+<!-- Optional Activity Toggle Card (Jeep Lava Tour) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-surface-container flex items-center justify-center text-primary flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">directions_car</span>
+</div>
+<div>
+<h4 class="font-title-md text-title-md text-on-surface leading-tight">Sertakan Jeep Lava Tour Merapi</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Tur off-road rute sungai &amp; bebatuan</p>
+</div>
+</div>
+<!-- Toggle Switch -->
+<label class="relative inline-flex items-center cursor-pointer flex-shrink-0">
+<input class="sr-only peer" id="jeep-toggle" type="checkbox"/>
+<div class="w-12 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary shadow-inner"></div>
+</label>
+</div>
+<div class="bg-surface-container-low p-space-sm rounded-lg flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary">savings</span>
+<span class="font-body-sm text-body-sm text-secondary font-medium" id="jeep-status-desc">Toggle OFF: Menjaga trip tetap mandiri, santai, dan hemat budget.</span>
+</div>
+</div>
+<!-- Live Estimate & Budget Summary Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[20px] text-primary">analytics</span>
+<h3 class="font-title-md text-title-md text-on-surface">Kalkulator Rencana Trip</h3>
+</div>
+<span class="font-label-sm text-label-sm bg-secondary-container text-on-secondary-container px-2.5 py-0.5 rounded-full font-semibold">Update Otomatis</span>
+</div>
+<!-- Time & Distance Gauge -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-lg">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[20px] text-primary">schedule</span>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Total Durasi Aktivitas</p>
+<p class="font-headline-sm text-headline-sm text-on-surface">5 Jam 30 Menit</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-secondary font-medium">Termasuk 45 mnt perjalanan</span>
+</div>
+</div>
+<!-- Budget Breakdown -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between font-body-sm text-body-sm">
+<span class="text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-outline">payments</span>
+            Total Tiket &amp; Donasi (2 Orang)
+          </span>
+<span class="font-semibold text-on-surface">Rp 54.000</span>
+</div>
+<div class="flex items-center justify-between font-body-sm text-body-sm">
+<span class="text-on-surface-variant flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-outline">local_parking</span>
+            Estimasi Parkir Kendaraan
+          </span>
+<span class="font-semibold text-on-surface">Rp 10.000</span>
+</div>
+<div class="flex items-center justify-between font-body-sm text-body-sm pt-2 bg-surface-container-highest/30 px-2 py-1.5 rounded-lg">
+<span class="font-medium text-on-surface">Estimasi Biaya Wajib</span>
+<span class="font-bold text-primary">Rp 64.000 <span class="font-label-sm text-label-sm text-on-surface-variant font-normal">(Rp 32.000/org)</span></span>
+</div>
+</div>
+<!-- Budget Health Indicator -->
+<div class="p-space-sm bg-secondary-container/50 rounded-xl flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-on-primary shadow-sm">
+<span class="material-symbols-outlined text-[16px]">check_circle</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-secondary-container">Sisa Target Budget</p>
+<p class="font-headline-sm text-headline-sm text-primary font-bold">Rp 336.000</p>
+</div>
+</div>
+<div class="text-right">
+<span class="font-label-sm text-label-sm text-primary font-bold uppercase tracking-wider bg-surface-container-lowest px-2 py-1 rounded shadow-sm">Sangat Aman</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Untuk makan &amp; oleh-oleh</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Sticky Action Bar -->
+<div class="fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md shadow-[0_-4px_16px_rgba(31,48,39,0.08)] py-3 px-margin pb-safe">
+<div class="flex items-center gap-space-sm max-w-md mx-auto w-full">
+<button class="h-12 px-4 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary font-label-lg text-label-lg font-semibold flex items-center justify-center gap-1 transition-all active:scale-95 flex-shrink-0" onclick="history.back()">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+        Kembali
+      </button>
+<button class="flex-1 h-12 bg-primary-container hover:bg-primary text-on-primary rounded-xl font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98]" id="btn-next">
+<span>Lanjut ke Atur Jadwal</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  // Simple micro-interaction for the Jeep Lava Tour switch
+  const jeepToggle = document.getElementById('jeep-toggle');
+  const jeepDesc = document.getElementById('jeep-status-desc');
+
+  if (jeepToggle && jeepDesc) {
+    jeepToggle.addEventListener('change', function() {
+      if (this.checked) {
+        jeepDesc.textContent = 'Toggle ON: Paket Short Trip ditambahkan (+ Rp 400.000 untuk 1 Jeep / maks 4 orang).';
+      } else {
+        jeepDesc.textContent = 'Toggle OFF: Menjaga trip tetap mandiri, santai, dan hemat budget.';
+      }
+    });
+  }
+
+  // Interactive feedback for destination item removal or drag visual indication
+  const destinationCards = document.querySelectorAll('.destination-card');
+  destinationCards.forEach(card => {
+    card.addEventListener('dragstart', () => {
+      card.classList.add('opacity-50');
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('opacity-50');
+    });
+  });
+</script></main></body></html>

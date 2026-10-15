@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><title>MeraTrip</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100%;min-height:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed-dim": "#aed09e", "on-primary": "#ffffff", "primary": "#04432f", "secondary-container": "#c9edb8", "on-tertiary-container": "#bfc6b9", "outline": "#707973", "surface-bright": "#eafef0", "on-primary-fixed-variant": "#17503b", "inverse-on-surface": "#e1f6e8", "surface-container": "#dff3e5", "inverse-primary": "#9ad3b7", "surface-dim": "#cbdfd1", "surface-variant": "#d3e7da", "primary-fixed-dim": "#9ad3b7", "secondary": "#48663d", "tertiary": "#353c32", "on-secondary": "#ffffff", "surface-container-high": "#d9eddf", "on-primary-fixed": "#002115", "on-primary-container": "#98d1b5", "on-tertiary-fixed-variant": "#42493f", "tertiary-container": "#4c5349", "surface-tint": "#326852", "on-surface-variant": "#404944", "on-error": "#ffffff", "outline-variant": "#c0c9c2", "surface-container-highest": "#d3e7da", "on-surface": "#0e1f17", "on-secondary-container": "#4e6c43", "on-background": "#0e1f17", "surface-container-low": "#e4f9eb", "surface-container-lowest": "#ffffff", "tertiary-fixed": "#dee5d7", "secondary-fixed": "#c9edb8", "on-tertiary": "#ffffff", "inverse-surface": "#23342b", "on-secondary-fixed": "#062102", "surface": "#eafef0", "error-container": "#ffdad6", "error": "#ba1a1a", "primary-fixed": "#b5efd2", "on-secondary-fixed-variant": "#314e27", "on-tertiary-fixed": "#171d15", "background": "#eafef0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#c2c9bb", "primary-container": "#245b45" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1.25rem", "space-sm": "0.5rem", "space-xl": "2rem", "space-lg": "1.5rem", "gutter": "1rem", "space-xs": "0.25rem", "space-md": "1rem" }, "fontFamily": { "body-sm": ["Inter"], "headline-sm": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "display-mobile": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "body-md": ["Inter"], "body-lg": ["Inter"], "headline-md": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"] }, "fontSize": { "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "display-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }] } } } }</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(31,48,39,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Go back" class="w-11 h-11 -ml-2 flex items-center justify-center rounded-full text-on-surface hover:text-primary transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><img alt="MeraTrip Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WtwjOKRm0BjBbLBGHZg7q3NQVEXfoEm_aH1q4x67d64SxmR98JYLcvdmkC5e0s8h6BFS71P7_aNOzv01FdTmHlJkXpwD77QVWxAh_ut82LAXL5oumdMpRvOAhMgfBoJGMbATInFjCZRHgA8cx0StFB7WPv8KlADDzzpWX1JIb0plsN0KtGoeIUi0ZmpNbFKYpEOaN89hHwV1Djk7xFvf8PfOXzoCNUiJ1q6aAmiBEHbGHGItfjVvhDDQ"/><h1 class="font-title-md text-title-md text-on-surface font-semibold">Trail Detail</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Notifications" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">notifications</span></button><button aria-label="User Profile" class="w-11 h-11 flex items-center justify-center rounded-full p-0.5 hover:ring-2 hover:ring-primary/20 transition-all"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIo1vmynqyruG6Ce_NWbntravR9lopAKd8CwOvv6Zgfg_dXZIpIqdLzmXYyU5Up1CsuLmRDvM19ZcgnbZeAqsxJW1mXR-R8Bn0FLDV2vnjXjwxm68NboTTZuwp34WSZ60mxlkS53um0eg1evkta-XUGhLvsZ8ZaQX5tYOjgOsJY7L4kPYHJBdxYYjcM_atNmUqE8dcADVJz7u0R53p0r05OmUUw0gYLUKkNr57kqc_e4NIQCK8BCE"/></button></div></div></header><main class="flex-1 w-full pt-16 pb-safe bg-surface flex flex-col"><div class="flex flex-col w-full pb-32">
+<!-- Volcanic Activity Live Bar -->
+<div class="px-margin pt-space-sm pb-space-xs">
+<div class="flex items-center justify-between px-space-md py-2.5 rounded-xl bg-surface-container-high">
+<div class="flex items-center gap-space-sm min-w-0">
+<span class="relative flex h-2.5 w-2.5 flex-shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary-fixed-dim opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider font-semibold truncate">Status Merapi: Waspada (Level II)</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant flex-shrink-0">Aman radius 3km+</span>
+</div>
+</div>
+<!-- Hero Visual Section -->
+<div class="px-margin pt-space-xs">
+<div class="relative w-full h-72 rounded-xl overflow-hidden shadow-sm">
+<div class="w-full h-full bg-cover bg-center" data-alt="Scenic eye-level outdoor landscape photography of historic stone Bunker Kaliadem with the majestic cone peak of Mount Merapi looming dramatically in background, morning golden hour sunlight kissing pine trees, volcanic black sand terrain, clear azure tropical sky with soft volcanic mist ribbons, highland Yogyakarta atmosphere, deep forest pine green and earthen tones." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAT5SWRj9svCiCBlgYQx-zjjhyIZQ5obyW29TwX8hzE5Kypnjt2XCT_aIxPg_VVv7WgrpGcCDqPyRVRXO4KbCMAz0DGV5uxOBVT1Xmb7iR5rzWOf_rSa3MzPiIhKT5twdqV6OFikGTSio858GCmZgcX2T__egyhyosgIhO3w5SnZZMjhWC2sbCeWnE8mHLxuV9z6LVj8ogmkLQSxHfEXY8KWYkJDjxiMoNk576yo3CyJTti8_Sacqg')">
+</div>
+<!-- Soft Gradient Overlay -->
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/20 to-transparent"></div>
+<!-- Floating Badges Top -->
+<div class="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
+<div class="px-3 py-1.5 rounded-full bg-surface-container-lowest/90 backdrop-blur-md shadow-sm">
+<span class="font-label-sm text-label-sm text-primary font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">nature_people</span>
+            Alam &amp; Sejarah Vulkanik
+          </span>
+</div>
+<div class="px-3 py-1.5 rounded-full bg-secondary-container/95 backdrop-blur-md shadow-sm">
+<span class="font-label-sm text-label-sm text-on-secondary-container font-semibold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+            Buka Hari Ini
+          </span>
+</div>
+</div>
+<!-- Hero Bottom Overlay Metadata -->
+<div class="absolute bottom-3 left-3 right-3 text-on-primary">
+<div class="flex items-center gap-1 text-primary-fixed font-label-sm text-label-sm mb-1">
+<span class="material-symbols-outlined text-[16px]">mountain_flag</span>
+<span>Ketinggian ± 1.100 mdpl</span>
+</div>
+<p class="font-body-sm text-body-sm text-surface-variant line-clamp-1">Kawasan Wisata Lereng Selatan Gunung Merapi</p>
+</div>
+</div>
+</div>
+<!-- Core Destination Header -->
+<section class="px-margin pt-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="min-w-0">
+<h1 class="font-headline-lg text-headline-lg text-on-surface">Bunker Kaliadem Merapi</h1>
+<div class="flex items-start gap-1.5 mt-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px] text-primary flex-shrink-0 mt-0.5">location_on</span>
+<p class="font-body-md text-body-md text-on-surface-variant leading-snug">Dusun Kinahrejo, Cangkringan, Sleman, D.I. Yogyakarta</p>
+</div>
+</div>
+<button aria-label="Simpan ke favorit" class="w-12 h-12 flex-shrink-0 rounded-full bg-surface-container-low flex items-center justify-center text-on-surface hover:bg-surface-container-high transition-colors active:scale-95" id="favorite-btn">
+<span class="material-symbols-outlined text-[24px]" id="fav-icon">favorite</span>
+</button>
+</div>
+<!-- Distance & Trail Notice Banner -->
+<div class="mt-space-sm p-space-sm rounded-lg bg-surface-container flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-[20px] text-secondary">explore</span>
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">Sekitar 4,5 km dari puncak aktif Merapi • Akses jalan aspal &amp; jalur lava</p>
+</div>
+</section>
+<!-- Quick Action Buttons Row -->
+<section class="px-margin pt-space-md">
+<div class="grid grid-cols-3 gap-space-sm">
+<!-- Offline Save -->
+<button class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container transition-all" id="offline-btn">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-1.5">
+<span class="material-symbols-outlined text-[22px]" id="offline-icon">download_for_offline</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center font-medium leading-tight" id="offline-label">Simpan Offline</span>
+</button>
+<!-- Add to My Trip -->
+<button class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container transition-all" id="mytrip-btn">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-1.5">
+<span class="material-symbols-outlined text-[22px]" id="mytrip-icon">playlist_add</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center font-medium leading-tight" id="mytrip-label">Tambah ke Trip</span>
+</button>
+<!-- Open Map Navigation -->
+<a class="flex flex-col items-center justify-center p-3 rounded-xl bg-surface-container-lowest shadow-sm active:bg-surface-container transition-all" href="#map-section">
+<div class="w-10 h-10 rounded-full bg-surface-container-low flex items-center justify-center text-primary mb-1.5">
+<span class="material-symbols-outlined text-[22px]">directions</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center font-medium leading-tight">Buka di Peta</span>
+</a>
+</div>
+</section>
+<!-- Key Travel Info Cards (Grid 2x2) -->
+<section class="px-margin pt-space-lg">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Informasi Ringkas</h2>
+<div class="grid grid-cols-2 gap-space-sm">
+<!-- Card 1: Tiket -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between">
+<div class="flex items-center gap-space-xs text-primary mb-2">
+<span class="material-symbols-outlined text-[20px]">confirmation_number</span>
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">Tiket Masuk</span>
+</div>
+<div>
+<p class="font-title-md text-title-md text-primary font-bold">Rp 10.000<span class="font-body-sm text-body-sm text-on-surface-variant font-normal"> /org</span></p>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Termasuk retribusi kawasan</p>
+</div>
+</div>
+<!-- Card 2: Jam Operasional -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between">
+<div class="flex items-center gap-space-xs text-secondary mb-2">
+<span class="material-symbols-outlined text-[20px]">schedule</span>
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">Jam Buka</span>
+</div>
+<div>
+<p class="font-title-md text-title-md text-on-surface font-bold">06.00 - 17.00</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">WIB (Setiap Hari)</p>
+</div>
+</div>
+<!-- Card 3: Estimasi Waktu -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between">
+<div class="flex items-center gap-space-xs text-primary mb-2">
+<span class="material-symbols-outlined text-[20px]">timer</span>
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">Kunjungan</span>
+</div>
+<div>
+<p class="font-title-md text-title-md text-on-surface font-bold">45 - 60 Menit</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Ideal foto pagi hari</p>
+</div>
+</div>
+<!-- Card 4: Suhu Rata-rata -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm flex flex-col justify-between">
+<div class="flex items-center gap-space-xs text-secondary mb-2">
+<span class="material-symbols-outlined text-[20px]">thermostat</span>
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">Suhu Rata-rata</span>
+</div>
+<div>
+<p class="font-title-md text-title-md text-on-surface font-bold">18°C - 24°C</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-0.5">Sejuk &amp; berkabut</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Complete Narrative Description -->
+<section class="px-margin pt-space-lg">
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-space-sm">Deskripsi Lengkap</h2>
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm">
+<p class="font-body-md text-body-md text-on-surface leading-relaxed">
+        Bunker Kaliadem dibangun sebagai ruang perlindungan darurat saat awan panas (<em class="text-secondary font-medium">wedhus gembel</em>) meluncur dari puncak Merapi. Kini kawasan ini menjadi salah satu spot wisata edukasi dan panorama paling populer, menyuguhkan pemandangan kerucut Merapi tanpa halangan pada pagi hari.
+      </p>
+<!-- Interactive Micro-Tip -->
+<div class="mt-space-md p-space-sm rounded-lg bg-surface-container-low flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-[20px] text-primary flex-shrink-0 mt-0.5">wb_twilight</span>
+<div class="min-w-0">
+<p class="font-label-md text-label-md text-primary font-semibold">Waktu Terbaik Kunjungan</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-snug">Pukul 05.30 - 08.00 WIB untuk langit jernih bebas kabut tebal.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Facilities / Fasilitas Tersedia -->
+<section class="px-margin pt-space-lg">
+<div class="flex items-center justify-between mb-space-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Fasilitas Tersedia</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant">5 Fasilitas Utama</span>
+</div>
+<div class="flex flex-wrap gap-2">
+<div class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container-lowest shadow-sm text-on-surface font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-secondary">local_parking</span>
+<span>Area Parkir</span>
+</div>
+<div class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container-lowest shadow-sm text-on-surface font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-secondary">local_cafe</span>
+<span>Warung Kopi &amp; Makanan Lokal</span>
+</div>
+<div class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container-lowest shadow-sm text-on-surface font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-secondary">wc</span>
+<span>Toilet Umum</span>
+</div>
+<div class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container-lowest shadow-sm text-on-surface font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-secondary">record_voice_over</span>
+<span>Pemandu Lokal</span>
+</div>
+<div class="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-surface-container-lowest shadow-sm text-on-surface font-body-md text-body-md">
+<span class="material-symbols-outlined text-[18px] text-secondary">photo_camera</span>
+<span>Spot Foto Panorama</span>
+</div>
+</div>
+</section>
+<!-- Map Preview Section -->
+<section class="px-margin pt-space-lg scroll-mt-20" id="map-section">
+<div class="flex items-center justify-between mb-space-sm">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Peta Lokasi &amp; Akses</h2>
+<span class="font-body-sm text-body-sm text-on-surface-variant font-mono">7.5833° S, 110.4422° E</span>
+</div>
+<div class="rounded-xl overflow-hidden bg-surface-container-lowest shadow-sm p-space-sm">
+<div class="w-full h-48 rounded-lg bg-cover bg-center relative" data-location="Bunker Kaliadem, Sleman, Yogyakarta" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCog4w0hOPHxxUOuhlt4fKikFKGP0-uvbJwbBycHIMJjpEQqgcXnhCotR5HaK5id_VvIxyFRFdFk1e75U2Mn9Bm6OVzcjw4EJofF-mIjQi38B9OWmwiHHo1xnVyCkPzsmgUSn8kCAWeLzf8_yONhY7Ly6b2RbV88A4E5ah_W7xjcQ9nP5GX73ddfVPmOp91FCl0n06xdBMCoegahBPWngirS_g9cftlyRdSXgua2ZYA6bAdPWqxOq8')">
+<!-- Floating Interactive Pin Badge -->
+<div class="absolute inset-0 flex items-center justify-center">
+<div class="flex items-center gap-1 px-3 py-1.5 rounded-full bg-primary text-on-primary shadow-md animate-bounce">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">pin_drop</span>
+<span class="font-label-sm text-label-sm font-semibold">Bunker Kaliadem</span>
+</div>
+</div>
+</div>
+<div class="pt-space-sm px-1 flex flex-col gap-space-sm">
+<div class="flex items-center justify-between text-on-surface-variant text-body-sm font-body-sm">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]">navigation</span>
+            32 km dari Tugu Yogyakarta
+          </span>
+<span class="text-primary font-medium">± 55 menit perjalanan</span>
+</div>
+<button class="w-full h-12 rounded-lg bg-surface-container-low text-primary font-headline-sm text-title-md font-semibold flex items-center justify-center gap-space-sm active:bg-surface-container transition-colors" onclick="navigator.clipboard &amp;&amp; navigator.clipboard.writeText('7.5833 S, 110.4422 E'); alert('Koordinat disalin ke papan klip!');">
+<span class="material-symbols-outlined text-[20px]">near_me</span>
+          Petunjuk Arah &amp; Navigasi Rute
+        </button>
+</div>
+</div>
+</section>
+<!-- Supporting Optional Activity (Jeep Lava Tour) -->
+<section class="px-margin pt-space-lg">
+<div class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm relative overflow-hidden">
+<div class="flex items-start gap-space-md">
+<div class="w-20 h-20 rounded-lg flex-shrink-0 overflow-hidden shadow-xs">
+<img class="w-full h-full object-cover" data-alt="Open roof classic 4x4 offroad jeep vehicle navigating bumpy volcanic ash riverbed near Mount Merapi Kaliadem, high spray of river water, smiling Indonesian adventure tourists, rugged green mountain forest background under morning tropical light." src="https://lh3.googleusercontent.com/aida-public/AB6AXuARhAMdoUDpuS7T_kuzsoyZwn7y1BG8WRLOLVahyXjVSaPv3rZdvPsX7rJpyfiiBhX2w7vApfHlSuaQnTkjEqLoloArkq2FkAoRmp3kRaUY_06RHUkyqWZglrhWviQGsIlRofb-DzgqBN8Y5XmyULeOquvWWEbiym199sbR2BjioMunn5eO0Lg0wrGde-3DeA21WCBQjyQfAD9mTnNXQ82tGXZmxwWWyHqhFDhcGr07MUY5Il6ojkI"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="inline-flex px-2 py-0.5 rounded bg-surface-container text-primary font-label-sm text-label-sm font-semibold mb-1">
+            Aktivitas Rekomendasi
+          </div>
+<h3 class="font-title-md text-title-md text-on-surface font-semibold truncate">Jeep Lava Tour Rute Pendek</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-0.5">
+            Jelajahi Batu Alien, Museum Sisa Hartaku &amp; Bunker dengan armada 4x4 lokal.
+          </p>
+</div>
+</div>
+<div class="mt-space-md pt-space-sm flex items-center justify-between">
+<div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Mulai dari</span>
+<p class="font-title-md text-title-md text-primary font-bold">Rp 350.000<span class="font-body-sm text-body-sm text-on-surface-variant font-normal"> /jeep (4 org)</span></p>
+</div>
+<button class="h-10 px-4 rounded-full bg-surface-container-low text-primary font-headline-sm text-body-md font-semibold flex items-center gap-1 active:bg-surface-container transition-all" id="add-jeep-plan">
+<span class="material-symbols-outlined text-[18px]">add_circle</span>
+<span id="jeep-plan-label">Tambahkan ke Rencana</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Floating Sticky Bottom Action Bar -->
+<div class="fixed bottom-0 left-0 right-0 z-40 bg-surface-container-lowest/95 backdrop-blur-md shadow-xl px-margin py-3 pb-safe">
+<div class="max-w-md mx-auto flex items-center justify-between gap-space-md">
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-on-surface-variant leading-none">Tiket Masuk Mulai</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-headline-md text-headline-md text-primary font-bold">Rp 10.000</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">/ orang</span>
+</div>
+</div>
+<button class="flex-1 h-13 px-5 rounded-full bg-primary-container text-on-primary font-headline-sm text-title-md font-semibold shadow-md active:bg-primary transition-all flex items-center justify-center gap-space-sm active:scale-[0.98]" id="main-cta-btn">
+<span class="material-symbols-outlined text-[20px]" id="cta-icon">event_available</span>
+<span id="cta-label">Tambahkan ke Itinerary Trip</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  // Simple micro-interactions for feedback
+  const favBtn = document.getElementById('favorite-btn');
+  const favIcon = document.getElementById('fav-icon');
+  let isFav = false;
+  favBtn?.addEventListener('click', () => {
+    isFav = !isFav;
+    favIcon.style.fontVariationSettings = isFav ? "'FILL' 1" : "'FILL' 0";
+    favIcon.classList.toggle('text-error', isFav);
+  });
+
+  const offlineBtn = document.getElementById('offline-btn');
+  const offlineIcon = document.getElementById('offline-icon');
+  const offlineLabel = document.getElementById('offline-label');
+  let isOffline = false;
+  offlineBtn?.addEventListener('click', () => {
+    isOffline = !isOffline;
+    if (isOffline) {
+      offlineIcon.textContent = 'check_circle';
+      offlineIcon.style.fontVariationSettings = "'FILL' 1";
+      offlineLabel.textContent = 'Tersimpan';
+      offlineBtn.classList.add('bg-secondary-container');
+    } else {
+      offlineIcon.textContent = 'download_for_offline';
+      offlineIcon.style.fontVariationSettings = "'FILL' 0";
+      offlineLabel.textContent = 'Simpan Offline';
+      offlineBtn.classList.remove('bg-secondary-container');
+    }
+  });
+
+  const tripBtn = document.getElementById('mytrip-btn');
+  const tripIcon = document.getElementById('mytrip-icon');
+  const tripLabel = document.getElementById('mytrip-label');
+  let isTripAdded = false;
+  tripBtn?.addEventListener('click', () => {
+    isTripAdded = !isTripAdded;
+    if (isTripAdded) {
+      tripIcon.textContent = 'playlist_add_check';
+      tripLabel.textContent = 'Dalam Trip';
+      tripBtn.classList.add('bg-surface-container');
+    } else {
+      tripIcon.textContent = 'playlist_add';
+      tripLabel.textContent = 'Tambah ke Trip';
+      tripBtn.classList.remove('bg-surface-container');
+    }
+  });
+
+  const jeepPlanBtn = document.getElementById('add-jeep-plan');
+  const jeepPlanLabel = document.getElementById('jeep-plan-label');
+  let isJeepPlanned = false;
+  jeepPlanBtn?.addEventListener('click', () => {
+    isJeepPlanned = !isJeepPlanned;
+    if (isJeepPlanned) {
+      jeepPlanLabel.textContent = 'Telah Ditambahkan';
+      jeepPlanBtn.classList.replace('bg-surface-container-low', 'bg-secondary-container');
+    } else {
+      jeepPlanLabel.textContent = 'Tambahkan ke Rencana';
+      jeepPlanBtn.classList.replace('bg-secondary-container', 'bg-surface-container-low');
+    }
+  });
+
+  const mainCta = document.getElementById('main-cta-btn');
+  const ctaLabel = document.getElementById('cta-label');
+  const ctaIcon = document.getElementById('cta-icon');
+  let isTripCtaAdded = false;
+  mainCta?.addEventListener('click', () => {
+    isTripCtaAdded = !isTripCtaAdded;
+    if (isTripCtaAdded) {
+      ctaLabel.textContent = 'Tersimpan di Itinerary ✓';
+      ctaIcon.textContent = 'task_alt';
+      mainCta.classList.replace('bg-primary-container', 'bg-primary');
+    } else {
+      ctaLabel.textContent = 'Tambahkan ke Itinerary Trip';
+      ctaIcon.textContent = 'event_available';
+      mainCta.classList.replace('bg-primary', 'bg-primary-container');
+    }
+  });
+</script></main></body></html>

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><title>MeraTrip</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100%;min-height:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}.bottom-safe{bottom:env(safe-area-inset-bottom,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed-dim": "#aed09e", "on-primary": "#ffffff", "primary": "#04432f", "secondary-container": "#c9edb8", "on-tertiary-container": "#bfc6b9", "outline": "#707973", "surface-bright": "#eafef0", "on-primary-fixed-variant": "#17503b", "inverse-on-surface": "#e1f6e8", "surface-container": "#dff3e5", "inverse-primary": "#9ad3b7", "surface-dim": "#cbdfd1", "surface-variant": "#d3e7da", "primary-fixed-dim": "#9ad3b7", "secondary": "#48663d", "tertiary": "#353c32", "on-secondary": "#ffffff", "surface-container-high": "#d9eddf", "on-primary-fixed": "#002115", "on-primary-container": "#98d1b5", "on-tertiary-fixed-variant": "#42493f", "tertiary-container": "#4c5349", "surface-tint": "#326852", "on-surface-variant": "#404944", "on-error": "#ffffff", "outline-variant": "#c0c9c2", "surface-container-highest": "#d3e7da", "on-surface": "#0e1f17", "on-secondary-container": "#4e6c43", "on-background": "#0e1f17", "surface-container-low": "#e4f9eb", "surface-container-lowest": "#ffffff", "tertiary-fixed": "#dee5d7", "secondary-fixed": "#c9edb8", "on-tertiary": "#ffffff", "inverse-surface": "#23342b", "on-secondary-fixed": "#062102", "surface": "#eafef0", "error-container": "#ffdad6", "error": "#ba1a1a", "primary-fixed": "#b5efd2", "on-secondary-fixed-variant": "#314e27", "on-tertiary-fixed": "#171d15", "background": "#eafef0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#c2c9bb", "primary-container": "#245b45" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1.25rem", "space-sm": "0.5rem", "space-xl": "2rem", "space-lg": "1.5rem", "gutter": "1rem", "space-xs": "0.25rem", "space-md": "1rem" }, "fontFamily": { "body-sm": ["Inter"], "headline-sm": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "display-mobile": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "body-md": ["Inter"], "body-lg": ["Inter"], "headline-md": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"] }, "fontSize": { "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "display-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }] } } } }</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(31,48,39,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><img alt="MeraTrip Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WtwjOKRm0BjBbLBGHZg7q3NQVEXfoEm_aH1q4x67d64SxmR98JYLcvdmkC5e0s8h6BFS71P7_aNOzv01FdTmHlJkXpwD77QVWxAh_ut82LAXL5oumdMpRvOAhMgfBoJGMbATInFjCZRHgA8cx0StFB7WPv8KlADDzzpWX1JIb0plsN0KtGoeIUi0ZmpNbFKYpEOaN89hHwV1Djk7xFvf8PfOXzoCNUiJ1q6aAmiBEHbGHGItfjVvhDDQ"/><span class="font-title-md text-title-md text-primary font-bold tracking-tight">MeraTrip</span><span class="font-title-md text-title-md text-outline-variant font-normal">|</span><h1 class="font-title-md text-title-md text-on-surface font-semibold">Home</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Notifications" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">notifications</span></button><button aria-label="User Profile" class="w-11 h-11 flex items-center justify-center rounded-full p-0.5 hover:ring-2 hover:ring-primary/20 transition-all"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIo1vmynqyruG6Ce_NWbntravR9lopAKd8CwOvv6Zgfg_dXZIpIqdLzmXYyU5Up1CsuLmRDvM19ZcgnbZeAqsxJW1mXR-R8Bn0FLDV2vnjXjwxm68NboTTZuwp34WSZ60mxlkS53um0eg1evkta-XUGhLvsZ8ZaQX5tYOjgOsJY7L4kPYHJBdxYYjcM_atNmUqE8dcADVJz7u0R53p0r05OmUUw0gYLUKkNr57kqc_e4NIQCK8BCE"/></button></div></div></header><main class="flex-1 w-full pt-16 pb-20 bg-surface flex flex-col"><div class="flex flex-col w-full">
+<!-- Volcanic Activity & Offline Live Status Bar -->
+<div class="px-margin pt-space-md pb-space-xs">
+<div class="flex items-center justify-between gap-space-sm bg-surface-container-low px-space-md py-space-xs rounded-full shadow-sm">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="relative flex h-2.5 w-2.5 flex-shrink-0">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+<span class="font-label-sm text-label-sm text-primary truncate">Status Merapi: Waspada (Level II)</span>
+</div>
+<div class="flex items-center gap-1 flex-shrink-0 bg-surface-container px-2 py-0.5 rounded-full text-secondary">
+<span class="material-symbols-outlined text-[14px]">cloud_done</span>
+<span class="font-label-sm text-label-sm">Offline Siap</span>
+</div>
+</div>
+</div>
+<!-- Header Greeting Section -->
+<div class="px-margin pt-space-sm pb-space-md">
+<div class="flex items-start justify-between">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary tracking-tight">Mau menjelajah Merapi?</h2>
+<p class="font-body-md text-body-md text-on-surface-variant mt-0.5">Rencanakan petualangan wisatamu dengan cerdas</p>
+</div>
+<div class="flex-shrink-0 mt-1">
+<span class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-secondary-container text-on-secondary-container">
+<span class="material-symbols-outlined text-[20px]">mountain_flag</span>
+</span>
+</div>
+</div>
+<!-- Search Bar with Quick Filter -->
+<div class="mt-space-md flex items-center gap-space-sm">
+<div class="flex-1 flex items-center bg-surface-container-lowest rounded-xl px-space-md h-12 shadow-sm">
+<span class="material-symbols-outlined text-outline text-[22px] mr-space-sm">search</span>
+<input class="w-full bg-transparent border-0 outline-none font-body-md text-body-md text-on-surface placeholder:text-outline" placeholder="Cari destinasi di sekitar Merapi..." type="text"/>
+</div>
+<button aria-label="Filter Pencarian" class="h-12 w-12 flex-shrink-0 flex items-center justify-center rounded-xl bg-surface-container-low text-primary hover:bg-surface-container transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[22px]">tune</span>
+</button>
+</div>
+<!-- Offline Notification Banner -->
+<div class="mt-space-sm flex items-center gap-2 bg-secondary-container/40 px-3 py-1.5 rounded-lg text-on-secondary-container">
+<span class="material-symbols-outlined text-[16px] text-secondary">wifi_off</span>
+<span class="font-label-sm text-label-sm">Data Offline Tersedia • Mode Hemat Sinyal Gunung</span>
+</div>
+</div>
+<!-- Quick Actions Grid (4 round tactile buttons) -->
+<div class="px-margin pb-space-lg">
+<div class="grid grid-cols-4 gap-space-sm">
+<!-- Action 1: Jelajah -->
+<a class="flex flex-col items-center gap-1.5 group" href="#">
+<div class="w-14 h-14 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-all duration-200">
+<span class="material-symbols-outlined text-[26px]">explore</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center">Jelajah</span>
+</a>
+<!-- Action 2: Buat Trip -->
+<a class="flex flex-col items-center gap-1.5 group" href="#">
+<div class="w-14 h-14 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-all duration-200">
+<span class="material-symbols-outlined text-[26px]">edit_calendar</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center">Buat Trip</span>
+</a>
+<!-- Action 3: Peta Merapi -->
+<a class="flex flex-col items-center gap-1.5 group" href="#">
+<div class="w-14 h-14 rounded-full bg-surface-container-lowest shadow-sm flex items-center justify-center text-primary group-hover:bg-primary-container group-hover:text-on-primary transition-all duration-200">
+<span class="material-symbols-outlined text-[26px]">map</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center">Peta Merapi</span>
+</a>
+<!-- Action 4: Tanya AI -->
+<a class="flex flex-col items-center gap-1.5 group" href="#">
+<div class="w-14 h-14 rounded-full bg-secondary-container shadow-sm flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-on-primary transition-all duration-200">
+<span class="material-symbols-outlined text-[26px]">auto_awesome</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface text-center">Tanya AI</span>
+</a>
+</div>
+</div>
+<!-- Featured Destination Hero Card -->
+<div class="px-margin pb-space-lg">
+<div class="relative overflow-hidden rounded-xl bg-surface-container-lowest shadow-md group">
+<!-- Scenic Background Image -->
+<div class="bg-cover bg-center w-full h-52 relative" data-alt="Majestic and dramatic panoramic morning view of Mount Merapi active volcano summit billowing soft white steam against clear morning highland sky with lush green sub-alpine pine trees and rugged volcanic rock ridges in Kaliadem Yogyakarta, peaceful nature morning lighting, Indonesian ecotourism" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuD__JTBQcN2VsrNHKnYZ3FxiZdpsu2-fckBgW-YFTPB2_IwRsWRTY0ZzPK3EY0nOTR9Jaut-9xVIAY7bJ0r5GeR5Bp6WKDYOBF8nqbDwSw2iRpvqT-lu6DRI-DJ3fgMNSdprlLU4CPEld1KWrAocN1GBaG6J3iyYnlEw9_cvpKjcZAeSyY_sWN4k8zIzEvVJH4PvHj12yNDoQ4qetdwZJVqvmwcvyYcl_Kf_2lp-GWVsts1KsPJGgk')">
+<!-- Gradient Scrim for text readability -->
+<div class="absolute inset-0 bg-gradient-to-t from-primary/95 via-primary/40 to-transparent"></div>
+<!-- Top Badges -->
+<div class="absolute top-3 left-3 right-3 flex items-center justify-between">
+<span class="inline-flex items-center gap-1 bg-surface-container-lowest/90 backdrop-blur-md px-2.5 py-1 rounded-full text-primary font-label-sm text-label-sm shadow-sm">
+<span class="material-symbols-outlined text-[14px]">landscape</span>
+            Alam &amp; Panorama
+          </span>
+<span class="inline-flex items-center gap-1 bg-primary/80 backdrop-blur-md px-2.5 py-1 rounded-full text-on-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">visibility</span>
+            Spot Utama
+          </span>
+</div>
+<!-- Floating Destination Info -->
+<div class="absolute bottom-3 left-3 right-3 text-on-primary">
+<h3 class="font-headline-sm text-headline-sm font-semibold tracking-tight leading-tight">
+            Kawasan Wisata Kaliadem &amp; Merapi View
+          </h3>
+<p class="font-body-sm text-body-sm text-on-primary/85 line-clamp-1 mt-0.5">
+            Pemandangan lanskap megah puncak Merapi dengan udara sejuk pegunungan.
+          </p>
+</div>
+</div>
+<!-- Card Action Footer -->
+<div class="p-space-md flex items-center justify-between bg-surface-container-lowest">
+<div class="flex items-center gap-1.5 text-on-surface-variant font-body-sm text-body-sm">
+<span class="material-symbols-outlined text-[18px] text-primary">distance</span>
+<span>1.100 mdpl • Cangkringan</span>
+</div>
+<button class="h-10 px-space-md bg-primary hover:bg-primary-container text-on-primary font-label-lg text-label-lg rounded-lg flex items-center gap-1 shadow-sm transition-all active:scale-95">
+<span>Jelajahi</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Trip Planner Entry Card (Quick Configurator) -->
+<div class="px-margin pb-space-lg">
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+<div class="flex items-center justify-between mb-space-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[22px]">route</span>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Rencana Perjalanan Cepat</h3>
+</div>
+<span class="font-label-sm text-label-sm bg-surface-container px-2 py-0.5 rounded text-on-surface-variant">Personalisasi</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mb-space-md">
+        Sesuaikan rencana petualangan harimu di lereng selatan Merapi.
+      </p>
+<!-- Input Previews Grid -->
+<div class="grid grid-cols-2 gap-space-sm mb-space-md">
+<!-- Tanggal -->
+<div class="bg-surface-container-low p-2.5 rounded-lg flex flex-col">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">calendar_today</span> Tanggal
+          </span>
+<span class="font-label-md text-label-md text-on-surface mt-0.5">14 Okt 2024</span>
+</div>
+<!-- Durasi -->
+<div class="bg-surface-container-low p-2.5 rounded-lg flex flex-col">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">schedule</span> Durasi
+          </span>
+<span class="font-label-md text-label-md text-on-surface mt-0.5">1 Hari Penuh</span>
+</div>
+<!-- Wisatawan -->
+<div class="bg-surface-container-low p-2.5 rounded-lg flex flex-col">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">group</span> Wisatawan
+          </span>
+<span class="font-label-md text-label-md text-on-surface mt-0.5">2 Orang (Dewasa)</span>
+</div>
+<!-- Estimasi Budget -->
+<div class="bg-surface-container-low p-2.5 rounded-lg flex flex-col">
+<span class="font-label-sm text-label-sm text-outline flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">payments</span> Est. Budget
+          </span>
+<span class="font-label-md text-label-md text-primary font-semibold mt-0.5">Rp 350.000<span class="text-on-surface-variant font-normal text-[11px]">/org</span></span>
+</div>
+</div>
+<!-- Action Button -->
+<button class="w-full h-12 bg-primary-container hover:bg-primary text-on-primary font-label-lg text-label-lg rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">auto_schedule</span>
+<span>Buat Itinerary</span>
+</button>
+</div>
+</div>
+<!-- AI Travel Assistant Promo Card -->
+<div class="px-margin pb-space-lg">
+<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary-container to-secondary p-space-md text-on-primary shadow-sm">
+<!-- Ambient Sparkle Icon Background -->
+<div class="absolute -right-4 -bottom-4 opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-[130px]">smart_toy</span>
+</div>
+<div class="relative z-10">
+<div class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-lowest/20 backdrop-blur-sm text-on-primary mb-2">
+<span class="material-symbols-outlined text-[14px]">psychology</span>
+<span class="font-label-sm text-label-sm">Asisten Pintar MeraTrip</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm font-semibold tracking-tight">Bingung mau ke mana?</h3>
+<p class="font-body-sm text-body-sm text-on-primary/90 mt-1 mb-space-md">
+          Buat rencana perjalanan sesuai waktu dan budget kamu dalam hitungan detik.
+        </p>
+<button class="h-11 px-space-md bg-secondary-container text-on-secondary-fixed font-label-lg text-label-lg rounded-xl flex items-center gap-2 hover:bg-secondary-fixed transition-colors shadow-sm active:scale-95">
+<span class="material-symbols-outlined text-[20px]">magic_button</span>
+<span>Rencanakan dengan AI</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Popular Destinations (Destinasi Terverifikasi) -->
+<div class="px-margin pb-space-lg">
+<div class="flex items-center justify-between mb-space-sm">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Destinasi Terverifikasi</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Informasi tiket &amp; rute akurat dari pengelola</p>
+</div>
+<a class="font-label-md text-label-md text-primary font-semibold hover:underline" href="#">Lihat Semua</a>
+</div>
+<!-- Verified Destinations Cards List -->
+<div class="flex flex-col gap-space-md mt-space-sm">
+<!-- Destination 1: Bunker Kaliadem -->
+<div class="bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="Historic concrete bunker entrance embedded inside Mount Merapi volcanic rock field in Kinahrejo Cangkringan with Mount Merapi summit towering in background under crisp morning daylight, Indonesian nature photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB5m2w3OxbC2AJAxo6vkUW2PrNwYC-Rl25eeu9h9w8FCArRWq8zJsZ1NZboa3bz3PdfGTXmCHl5pTFNpWRTYm3a_ZTGbhkEIWEFrIpn_nAYuLDlD4dHMzCcIZvmal4acFmgMfWJzxYdfEjHE_LCK1GhoQjpDjZw_kMcKWm6L3RJted6xmE7tCtdilSgf6C3yGFWi9nV_Ug3iL_cWmIPWejDkSPNGz5_GnY-46-7x0_u9_jPjeqzRcI"/>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-1">
+<span class="inline-block px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm truncate">
+                  Sejarah &amp; Alam
+                </span>
+<button aria-label="Simpan Bunker Kaliadem" class="text-outline hover:text-primary transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-semibold mt-1 truncate">
+                Bunker Kaliadem
+              </h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5 truncate">
+<span class="material-symbols-outlined text-[15px] text-secondary flex-shrink-0">location_on</span>
+                Kinahrejo, Cangkringan
+              </p>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-label-md text-label-md text-primary font-semibold">
+                Rp 10.000 <span class="font-body-sm text-body-sm font-normal text-outline">/ orang</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container/40 px-1.5 py-0.5 rounded">
+                Terverifikasi
+              </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Destination 2: Museum Sisa Hartaku -->
+<div class="bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="Open air memorial museum displaying melted house relics, clocks frozen at eruption time, and motorcycle skeletons preserved after Mount Merapi volcanic flow in Petung Kepuharjo Yogyakarta, documentary realistic travel photography" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAWPv3uSVdfVumtik6eX4l6TbzDh1SLjhodO1wFe6LWelCQSx9l4aVQxQA_5_qAGoH8T_DiRD-teC2rSGyPezLTxoCm9esu2pb4lFuNPmZVJJiIYmVfrlqbqu7ZPaXDcwDyDFhuZdr60hKn-2Egi_ZIxzjnuRyYMtgdm7AQ8wUv3bFb_DuvWS5mofw4PF9H-64novtZalTnhcP3m9mReb3Z9lIV-mOf2H87t5IUt8Tb76CPtjLWWFo"/>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-1">
+<span class="inline-block px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm truncate">
+                  Edukasi Sejarah
+                </span>
+<button aria-label="Simpan Museum Sisa Hartaku" class="text-outline hover:text-primary transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-semibold mt-1 truncate">
+                Museum Sisa Hartaku
+              </h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5 truncate">
+<span class="material-symbols-outlined text-[15px] text-secondary flex-shrink-0">location_on</span>
+                Petung, Kepuharjo
+              </p>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-label-md text-label-md text-primary font-semibold">
+                Sukarela <span class="font-body-sm text-body-sm font-normal text-outline">/ donasi</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container/40 px-1.5 py-0.5 rounded">
+                Terverifikasi
+              </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Destination 3: Batu Alien (Batu Wajah) -->
+<div class="bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="Massive volcanic monolith rock shaped like a human facial silhouette ejected from Merapi crater resting on the edge of Gendol river valley in Jambu Kepuharjo, morning sunlight highlighting volcanic rock texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCbqZ-ddweMTdOExYDvVP19VU7Ufnf3bCuFl-w_dkJaiU7di-HY2ofpaf1ecmDpS1vt400G11IhBreT5u_4xVTSEP5772x6z_n20xTWzm4HuqHdnEPgGNphR6YLkL9pSA-ex0WJx9MMfEjr8THShdnI-F3WjkTZwmfyPJVn0PCHR0iVOiKg-KD9gCbO_FtNJGCcHGQqpwpDYSS5BWLz2wRgX9lnV0Om0jUPgBigxR0vtsNjbiwHWHw"/>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-1">
+<span class="inline-block px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm truncate">
+                  Alam Unik
+                </span>
+<button aria-label="Simpan Batu Alien" class="text-outline hover:text-primary transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-semibold mt-1 truncate">
+                Batu Alien (Batu Wajah)
+              </h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5 truncate">
+<span class="material-symbols-outlined text-[15px] text-secondary flex-shrink-0">location_on</span>
+                Jambu, Kepuharjo
+              </p>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-label-md text-label-md text-primary font-semibold">
+                Rp 5.000 <span class="font-body-sm text-body-sm font-normal text-outline">/ orang</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container/40 px-1.5 py-0.5 rounded">
+                Terverifikasi
+              </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Destination 4: Plunyon Kalikuning -->
+<div class="bg-surface-container-lowest rounded-xl p-3 shadow-sm flex flex-col gap-3">
+<div class="flex gap-3">
+<div class="w-24 h-24 rounded-lg overflow-hidden flex-shrink-0 relative">
+<img class="w-full h-full object-cover" data-alt="Picturesque arched vintage water bridge surrounded by dense lush pine forest and mist over Kalikuning river canyon with Merapi volcano standing tall in background, soft natural sunlight, serene ecotourism Yogyakarta" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCML4oKMSb3s85bN-VQvaDyh2rGT0er4i_3LnfAG8RrzJ7D-FEo7FQY5cDVV0sUsLPe_avhLNtnBzXXJDa_3MDZGcRWfi0-Y28fSuG4LLL94f82O2iCCs0ZaUS5pNTsC_T6nQSJVx4QKy6zvS9ZqjzhnmWzn6EZ14_lB5MPFxW4WitX8VqU7MhEGhmZDqfoqmrTT6fazbyGAVIbjFIRsS792dP37QnpiGypIKHXSHRPNua7tjHYDfc"/>
+</div>
+<div class="flex-1 min-w-0 flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between gap-1">
+<span class="inline-block px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm truncate">
+                  Jembatan &amp; Alam
+                </span>
+<button aria-label="Simpan Plunyon Kalikuning" class="text-outline hover:text-primary transition-colors flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-semibold mt-1 truncate">
+                Plunyon Kalikuning
+              </h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5 truncate">
+<span class="material-symbols-outlined text-[15px] text-secondary flex-shrink-0">location_on</span>
+                Umbulharjo, Cangkringan
+              </p>
+</div>
+<div class="flex items-baseline justify-between mt-1">
+<span class="font-label-md text-label-md text-primary font-semibold">
+                Rp 12.000 <span class="font-body-sm text-body-sm font-normal text-outline">/ orang</span>
+</span>
+<span class="font-label-sm text-label-sm text-secondary bg-secondary-container/40 px-1.5 py-0.5 rounded">
+                Terverifikasi
+              </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Secondary Discovery: Jeep Adventure Banner -->
+<div class="px-margin pb-space-xl">
+<div class="bg-surface-container-low rounded-xl p-space-md flex items-center justify-between gap-space-md">
+<div class="flex items-center gap-3 min-w-0">
+<div class="w-12 h-12 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[24px]">directions_car</span>
+</div>
+<div class="min-w-0">
+<h4 class="font-label-lg text-label-lg text-on-surface font-semibold truncate">Lava Tour Jeep Merapi</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Eksplorasi jalur off-road &amp; basecamp resmi</p>
+</div>
+</div>
+<button class="flex-shrink-0 h-9 px-3 bg-surface-container-lowest text-primary font-label-md text-label-md rounded-lg shadow-sm hover:bg-surface-container transition-colors">
+        Info Rute
+      </button>
+</div>
+</div>
+</div></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(31,48,39,0.05)]" data-active-classes="text-primary-container font-semibold"><div class="h-16 px-margin flex items-center justify-around"><a aria-current="page" class="flex flex-col items-center justify-center min-w-[56px] h-12 gap-space-xs transition-colors text-primary-container font-semibold" data-path="home" href="#"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-label-sm text-label-sm">Home</span></a><a class="flex flex-col items-center justify-center min-w-[56px] h-12 gap-space-xs text-on-surface-variant hover:text-on-surface transition-colors" data-path="explore" href="#"><span class="material-symbols-outlined text-[24px]">explore</span><span class="font-label-sm text-label-sm">Explore</span></a><a class="flex flex-col items-center justify-center min-w-[56px] h-12 gap-space-xs text-on-surface-variant hover:text-on-surface transition-colors" data-path="my-trip" href="#"><span class="material-symbols-outlined text-[24px]">calendar_month</span><span class="font-label-sm text-label-sm">My Trip</span></a><a class="flex flex-col items-center justify-center min-w-[56px] h-12 gap-space-xs text-on-surface-variant hover:text-on-surface transition-colors" data-path="profile" href="#"><span class="material-symbols-outlined text-[24px]">person</span><span class="font-label-sm text-label-sm">Profile</span></a></div></nav></body></html>

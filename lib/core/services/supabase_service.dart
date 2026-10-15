@@ -1,0 +1,347 @@
+import 'dart:async';
+import 'package:flutter/widgets.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/models/destination_model.dart';
+import '../../data/models/trip_item_model.dart';
+import '../../data/models/trip_model.dart';
+import '../config/supabase_config.dart';
+
+/// Service terpusat untuk mengelola koneksi dan query data ke Supabase.
+/// Memisahkan logika database cloud dari halaman UI.
+class SupabaseService {
+  static final SupabaseService _instance = SupabaseService._internal();
+  factory SupabaseService() => _instance;
+  SupabaseService._internal();
+
+  @visibleForTesting
+  static bool? mockIsInitialized;
+
+  /// Mendapatkan instance SupabaseClient
+  SupabaseClient get client => Supabase.instance.client;
+
+  /// Memeriksa status inisialisasi Supabase
+  bool get isInitialized {
+    if (mockIsInitialized != null) return mockIsInitialized!;
+    try {
+      final isTest =
+          WidgetsBinding.instance.runtimeType.toString().contains('Test');
+      if (isTest) return false;
+      if (!SupabaseConfig.isConfigured) return false;
+      // Memastikan instance Supabase sudah selesai di-initialize
+      final _ = Supabase.instance;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Menguji konektivitas ke server Supabase
+  Future<bool> checkConnection() async {
+    if (!isInitialized) return false;
+    try {
+      // Query sederhana ke tabel destinations untuk mengecek koneksi dan RLS
+      final res = await client
+          .from('destinations')
+          .select('id')
+          .limit(1)
+          .timeout(const Duration(seconds: 5));
+      debugPrint('SupabaseService: Koneksi berhasil tersambung ($res)');
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService checkConnection: $e');
+      return false;
+    }
+  }
+
+  // ===========================================================================
+  // AUTHENTICATION
+  // ===========================================================================
+
+  User? get currentUser => client.auth.currentUser;
+  Session? get currentSession => client.auth.currentSession;
+  Stream<AuthState> get onAuthStateChange => client.auth.onAuthStateChange;
+
+  /// Pendaftaran pengguna baru ke Supabase Auth
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+    String? name,
+  }) async {
+    final response = await client.auth.signUp(
+      email: email.trim(),
+      password: password,
+      data: {
+        if (name != null) 'name': name.trim(),
+      },
+    );
+
+    // Otomatis buat / update data di tabel profiles jika user terbuat
+    if (response.user != null) {
+      try {
+        await upsertProfile({
+          'id': response.user!.id,
+          'email': response.user!.email,
+          'name': name ?? response.user!.userMetadata?['name'] ?? '',
+          'updated_at': DateTime.now().toIso8601String(),
+        });
+      } catch (e) {
+        debugPrint('SupabaseService signUp profile upsert error: $e');
+      }
+    }
+
+    return response;
+  }
+
+  /// Masuk dengan email & password
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) async {
+    return await client.auth.signInWithPassword(
+      email: email.trim(),
+      password: password,
+    );
+  }
+
+  /// Keluar dari sesi Supabase
+  Future<void> signOut() async {
+    await client.auth.signOut();
+  }
+
+  // ===========================================================================
+  // PROFILES
+  // ===========================================================================
+
+  /// Mengambil profil pengguna dari tabel 'profiles'
+  Future<Map<String, dynamic>?> getProfile(String userId) async {
+    try {
+      final data = await client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
+      return data;
+    } catch (e) {
+      debugPrint('SupabaseService.getProfile error: $e');
+      return null;
+    }
+  }
+
+  /// Menyimpan atau memperbarui profil pengguna
+  Future<bool> upsertProfile(Map<String, dynamic> profileData) async {
+    try {
+      await client
+          .from('profiles')
+          .upsert(profileData)
+          .timeout(const Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.upsertProfile error: $e');
+      return false;
+    }
+  }
+
+  // ===========================================================================
+  // DESTINATIONS
+  // ===========================================================================
+
+  /// Mengambil seluruh destinasi dari tabel Supabase 'destinations'
+  Future<List<DestinationModel>?> fetchDestinations() async {
+    if (!isInitialized) return null;
+    try {
+      final List<dynamic> data = await client
+          .from('destinations')
+          .select()
+          .order('id', ascending: true)
+          .timeout(const Duration(seconds: 6));
+
+      if (data.isEmpty) return null;
+
+      return data.map((item) {
+        final map = Map<String, dynamic>.from(item);
+        return _mapToDestinationModel(map);
+      }).toList();
+    } catch (e) {
+      debugPrint('SupabaseService.fetchDestinations error: $e');
+      return null;
+    }
+  }
+
+  /// Mengambil destinasi berdasarkan ID
+  Future<DestinationModel?> fetchDestinationById(int id) async {
+    if (!isInitialized) return null;
+    try {
+      final data = await client
+          .from('destinations')
+          .select()
+          .eq('id', id)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
+
+      if (data == null) return null;
+      return _mapToDestinationModel(Map<String, dynamic>.from(data));
+    } catch (e) {
+      debugPrint('SupabaseService.fetchDestinationById error: $e');
+      return null;
+    }
+  }
+
+  /// Mencari destinasi berdasarkan nama atau deskripsi
+  Future<List<DestinationModel>> searchDestinations(String query) async {
+    if (!isInitialized) return [];
+    try {
+      final cleanQuery = query.trim();
+      if (cleanQuery.isEmpty) return [];
+
+      final List<dynamic> data = await client
+          .from('destinations')
+          .select()
+          .or('name.ilike.%$cleanQuery%,description.ilike.%$cleanQuery%,address.ilike.%$cleanQuery%')
+          .limit(10)
+          .timeout(const Duration(seconds: 5));
+
+      return data.map((item) {
+        return _mapToDestinationModel(Map<String, dynamic>.from(item));
+      }).toList();
+    } catch (e) {
+      debugPrint('SupabaseService.searchDestinations error: $e');
+      return [];
+    }
+  }
+
+  /// Mapping dari baris database Supabase ke DestinationModel
+  DestinationModel _mapToDestinationModel(Map<String, dynamic> map) {
+    List<String> parsedFacilities = [];
+    if (map['facilities'] is List) {
+      parsedFacilities = (map['facilities'] as List).map((f) => f.toString()).toList();
+    }
+
+    return DestinationModel(
+      id: (map['id'] as num?)?.toInt() ?? 0,
+      name: map['name'] ?? '',
+      description: map['description'] ?? '',
+      categoryId: (map['category_id'] as num?)?.toInt() ?? 1,
+      categoryName: map['category_name'] ?? 'Wisata Merapi',
+      latitude: (map['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (map['longitude'] as num?)?.toDouble() ?? 0.0,
+      elevationMdpl: (map['elevation_mdpl'] as num?)?.toInt() ?? 0,
+      ticketPrice: (map['ticket_price'] as num?)?.toDouble() ?? 0.0,
+      ticketPriceLabel: map['ticket_price_label'] ?? 'Tiket Masuk',
+      openingHours: map['opening_hours'] ?? '06.00 - 17.00 WIB',
+      estimatedDuration: map['estimated_duration'] ?? '45 - 60 Menit',
+      temperatureRange: map['temperature_range'] ?? '18°C - 24°C',
+      address: map['address'] ?? 'Kawasan Lereng Merapi',
+      imageUrl: map['image_url'],
+      isSavedOffline: true,
+      rating: (map['rating'] as num?)?.toDouble() ?? 4.8,
+      reviewCount: (map['review_count'] as num?)?.toInt() ?? 500,
+      facilities: parsedFacilities,
+      distanceKm: (map['distance_km'] as num?)?.toDouble() ?? 0.0,
+      bestVisitingTime: map['best_visiting_time'] ?? 'Pagi hari untuk langit jernih',
+    );
+  }
+
+  // ===========================================================================
+  // TRIPS
+  // ===========================================================================
+
+  /// Mengambil daftar trip pengguna dari tabel Supabase 'trips'
+  Future<List<TripModel>> fetchUserTrips({int? localUserId, String? status}) async {
+    if (!isInitialized) return [];
+    try {
+      final user = currentUser;
+      if (user == null) return [];
+
+      var query = client
+          .from('trips')
+          .select()
+          .eq('user_id', user.id);
+
+      if (status != null && status.isNotEmpty) {
+        query = query.eq('status', status);
+      }
+
+      final List<dynamic> data = await query
+          .order('id', ascending: false)
+          .timeout(const Duration(seconds: 6));
+
+      return data.map((item) {
+        final map = Map<String, dynamic>.from(item);
+        final List<TripItemModel> items = [];
+
+        if (map['items'] is List) {
+          for (final itemJson in map['items']) {
+            if (itemJson is Map) {
+              items.add(TripItemModel.fromMap(Map<String, dynamic>.from(itemJson)));
+            }
+          }
+        }
+
+        return TripModel(
+          id: (map['id'] as num?)?.toInt(),
+          userId: localUserId ?? 1, // mapping kompatibel dengan ID akun lokal
+          tripName: map['trip_name'] ?? 'Trip Merapi',
+          startDate: map['start_date'] ?? DateTime.now().toIso8601String().substring(0, 10),
+          participantCount: (map['participant_count'] as num?)?.toInt() ?? 2,
+          targetBudget: (map['target_budget'] as num?)?.toDouble() ?? 400000.0,
+          totalEstimatedCost: (map['total_estimated_cost'] as num?)?.toDouble() ?? 0.0,
+          status: map['status'] ?? 'upcoming',
+          reminderEnabled: map['reminder_enabled'] == true,
+          isSavedOffline: true,
+          bannerImageUrl: map['banner_image_url'],
+          createdAt: map['created_at'] ?? DateTime.now().toIso8601String(),
+          items: items,
+        );
+      }).toList();
+    } catch (e) {
+      debugPrint('SupabaseService.fetchUserTrips error: $e');
+      return [];
+    }
+  }
+
+  /// Membuat trip baru di Supabase
+  Future<bool> createTrip(TripModel trip) async {
+    if (!isInitialized) return false;
+    try {
+      final user = currentUser;
+      final payload = {
+        if (user != null) 'user_id': user.id,
+        'trip_name': trip.tripName,
+        'start_date': trip.startDate,
+        'participant_count': trip.participantCount,
+        'target_budget': trip.targetBudget,
+        'total_estimated_cost': trip.totalEstimatedCost,
+        'status': trip.status,
+        'reminder_enabled': trip.reminderEnabled,
+        'is_saved_offline': trip.isSavedOffline,
+        'banner_image_url': trip.bannerImageUrl,
+        'items': trip.items.map((it) => it.toMap()).toList(),
+        'created_at': DateTime.now().toIso8601String(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      await client.from('trips').insert(payload).timeout(const Duration(seconds: 6));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.createTrip error: $e');
+      return false;
+    }
+  }
+
+  /// Menghapus trip dari Supabase
+  Future<bool> deleteTrip(int tripId) async {
+    if (!isInitialized) return false;
+    try {
+      await client
+          .from('trips')
+          .delete()
+          .eq('id', tripId)
+          .timeout(const Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.deleteTrip error: $e');
+      return false;
+    }
+  }
+}

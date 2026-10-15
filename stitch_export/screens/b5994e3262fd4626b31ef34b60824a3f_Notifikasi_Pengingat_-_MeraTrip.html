@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><title>MeraTrip</title><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100%;min-height:100%;margin:0;padding:0;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "secondary-fixed-dim": "#aed09e", "on-primary": "#ffffff", "primary": "#04432f", "secondary-container": "#c9edb8", "on-tertiary-container": "#bfc6b9", "outline": "#707973", "surface-bright": "#eafef0", "on-primary-fixed-variant": "#17503b", "inverse-on-surface": "#e1f6e8", "surface-container": "#dff3e5", "inverse-primary": "#9ad3b7", "surface-dim": "#cbdfd1", "surface-variant": "#d3e7da", "primary-fixed-dim": "#9ad3b7", "secondary": "#48663d", "tertiary": "#353c32", "on-secondary": "#ffffff", "surface-container-high": "#d9eddf", "on-primary-fixed": "#002115", "on-primary-container": "#98d1b5", "on-tertiary-fixed-variant": "#42493f", "tertiary-container": "#4c5349", "surface-tint": "#326852", "on-surface-variant": "#404944", "on-error": "#ffffff", "outline-variant": "#c0c9c2", "surface-container-highest": "#d3e7da", "on-surface": "#0e1f17", "on-secondary-container": "#4e6c43", "on-background": "#0e1f17", "surface-container-low": "#e4f9eb", "surface-container-lowest": "#ffffff", "tertiary-fixed": "#dee5d7", "secondary-fixed": "#c9edb8", "on-tertiary": "#ffffff", "inverse-surface": "#23342b", "on-secondary-fixed": "#062102", "surface": "#eafef0", "error-container": "#ffdad6", "error": "#ba1a1a", "primary-fixed": "#b5efd2", "on-secondary-fixed-variant": "#314e27", "on-tertiary-fixed": "#171d15", "background": "#eafef0", "on-error-container": "#93000a", "tertiary-fixed-dim": "#c2c9bb", "primary-container": "#245b45" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1.25rem", "space-sm": "0.5rem", "space-xl": "2rem", "space-lg": "1.5rem", "gutter": "1rem", "space-xs": "0.25rem", "space-md": "1rem" }, "fontFamily": { "body-sm": ["Inter"], "headline-sm": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "display-mobile": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "body-md": ["Inter"], "body-lg": ["Inter"], "headline-md": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"] }, "fontSize": { "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "fontWeight": "600" }], "label-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600" }], "headline-lg": ["26px", { "lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "display": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }], "display-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "title-md": ["16px", { "lineHeight": "22px", "fontWeight": "600" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "headline-md": ["22px", { "lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-lg": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600" }] } } } }</script><style>body{min-height:max(884px,100dvh);}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(31,48,39,0.04)]"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><button aria-label="Go back" class="w-11 h-11 -ml-2 flex items-center justify-center rounded-full text-on-surface hover:text-primary transition-colors" onclick="history.back()"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-title-md text-title-md text-on-surface font-semibold">Ai Travel Assistant</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Notifications" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-primary transition-colors"><span class="material-symbols-outlined text-[24px]">notifications</span></button><button aria-label="User Profile" class="w-11 h-11 flex items-center justify-center rounded-full p-0.5 hover:ring-2 hover:ring-primary/20 transition-all"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIo1vmynqyruG6Ce_NWbntravR9lopAKd8CwOvv6Zgfg_dXZIpIqdLzmXYyU5Up1CsuLmRDvM19ZcgnbZeAqsxJW1mXR-R8Bn0FLDV2vnjXjwxm68NboTTZuwp34WSZ60mxlkS53um0eg1evkta-XUGhLvsZ8ZaQX5tYOjgOsJY7L4kPYHJBdxYYjcM_atNmUqE8dcADVJz7u0R53p0r05OmUUw0gYLUKkNr57kqc_e4NIQCK8BCE"/></button></div></div></header><main class="flex-1 w-full pt-16 pb-safe bg-surface flex flex-col"><div class="flex flex-col w-full">
+<!-- Interactive Pill Filter Chips -->
+<div class="px-margin pt-space-sm pb-space-md">
+<div class="flex items-center gap-space-xs overflow-x-auto no-scrollbar py-1">
+<button class="filter-chip active flex items-center gap-1.5 px-4 h-9 rounded-full font-label-md text-label-md bg-primary-container text-on-primary shadow-sm transition-all shrink-0" onclick="setFilter(this, 'all')">
+<span class="material-symbols-outlined text-[16px]">all_inbox</span>
+<span>Semua</span>
+<span class="w-2 h-2 rounded-full bg-secondary-fixed ml-0.5"></span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 px-4 h-9 rounded-full font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant shadow-sm transition-all shrink-0 hover:bg-surface-container-high" onclick="setFilter(this, 'trip')">
+<span class="material-symbols-outlined text-[16px]">hiking</span>
+<span>Pengingat Trip</span>
+<span class="px-1.5 py-0.2 rounded-full bg-surface-variant text-on-surface-variant font-label-sm text-[10px]">1</span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 px-4 h-9 rounded-full font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant shadow-sm transition-all shrink-0 hover:bg-surface-container-high" onclick="setFilter(this, 'volcano')">
+<span class="material-symbols-outlined text-[16px]">volcano</span>
+<span>Info Vulkanik</span>
+<span class="w-2 h-2 rounded-full bg-error ml-0.5"></span>
+</button>
+<button class="filter-chip flex items-center gap-1.5 px-4 h-9 rounded-full font-label-md text-label-md bg-surface-container-lowest text-on-surface-variant shadow-sm transition-all shrink-0 hover:bg-surface-container-high" onclick="setFilter(this, 'system')">
+<span class="material-symbols-outlined text-[16px]">offline_pin</span>
+<span>Sistem &amp; Offline</span>
+</button>
+</div>
+</div>
+<div class="px-margin flex flex-col gap-space-md pb-space-xl">
+<!-- Active Reminder Banner Card -->
+<section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden transition-all">
+<div class="absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-secondary-container/40 pointer-events-none"></div>
+<div class="flex items-start justify-between gap-space-sm mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-8 h-8 rounded-full bg-primary-container/15 flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">alarm_on</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-primary font-semibold">Penjadwalan Lokal Aktif</span>
+<h2 class="font-title-md text-title-md text-on-surface leading-tight">Eksplorasi Merapi 1 Hari</h2>
+</div>
+</div>
+<label class="relative inline-flex items-center cursor-pointer shrink-0">
+<input checked="" class="sr-only peer" id="alarmToggle" onchange="toggleAlarmSwitch(this)" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface-container-lowest after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-container shadow-inner"></div>
+</label>
+</div>
+<div class="bg-surface-container-low rounded-lg p-space-sm mb-space-sm flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-primary shrink-0 mt-0.5">pin_drop</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Pukul <strong class="text-on-surface">06:00 WIB</strong> tujuan Plunyon Kalikuning. Alarm bersuara lembut otomatis terpicu tanpa butuh koneksi internet.
+        </p>
+</div>
+<!-- Quick Reminder Chips -->
+<div class="pt-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant block mb-2">Pilih Waktu Bunyi Alarm:</span>
+<div class="grid grid-cols-3 gap-2" id="timingChips">
+<button class="timing-opt py-2 px-2.5 rounded-lg bg-surface-container text-on-surface-variant font-label-sm text-label-sm text-center transition-all hover:bg-surface-container-high" onclick="selectTiming(this)">
+            H-1 Hari
+          </button>
+<button class="timing-opt active py-2 px-2.5 rounded-lg bg-primary-container text-on-primary font-label-sm text-label-sm text-center shadow-xs transition-all" onclick="selectTiming(this)">
+            H-2 Jam
+          </button>
+<button class="timing-opt py-2 px-2.5 rounded-lg bg-surface-container text-on-surface-variant font-label-sm text-label-sm text-center transition-all hover:bg-surface-container-high" onclick="selectTiming(this)">
+            H-1 Jam
+          </button>
+</div>
+</div>
+</section>
+<!-- Notification Header & Read All Action -->
+<div class="flex items-center justify-between pt-space-xs">
+<div class="flex items-center gap-1.5">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Aktivitas Terbaru</h3>
+<span class="px-2 py-0.5 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm" id="unreadCountBadge">2 Baru</span>
+</div>
+<button class="flex items-center gap-1 text-primary-container hover:text-primary font-label-md text-label-md font-semibold transition-colors" onclick="markAllAsRead()">
+<span class="material-symbols-outlined text-[16px]">done_all</span>
+<span>Tandai Dibaca</span>
+</button>
+</div>
+<!-- Notification Feed List -->
+<div class="flex flex-col gap-space-sm" id="notificationsFeed">
+<!-- Card 1: Unread Vulkanik Penting -->
+<article class="notification-item unread bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden transition-all duration-300" data-category="volcano">
+<div class="w-1.5 h-full bg-error absolute left-0 top-0"></div>
+<div class="flex items-start gap-space-sm pl-1">
+<div class="w-10 h-10 rounded-full bg-error-container text-on-error-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-1 mb-1">
+<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-error/10 text-error font-label-sm text-label-sm">
+<span class="w-1.5 h-1.5 rounded-full bg-error animate-ping"></span>
+                Penting • Status Merapi
+              </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant shrink-0">10 mnt lalu</span>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-semibold leading-snug">Siaga Level II (Waspada)</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-relaxed">
+              Radius aman wisata di luar 3 km dari puncak kawah. Bunker Kaliadem &amp; Plunyon aman dikunjungi dengan pemantauan reguler BPPTKG.
+            </p>
+<div class="mt-3 flex items-center justify-between pt-2">
+<a class="inline-flex items-center gap-1 font-label-md text-label-md text-primary font-semibold hover:underline" href="#view-geopark">
+<span>Peta Titik Pantau</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+<span class="w-2.5 h-2.5 rounded-full bg-primary unread-dot"></span>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 2: Unread Trip Reminder -->
+<article class="notification-item unread bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden transition-all duration-300" data-category="trip">
+<div class="w-1.5 h-full bg-secondary-fixed-dim absolute left-0 top-0"></div>
+<div class="flex items-start gap-space-sm pl-1">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">departure_board</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-1 mb-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-secondary-container/50 text-on-secondary-container font-label-sm text-label-sm">
+                Pengingat Berangkat
+              </span>
+<span class="font-body-sm text-body-sm text-on-surface-variant shrink-0">1 jam lalu</span>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-semibold leading-snug">Eksplorasi Merapi 1 Hari</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-relaxed">
+              Perjalanan dimulai besok pukul 07:30 WIB dari meeting point. Jangan lupa jaket hangat, kacamata debu pasir, dan baterai cadangan.
+            </p>
+<div class="mt-3 flex items-center justify-between pt-2">
+<a class="inline-flex items-center gap-1 font-label-md text-label-md text-primary font-semibold hover:underline" href="#view-checklist">
+<span>Cek Daftar Bawaan</span>
+<span class="material-symbols-outlined text-[14px]">checklist</span>
+</a>
+<span class="w-2.5 h-2.5 rounded-full bg-primary unread-dot"></span>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 3: Read Offline Maps Ready -->
+<article class="notification-item bg-surface-container-lowest/80 rounded-xl p-space-md shadow-sm relative overflow-hidden transition-all duration-300" data-category="system">
+<div class="flex items-start gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">cloud_download</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-1 mb-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+                Sistem &amp; Offline
+              </span>
+<span class="font-body-sm text-body-sm text-outline shrink-0">Kemarin</span>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-medium leading-snug">Unduhan Data Offline Berhasil</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-relaxed">
+              Paket rute navigasi Bunker Kaliadem &amp; Plunyon (34 MB) siap diakses penuh di area tanpa koneksi seluler.
+            </p>
+<div class="mt-2.5 flex items-center gap-2">
+<span class="inline-flex items-center gap-1 text-[12px] font-label-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-[14px] text-secondary">check_circle</span>
+                Tersimpan di Perangkat
+              </span>
+</div>
+</div>
+</div>
+</article>
+<!-- Card 4: Read Gamification Mini Game Achievement -->
+<article class="notification-item bg-surface-container-lowest/80 rounded-xl p-space-md shadow-sm relative overflow-hidden transition-all duration-300" data-category="system">
+<div class="flex items-start gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-[22px]">military_tech</span>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between gap-1 mb-1">
+<span class="inline-flex items-center px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm">
+                Komunitas &amp; Kuis
+              </span>
+<span class="font-body-sm text-body-sm text-outline shrink-0">2 hari lalu</span>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-medium leading-snug">Skor Kamu Masuk 10 Besar!</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-relaxed">
+              Selamat! Kamu mengumpulkan <strong class="text-on-surface">850 poin</strong> pada Mini Game Flora &amp; Batuan Vulkanik Merapi.
+            </p>
+<div class="mt-2.5">
+<a class="font-label-sm text-label-sm text-primary font-semibold hover:underline" href="#leaderboard">
+                Lihat Papan Peringkat Mingguan
+              </a>
+</div>
+</div>
+</div>
+</article>
+</div>
+<!-- Empty State Fallback (Hidden by default) -->
+<div class="hidden flex-col items-center justify-center py-12 text-center bg-surface-container-lowest rounded-xl p-space-lg shadow-sm" id="emptyState">
+<div class="w-16 h-16 rounded-full bg-surface-container flex items-center justify-center text-primary-container mb-3">
+<span class="material-symbols-outlined text-[32px]">notifications_paused</span>
+</div>
+<h4 class="font-headline-sm text-headline-sm text-on-surface">Belum Ada Notifikasi Baru</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1 max-w-xs">
+        Semua info pembaruan trip dan peringatan vulkanik untuk kategori ini sudah terpantau rapi.
+      </p>
+</div>
+<!-- Footer Settings & Preference Link -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex items-center justify-between shadow-xs mt-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-surface-container-lowest flex items-center justify-center text-primary-container shadow-xs">
+<span class="material-symbols-outlined text-[20px]">notifications_active</span>
+</div>
+<div>
+<h4 class="font-label-lg text-label-lg text-on-surface font-semibold">Pengaturan Notifikasi Push</h4>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Suara sirine darurat &amp; update cuaca</p>
+</div>
+</div>
+<button aria-label="Kelola preferensi" class="w-9 h-9 rounded-full bg-surface-container-lowest flex items-center justify-center text-on-surface hover:text-primary transition-colors shadow-xs">
+<span class="material-symbols-outlined text-[20px]">tune</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  function selectTiming(btn) {
+    document.querySelectorAll('.timing-opt').forEach(el => {
+      el.classList.remove('bg-primary-container', 'text-on-primary', 'shadow-xs', 'active');
+      el.classList.add('bg-surface-container', 'text-on-surface-variant');
+    });
+    btn.classList.add('bg-primary-container', 'text-on-primary', 'shadow-xs', 'active');
+    btn.classList.remove('bg-surface-container', 'text-on-surface-variant');
+  }
+
+  function toggleAlarmSwitch(toggle) {
+    const chipContainer = document.getElementById('timingChips');
+    if (!toggle.checked) {
+      chipContainer.style.opacity = '0.4';
+      chipContainer.style.pointerEvents = 'none';
+    } else {
+      chipContainer.style.opacity = '1';
+      chipContainer.style.pointerEvents = 'auto';
+    }
+  }
+
+  function markAllAsRead() {
+    const unreadCards = document.querySelectorAll('.notification-item.unread');
+    unreadCards.forEach(card => {
+      card.classList.remove('unread');
+      card.classList.add('bg-surface-container-lowest/80');
+      const dot = card.querySelector('.unread-dot');
+      if (dot) dot.remove();
+    });
+
+    const badge = document.getElementById('unreadCountBadge');
+    if (badge) {
+      badge.textContent = '0 Baru';
+      badge.classList.remove('bg-primary-container', 'text-on-primary');
+      badge.classList.add('bg-surface-container', 'text-on-surface-variant');
+    }
+  }
+
+  function setFilter(button, category) {
+    document.querySelectorAll('.filter-chip').forEach(btn => {
+      btn.classList.remove('bg-primary-container', 'text-on-primary', 'active');
+      btn.classList.add('bg-surface-container-lowest', 'text-on-surface-variant');
+    });
+
+    button.classList.add('bg-primary-container', 'text-on-primary', 'active');
+    button.classList.remove('bg-surface-container-lowest', 'text-on-surface-variant');
+
+    const items = document.querySelectorAll('.notification-item');
+    let visibleCount = 0;
+
+    items.forEach(item => {
+      const itemCat = item.getAttribute('data-category');
+      if (category === 'all' || itemCat === category) {
+        item.style.display = 'block';
+        visibleCount++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+
+    const empty = document.getElementById('emptyState');
+    if (visibleCount === 0) {
+      empty.classList.remove('hidden');
+      empty.classList.add('flex');
+    } else {
+      empty.classList.add('hidden');
+      empty.classList.remove('flex');
+    }
+  }
+</script></main></body></html>

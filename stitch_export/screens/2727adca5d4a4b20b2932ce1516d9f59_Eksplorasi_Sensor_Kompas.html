@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_stack" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "primary": "#04432f", "surface-container-high": "#d9eddf", "surface-bright": "#eafef0", "surface": "#eafef0", "secondary-container": "#c9edb8", "primary-fixed-dim": "#9ad3b7", "on-tertiary-fixed-variant": "#42493f", "surface-tint": "#326852", "secondary-fixed-dim": "#aed09e", "on-tertiary-fixed": "#171d15", "surface-container": "#dff3e5", "outline": "#707973", "on-error": "#ffffff", "surface-container-highest": "#d3e7da", "tertiary-fixed-dim": "#c2c9bb", "tertiary-fixed": "#dee5d7", "on-surface-variant": "#404944", "on-surface": "#0e1f17", "on-tertiary": "#ffffff", "on-secondary-fixed": "#062102", "surface-container-lowest": "#ffffff", "tertiary": "#353c32", "primary-container": "#245b45", "on-tertiary-container": "#bfc6b9", "on-primary": "#ffffff", "surface-container-low": "#e4f9eb", "error": "#ba1a1a", "surface-variant": "#d3e7da", "on-primary-fixed-variant": "#17503b", "on-primary-fixed": "#002115", "on-background": "#0e1f17", "on-primary-container": "#98d1b5", "on-error-container": "#93000a", "background": "#eafef0", "outline-variant": "#c0c9c2", "surface-dim": "#cbdfd1", "on-secondary-container": "#4e6c43", "error-container": "#ffdad6", "secondary": "#48663d", "inverse-primary": "#9ad3b7", "inverse-on-surface": "#e1f6e8", "on-secondary-fixed-variant": "#314e27", "tertiary-container": "#4c5349", "inverse-surface": "#23342b", "secondary-fixed": "#c9edb8", "primary-fixed": "b5efd2", "on-secondary": "#ffffff" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "gutter": "1rem", "space-xs": "0.25rem", "space-md": "1rem", "space-lg": "1.5rem", "space-sm": "0.5rem", "space-xl": "2rem", "margin": "1.25rem" }, "fontFamily": { "display-mobile": ["Plus Jakarta Sans"], "body-lg": ["Inter"], "headline-sm": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "title-md": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "body-sm": ["Inter"], "body-md": ["Inter"], "headline-lg": ["Plus Jakarta Sans"], "display": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"] }, "fontSize": { "display-mobile": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}], "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}], "headline-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}], "headline-md": ["22px", {"lineHeight": "30px", "letterSpacing": "-0.01em", "fontWeight": "600"}], "title-md": ["16px", {"lineHeight": "22px", "fontWeight": "600"}], "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600"}], "body-sm": ["12px", {"lineHeight": "16px", "fontWeight": "400"}], "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}], "headline-lg": ["26px", {"lineHeight": "34px", "letterSpacing": "-0.015em", "fontWeight": "700"}], "display": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}], "label-sm": ["11px", {"lineHeight": "14px", "letterSpacing": "0.03em", "fontWeight": "600"}], "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}] } } } }</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="min-h-full bg-surface text-on-surface flex flex-col antialiased selection:bg-secondary-container selection:text-on-secondary-container"><header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-16 px-margin flex items-center justify-between gap-space-sm"><div class="flex items-center gap-space-sm min-w-0 flex-1"><button aria-label="Go back" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface active:bg-surface-container transition-colors shrink-0" onclick="history.back()" type="button"><span class="material-symbols-outlined text-[24px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface truncate">Trail Elevation &amp; Route</h1></div><div class="flex items-center gap-space-xs shrink-0"><button aria-label="Notifications" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface active:bg-surface-container transition-colors" type="button"><span class="material-symbols-outlined text-[22px]">notifications</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center ml-space-xs shrink-0"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-safe bg-surface min-h-screen"><div class="flex flex-col w-full px-margin pb-space-xl">
+<!-- Volcanic Seismic Alert & Sensor Status Banner -->
+<div class="mt-space-sm mb-space-md bg-surface-container rounded-xl p-space-sm shadow-sm flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<div class="relative flex h-3 w-3 shrink-0 items-center justify-center">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary-container opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</div>
+<div class="min-w-0">
+<p class="font-label-sm text-label-sm text-primary uppercase tracking-wider truncate">Status Merapi: Waspada (Level II)</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">Sensor Perangkat: Siap Digunakan</p>
+</div>
+</div>
+<div class="bg-surface-container-highest px-space-xs py-1 rounded-full shrink-0 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-primary">sensors</span>
+<span class="font-label-sm text-label-sm text-primary">2 Sensor Aktif</span>
+</div>
+</div>
+<!-- Segmented Controls / Mode Switcher -->
+<div class="bg-surface-container-high p-1 rounded-full flex items-center mb-space-lg shadow-sm">
+<button class="flex-1 py-space-sm px-space-md rounded-full font-label-lg text-label-lg transition-all duration-300 flex items-center justify-center gap-space-xs bg-primary text-on-primary shadow-sm" id="tab-shake" onclick="switchSensorMode('shake')" type="button">
+<span class="material-symbols-outlined text-[18px]">screen_rotation_alt</span>
+<span>Goyang Ponsel</span>
+</button>
+<button class="flex-1 py-space-sm px-space-md rounded-full font-label-lg text-label-lg transition-all duration-300 flex items-center justify-center gap-space-xs text-on-surface-variant hover:text-on-surface" id="tab-compass" onclick="switchSensorMode('compass')" type="button">
+<span class="material-symbols-outlined text-[18px]">explore</span>
+<span>Kompas Lapangan</span>
+</button>
+</div>
+<!-- SECTION 1: SHAKE TO DISCOVER (Accelerometer) -->
+<div class="flex flex-col gap-space-md transition-opacity duration-300" id="section-shake">
+<!-- Sensor Educational & Guide Card -->
+<div class="bg-surface-container-low rounded-xl p-space-md shadow-sm relative overflow-hidden">
+<div class="absolute -right-4 -bottom-4 text-surface-container-highest/40 pointer-events-none">
+<span class="material-symbols-outlined text-[120px]">vibration</span>
+</div>
+<div class="flex items-start justify-between gap-space-sm relative z-10 mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-10 h-10 rounded-full bg-secondary-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[22px] animate-pulse">smartphone</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-on-surface">Eksplorasi Goyang Ponsel</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Accelerometer Lapangan Siaga</p>
+</div>
+</div>
+<!-- Toggle Switch -->
+<label class="relative inline-flex items-center cursor-pointer shrink-0">
+<input checked="" class="sr-only peer" id="shake-toggle" onchange="toggleShakeSensor(this.checked)" type="checkbox"/>
+<div class="w-11 h-6 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant relative z-10">
+        Goyang ponselmu untuk memilih destinasi petualangan Merapi secara acak dan temukan spot hidden gem hari ini!
+      </p>
+<div class="mt-space-sm pt-space-xs flex items-center gap-2 text-primary font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px]">touch_app</span>
+<span id="sensor-status-label">Sensor aktif: Mengukur hentakan 3-axis (X, Y, Z)</span>
+</div>
+</div>
+<!-- Random Destination Result Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-md transition-all duration-500" id="destination-card">
+<div class="relative w-full h-44 rounded-lg overflow-hidden mb-space-md bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-700 hover:scale-105" data-alt="Scenic landscape of Plunyon Kalikuning Yogyakarta, iconic lush pine forest suspension bridge with Mount Merapi in the background under morning golden hour sunlight, lush forest green and soft mist tones" id="destination-img" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxs1ZRG_JYRdao6KZbp90pfUuYWEqGyJM8OkwB-Q8IkvSBkwdC4kBI3UifSPp-UqlaZthO9AwYXZJZK7BPO9Iq0rmgobdodQcqlWVKYAe0AV9KB3_9vSXsxtl0SXqNh0D9KlZycgTCSMvRq5NZfNwZlZhiZmgI-f50c8DVNrMh3xlYUOd5cGl9D4ytvL6Grc_sQNXINF1ETRO7VAgPTwTKgo_OZqiM5aVfuHmbXl063UP4YHwxURc"/>
+<div class="absolute top-space-xs left-space-xs bg-primary/80 backdrop-blur-md text-on-primary px-space-sm py-1 rounded-full flex items-center gap-1 font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">auto_awesome</span>
+<span>Pilihan Acak Hari Ini</span>
+</div>
+<div class="absolute bottom-space-xs right-space-xs bg-surface-container-lowest/90 backdrop-blur-md text-on-surface px-space-sm py-0.5 rounded-full font-label-sm text-label-sm shadow-sm">
+          850 mdpl
+        </div>
+</div>
+<div class="flex flex-col gap-1 mb-space-sm">
+<div class="flex items-center gap-2">
+<span class="bg-secondary-container text-on-secondary-container px-space-xs py-0.5 rounded font-label-sm text-label-sm">
+            Alam &amp; Fotografi
+          </span>
+<span class="text-on-surface-variant font-body-sm text-body-sm">• Tiket: Rp 12.000</span>
+</div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface mt-1" id="destination-title">Plunyon Kalikuning</h3>
+<p class="font-body-md text-body-md text-on-surface-variant" id="destination-desc">
+          Jembatan gantung legendaris berlatar lembah pinus hijau royo-royo dan aliran mata air lereng Merapi.
+        </p>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col gap-space-xs mt-space-sm">
+<button class="w-full h-12 bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 active:bg-primary-container transition-colors shadow-sm" type="button">
+<span>Lihat Detail Destinasi</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+<button class="w-full h-12 bg-secondary-container text-on-secondary-container rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 active:bg-secondary-fixed-dim transition-colors" id="manual-shake-btn" onclick="triggerRandomDestination()" type="button">
+<span class="material-symbols-outlined text-[20px] animate-bounce">shuffle</span>
+<span>Goyang Lagi (Acak Ulang)</span>
+</button>
+</div>
+</div>
+<!-- Fallback / Accessibility Trigger -->
+<div class="bg-surface-container rounded-xl p-space-sm flex items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">device_unknown</span>
+<span class="font-body-sm text-body-sm text-on-surface">Perangkat tanpa sensor getar?</span>
+</div>
+<button class="font-label-md text-label-md text-primary underline active:opacity-70" onclick="triggerRandomDestination()" type="button">
+        Cari Destinasi Manual
+      </button>
+</div>
+</div>
+<!-- SECTION 2: COMPASS & ORIENTATION (Gyroscope & Magnetometer) -->
+<div class="hidden flex-col gap-space-md transition-opacity duration-300" id="section-compass">
+<!-- Header info -->
+<div class="flex flex-col gap-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Kompas Arah Menuju Puncak &amp; Destinasi</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+        Arahkan bagian atas ponselmu ke lanskap Merapi untuk mengetahui posisi kawah utama dan titik wisata.
+      </p>
+</div>
+<!-- Target Selector Dropdown -->
+<div class="bg-surface-container-low p-space-sm rounded-xl shadow-sm flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1" for="destination-target">
+<span class="material-symbols-outlined text-[16px] text-primary">location_on</span>
+        Pilih Titik Target Orientasi:
+      </label>
+<div class="relative w-full">
+<select class="w-full h-11 bg-surface-container-lowest text-on-surface rounded-lg px-space-sm pr-10 font-label-lg text-label-lg appearance-none focus:outline-none focus:ring-0" id="destination-target" onchange="updateCompassTarget(this.value)">
+<option selected="" value="puncak">Kawah Puncak Merapi (2.930 mdpl) - Titik Nol</option>
+<option value="kaliadem">Bunker Kaliadem (12 km Arah Utara)</option>
+<option value="klangon">Bukit Klangon Glamping (7 km Arah Barat Laut)</option>
+<option value="turgo">Bukit Turgo &amp; Makam Syekh Jumadil Kubro</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<!-- Field Digital Compass Dial -->
+<div class="relative w-full bg-surface-container-lowest rounded-2xl p-space-lg flex flex-col items-center justify-center shadow-md overflow-hidden">
+<!-- Compass Azimuth Info Badge -->
+<div class="flex items-center justify-between w-full mb-space-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Azimuth Puncak</span>
+<span class="font-headline-lg text-headline-lg text-primary tracking-tight" id="heading-display">345° NNW</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Elevasi Estimasi</span>
+<span class="font-title-md text-title-md text-secondary">+1.840 m</span>
+</div>
+</div>
+<!-- Compass Visual Dial -->
+<div class="relative w-64 h-64 flex items-center justify-center">
+<!-- Outer Static Ring -->
+<div class="absolute inset-0 rounded-full bg-surface-container flex items-center justify-center shadow-inner">
+<!-- Degree tick marks simulated via SVG ring -->
+<svg class="w-full h-full text-outline-variant" viewbox="0 0 200 200">
+<circle cx="100" cy="100" fill="none" r="90" stroke="currentColor" stroke-dasharray="2,6" stroke-width="2"></circle>
+<!-- Cardinal markers -->
+<text class="font-bold fill-primary text-[12px]" text-anchor="middle" x="100" y="24">U</text>
+<text class="fill-on-surface-variant text-[10px]" text-anchor="middle" x="180" y="104">T</text>
+<text class="fill-on-surface-variant text-[10px]" text-anchor="middle" x="100" y="184">S</text>
+<text class="fill-on-surface-variant text-[10px]" text-anchor="middle" x="20" y="104">B</text>
+</svg>
+</div>
+<!-- Inner Compass Plate that rotates based on sensor (or simulated here with fixed 345deg) -->
+<div class="relative w-52 h-52 flex items-center justify-center transition-transform duration-700" id="compass-needle" style="transform: rotate(-15deg);">
+<!-- Needle North (Red-Volcano Orange) -->
+<div class="absolute top-4 w-4 h-24 flex flex-col items-center">
+<div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[60px] border-b-error"></div>
+<span class="font-label-sm text-label-sm text-error font-bold mt-1">MERAPI</span>
+</div>
+<!-- Needle South (Green Forest) -->
+<div class="absolute bottom-4 w-4 h-24 flex flex-col items-center">
+<div class="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-t-[60px] border-t-primary"></div>
+</div>
+<!-- Center Bearing Pivot -->
+<div class="w-10 h-10 rounded-full bg-surface-container-lowest shadow-md flex items-center justify-center z-10">
+<div class="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+<div class="w-1.5 h-1.5 rounded-full bg-surface-container-lowest"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Live target indicator below dial -->
+<div class="mt-space-md w-full bg-surface-container-low rounded-xl p-space-sm flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">volcano</span>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg text-on-surface" id="target-name">Puncak Merapi</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant" id="target-distance">Jarak Garis Lurus: 14,2 km</span>
+</div>
+</div>
+<button class="p-2 text-primary hover:bg-surface-container rounded-full active:scale-90 transition-transform" onclick="calibrateCompass()" title="Kalibrasi Sensor" type="button">
+<span class="material-symbols-outlined text-[20px]">refresh</span>
+</button>
+</div>
+</div>
+<!-- Sensor Accuracy & Calibration State -->
+<div class="bg-surface-container rounded-xl p-space-sm flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface">Akurasi Sensor: Tinggi (Terkalibrasi)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Menggabungkan data Gyroscope 3-Axis &amp; Magnetometer</span>
+</div>
+</div>
+<!-- Safe Guidance Disclaimer -->
+<div class="bg-surface-container-high rounded-xl p-space-sm flex items-start gap-space-xs text-on-surface-variant">
+<span class="material-symbols-outlined text-[18px] text-tertiary shrink-0 mt-0.5">info</span>
+<p class="font-body-sm text-body-sm">
+        Peringatan Aman: Gunakan kompas sebagai panduan umum arah pandang visual kawah Merapi. Jangan gunakan sebagai satu-satunya alat evakuasi pada jalur berkabut tebal.
+      </p>
+</div>
+<!-- Navigation Map Action -->
+<button class="w-full h-12 bg-primary text-on-primary rounded-xl font-label-lg text-label-lg flex items-center justify-center gap-2 active:bg-primary-container transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[20px]">map</span>
+<span>Buka di Peta Navigasi Lengkap</span>
+</button>
+</div>
+</div>
+<script>
+  // Tab Switcher logic
+  function switchSensorMode(mode) {
+    const tabShake = document.getElementById('tab-shake');
+    const tabCompass = document.getElementById('tab-compass');
+    const sectionShake = document.getElementById('section-shake');
+    const sectionCompass = document.getElementById('section-compass');
+
+    if (mode === 'shake') {
+      tabShake.className = 'flex-1 py-space-sm px-space-md rounded-full font-label-lg text-label-lg transition-all duration-300 flex items-center justify-center gap-space-xs bg-primary text-on-primary shadow-sm';
+      tabCompass.className = 'flex-1 py-space-sm px-space-md rounded-full font-label-lg text-label-lg transition-all duration-300 flex items-center justify-center gap-space-xs text-on-surface-variant hover:text-on-surface';
+      sectionShake.classList.remove('hidden');
+      sectionCompass.classList.add('hidden');
+    } else {
+      tabCompass.className = 'flex-1 py-space-sm px-space-md rounded-full font-label-lg text-label-lg transition-all duration-300 flex items-center justify-center gap-space-xs bg-primary text-on-primary shadow-sm';
+      tabShake.className = 'flex-1 py-space-sm px-space-md rounded-full font-label-lg text-label-lg transition-all duration-300 flex items-center justify-center gap-space-xs text-on-surface-variant hover:text-on-surface';
+      sectionCompass.classList.remove('hidden');
+      sectionShake.classList.add('hidden');
+    }
+  }
+
+  // Random Destinations Data for Shake Feature
+  const merapiDestinations = [
+    {
+      title: "Plunyon Kalikuning",
+      category: "Alam & Fotografi • Ketinggian: 850 mdpl • Tiket: Rp 12.000",
+      desc: "Jembatan gantung legendaris berlatar lembah pinus hijau royo-royo dan aliran mata air lereng Merapi.",
+      alt: "Scenic landscape of Plunyon Kalikuning Yogyakarta, iconic lush pine forest suspension bridge with Mount Merapi in the background under morning golden hour sunlight, lush forest green and soft mist tones"
+    },
+    {
+      title: "Bunker Kaliadem",
+      category: "Wisata Geologi • Ketinggian: 1.100 mdpl • Tiket: Rp 10.000",
+      desc: "Saksi bisu erupsi dahsyat dengan pemandangan kubah lava aktif Merapi paling dekat tanpa penghalang.",
+      alt: "Historical bunker Kaliadem Merapi surrounded by dark volcanic rock lava tour terrain with Mount Merapi majestic silhouette and blue sky in Yogyakarta"
+    },
+    {
+      title: "Bukit Klangon Glamping",
+      category: "Perkemahan & Downhill • Ketinggian: 1.200 mdpl • Tiket: Rp 15.000",
+      desc: "Gardu pandang kayu estetik persis di hadapan dinding lava kawah selatan Merapi dengan udara sejuk menusuk.",
+      alt: "Bukit Klangon viewing deck in Yogyakarta facing direct steep slopes of Mount Merapi volcano, highland green pines and wooden camping decks in morning light"
+    },
+    {
+      title: "Lava Tour Jeep Bebeng",
+      category: "Petualangan Offroad • Jalur Sungai Pasir • Tiket: Rp 350.000/Jeep",
+      desc: "Sensasi memacu adrenalin melintasi sungai lahar berbatu dan basah-basahan di rute air Kalikuning.",
+      alt: "Classic 4x4 open top jeep splashing through volcanic river water Kaliurang Merapi Yogyakarta, green jungle backdrop, bright cinematic adventure"
+    }
+  ];
+
+  let currentDestIndex = 0;
+
+  function triggerRandomDestination() {
+    const card = document.getElementById('destination-card');
+    card.classList.add('scale-95', 'opacity-70');
+
+    setTimeout(() => {
+      let nextIndex;
+      do {
+        nextIndex = Math.floor(Math.random() * merapiDestinations.length);
+      } while (nextIndex === currentDestIndex && merapiDestinations.length > 1);
+      
+      currentDestIndex = nextIndex;
+      const data = merapiDestinations[currentDestIndex];
+
+      document.getElementById('destination-title').innerText = data.title;
+      document.getElementById('destination-desc').innerText = data.desc;
+      
+      const img = document.getElementById('destination-img');
+      img.setAttribute('data-alt', data.alt);
+
+      card.classList.remove('scale-95', 'opacity-70');
+    }, 280);
+  }
+
+  // Toggle sensor simulation
+  function toggleShakeSensor(isActive) {
+    const label = document.getElementById('sensor-status-label');
+    if (isActive) {
+      label.innerText = 'Sensor aktif: Mengukur hentakan 3-axis (X, Y, Z)';
+      window.addEventListener('devicemotion', handleMotion, false);
+    } else {
+      label.innerText = 'Sensor dinonaktifkan: Gunakan tombol acak manual';
+      window.removeEventListener('devicemotion', handleMotion, false);
+    }
+  }
+
+  // Real accelerometer listener with threshold detection
+  let lastX = null, lastY = null, lastZ = null;
+  let lastShakeTime = 0;
+
+  function handleMotion(event) {
+    const current = event.accelerationIncludingGravity;
+    if (!current) return;
+
+    const now = Date.now();
+    if ((now - lastShakeTime) < 1500) return; // Debounce 1.5s
+
+    if (lastX !== null) {
+      const deltaX = Math.abs(current.x - lastX);
+      const deltaY = Math.abs(current.y - lastY);
+      const deltaZ = Math.abs(current.z - lastZ);
+
+      if (deltaX + deltaY + deltaZ > 22) {
+        lastShakeTime = now;
+        triggerRandomDestination();
+      }
+    }
+
+    lastX = current.x;
+    lastY = current.y;
+    lastZ = current.z;
+  }
+
+  // Start shake listener if permitted
+  if (window.DeviceMotionEvent) {
+    window.addEventListener('devicemotion', handleMotion, false);
+  }
+
+  // Compass Target handling
+  const compassTargets = {
+    puncak: { name: 'Kawah Puncak Merapi', dist: 'Jarak Garis Lurus: 14,2 km', rot: '-15deg', heading: '345° NNW' },
+    kaliadem: { name: 'Bunker Kaliadem', dist: 'Jarak Garis Lurus: 11,8 km', rot: '5deg', heading: '005° NNE' },
+    klangon: { name: 'Bukit Klangon', dist: 'Jarak Garis Lurus: 7,4 km', rot: '-35deg', heading: '325° NW' },
+    turgo: { name: 'Bukit Turgo', dist: 'Jarak Garis Lurus: 9,1 km', rot: '-60deg', heading: '300° WNW' }
+  };
+
+  function updateCompassTarget(key) {
+    const target = compassTargets[key] || compassTargets.puncak;
+    document.getElementById('target-name').innerText = target.name;
+    document.getElementById('target-distance').innerText = target.dist;
+    document.getElementById('heading-display').innerText = target.heading;
+    document.getElementById('compass-needle').style.transform = `rotate(${target.rot})`;
+  }
+
+  function calibrateCompass() {
+    const needle = document.getElementById('compass-needle');
+    needle.style.transform = 'rotate(360deg)';
+    setTimeout(() => {
+      const currentKey = document.getElementById('destination-target').value;
+      updateCompassTarget(currentKey);
+    }, 600);
+  }
+</script></main></body></html>
