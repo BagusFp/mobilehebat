@@ -470,18 +470,32 @@ void main() {
     final tripProvider = TripProvider();
     tripProvider.initBuilderTrip();
 
+    final utilityProvider = UtilityProvider(autoInit: false);
+    utilityProvider.setRatesForTesting(
+      rates: {'EUR': 1.0, 'IDR': 20000.0, 'USD': 1.0, 'JPY': 100.0},
+      apiDate: '2026-10-14',
+      lastSyncText: '15 Okt 2026',
+      isCache: false,
+    );
+
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AuthProvider>.value(value: fakeAuth),
           ChangeNotifierProvider<DestinationProvider>.value(value: destProvider),
           ChangeNotifierProvider<TripProvider>.value(value: tripProvider),
+          ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
         ],
         child: const MaterialApp(
           home: CreateTripScreen(),
         ),
       ),
     );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Berpindah ke Langkah 2 (Destinasi)
+    await tester.tap(find.text('Destinasi'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -774,7 +788,16 @@ void main() {
   });
 
   test('UtilityProvider calculates accurate currency conversions and traveler timezone offsets', () async {
-    final provider = UtilityProvider();
+    final provider = UtilityProvider(autoInit: false);
+    provider.setRatesForTesting(
+      rates: {
+        'EUR': 1.0,
+        'USD': 17200.0 / 15850.0,
+        'IDR': 17200.0,
+        'JPY': 106.0,
+      },
+      apiDate: '2026-10-14',
+    );
 
     // Verifikasi default state kurs
     expect(provider.sourceCurrencyCode, 'USD');
@@ -1475,7 +1498,9 @@ class _MockHttpClient implements HttpClient {
   Future<HttpClientRequest> openUrl(String method, Uri url) async => _handleUrl(url);
 
   Future<HttpClientRequest> _handleUrl(Uri url) async {
-    if (url.host.contains('supabase') || url.host.contains('generativelanguage')) {
+    if (url.host.contains('supabase') ||
+        url.host.contains('generativelanguage') ||
+        url.host.contains('frankfurter')) {
       throw const SocketException('Simulated offline network in widget tests');
     }
     return _MockHttpClientRequest();
@@ -1507,7 +1532,7 @@ class _MockHttpHeaders implements HttpHeaders {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _MockHttpClientResponse implements HttpClientResponse {
+class _MockHttpClientResponse extends Stream<List<int>> implements HttpClientResponse {
   @override
   final HttpHeaders headers = _MockHttpHeaders();
 
@@ -1537,7 +1562,7 @@ class _MockHttpClientResponse implements HttpClientResponse {
     void Function()? onDone,
     bool? cancelOnError,
   }) {
-    return Stream<List<int>>.value(_kTransparentImage).listen(
+    return Stream<List<int>>.fromIterable([_kTransparentImage]).listen(
       onData,
       onError: onError,
       onDone: onDone,

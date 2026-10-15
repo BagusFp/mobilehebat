@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class PreferencesHelper {
@@ -9,6 +10,9 @@ class PreferencesHelper {
   static const String _keyIsLoggedIn = 'is_logged_in';
   static const String _keyBiometricEnabled = 'biometric_enabled';
   static const String _keyOfflineMode = 'offline_mode_active';
+  static const String _keyCurrencyRatesJson = 'currency_rates_json';
+  static const String _keyCurrencyApiDate = 'currency_api_date';
+  static const String _keyCurrencySyncTime = 'currency_sync_time';
 
   static PreferencesHelper? _instance;
   static SharedPreferences? _preferences;
@@ -88,5 +92,46 @@ class PreferencesHelper {
 
   bool isOfflineModeActive() {
     return _preferences?.getBool(_keyOfflineMode) ?? false;
+  }
+
+  // Currency Rates Cache
+  Future<void> saveCurrencyCache({
+    required String apiDate,
+    required String syncTimeIso,
+    required Map<String, double> rates,
+  }) async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    await prefs.setString(_keyCurrencyApiDate, apiDate);
+    await prefs.setString(_keyCurrencySyncTime, syncTimeIso);
+    await prefs.setString(_keyCurrencyRatesJson, jsonEncode(rates));
+  }
+
+  Map<String, dynamic>? getCachedCurrencyData() {
+    final prefs = _preferences;
+    if (prefs == null) return null;
+    final ratesJson = prefs.getString(_keyCurrencyRatesJson);
+    final apiDate = prefs.getString(_keyCurrencyApiDate);
+    final syncTimeIso = prefs.getString(_keyCurrencySyncTime);
+
+    if (ratesJson == null || apiDate == null) return null;
+
+    try {
+      final decoded = jsonDecode(ratesJson) as Map<String, dynamic>;
+      final rates = decoded.map((key, value) => MapEntry(key, (value as num).toDouble()));
+      return {
+        'api_date': apiDate,
+        'sync_time': syncTimeIso ?? '',
+        'rates': rates,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> clearCurrencyCache() async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    await prefs.remove(_keyCurrencyRatesJson);
+    await prefs.remove(_keyCurrencyApiDate);
+    await prefs.remove(_keyCurrencySyncTime);
   }
 }

@@ -16,6 +16,12 @@ class TripModel {
   final String? startedAt;
   final String? completedAt;
   final String createdAt;
+  final String? originCity;
+  final String? originTimezone;
+  final String? destinationCity;
+  final String? destinationTimezone;
+  final String? currencySource;
+  final String? currencyTarget;
   final List<TripItemModel> items;
 
   const TripModel({
@@ -34,6 +40,12 @@ class TripModel {
     this.startedAt,
     this.completedAt,
     required this.createdAt,
+    this.originCity,
+    this.originTimezone,
+    this.destinationCity,
+    this.destinationTimezone,
+    this.currencySource = 'IDR',
+    this.currencyTarget = 'USD',
     this.items = const [],
   });
 
@@ -53,6 +65,12 @@ class TripModel {
     String? startedAt,
     String? completedAt,
     String? createdAt,
+    String? originCity,
+    String? originTimezone,
+    String? destinationCity,
+    String? destinationTimezone,
+    String? currencySource,
+    String? currencyTarget,
     List<TripItemModel>? items,
   }) {
     return TripModel(
@@ -71,6 +89,12 @@ class TripModel {
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
+      originCity: originCity ?? this.originCity,
+      originTimezone: originTimezone ?? this.originTimezone,
+      destinationCity: destinationCity ?? this.destinationCity,
+      destinationTimezone: destinationTimezone ?? this.destinationTimezone,
+      currencySource: currencySource ?? this.currencySource,
+      currencyTarget: currencyTarget ?? this.currencyTarget,
       items: items ?? this.items,
     );
   }
@@ -92,6 +116,12 @@ class TripModel {
       startedAt: map['started_at'] as String?,
       completedAt: map['completed_at'] as String?,
       createdAt: map['created_at'] as String? ?? DateTime.now().toIso8601String(),
+      originCity: map['origin_city'] as String?,
+      originTimezone: map['origin_timezone'] as String?,
+      destinationCity: map['destination_city'] as String?,
+      destinationTimezone: map['destination_timezone'] as String?,
+      currencySource: map['currency_source'] as String? ?? 'IDR',
+      currencyTarget: map['currency_target'] as String? ?? 'USD',
       items: items,
     );
   }
@@ -113,6 +143,12 @@ class TripModel {
       if (startedAt != null) 'started_at': startedAt,
       if (completedAt != null) 'completed_at': completedAt,
       'created_at': createdAt,
+      'origin_city': originCity,
+      'origin_timezone': originTimezone,
+      'destination_city': destinationCity,
+      'destination_timezone': destinationTimezone,
+      'currency_source': currencySource,
+      'currency_target': currencyTarget,
     };
   }
 }

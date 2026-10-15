@@ -57,6 +57,24 @@ class DatabaseHelper {
           await db.execute('ALTER TABLE trips ADD COLUMN completed_at TEXT');
         } catch (_) {}
         try {
+          await db.execute('ALTER TABLE trips ADD COLUMN origin_city TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN origin_timezone TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN destination_city TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN destination_timezone TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN currency_source TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN currency_target TEXT');
+        } catch (_) {}
+        try {
           await db.execute('ALTER TABLE trip_items ADD COLUMN is_completed INTEGER DEFAULT 0');
         } catch (_) {}
         try {
@@ -142,6 +160,12 @@ class DatabaseHelper {
         banner_image_url TEXT,
         started_at TEXT,
         completed_at TEXT,
+        origin_city TEXT,
+        origin_timezone TEXT,
+        destination_city TEXT,
+        destination_timezone TEXT,
+        currency_source TEXT,
+        currency_target TEXT,
         created_at TEXT NOT NULL
       )
     ''');

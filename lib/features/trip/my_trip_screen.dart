@@ -9,6 +9,8 @@ import '../../data/models/trip_model.dart';
 import '../auth/auth_provider.dart';
 import '../map/map_screen.dart';
 import '../map/offline_map_screen.dart';
+import '../utility/currency_time_screen.dart';
+import '../utility/utility_provider.dart';
 import 'active_trip_screen.dart';
 import 'create_trip_screen.dart';
 import 'trip_provider.dart';
@@ -21,12 +23,23 @@ class MyTripScreen extends StatefulWidget {
 }
 
 class _MyTripScreenState extends State<MyTripScreen> {
+  String _selectedCurrency = 'USD';
+  DateTime? _customCompareDateTime;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final auth = context.read<AuthProvider>();
-      context.read<TripProvider>().loadUserTrips(auth.currentUser?.id);
+      if (auth.currentUser?.id != null) {
+        context.read<TripProvider>().loadUserTrips(auth.currentUser!.id);
+      } else if (context.read<TripProvider>().allTrips.isEmpty) {
+        context.read<TripProvider>().loadUserTrips(1);
+      }
+      final util = context.read<UtilityProvider>();
+      if (!util.hasRates && !util.isLoading) {
+        util.init();
+      }
     });
   }
 
@@ -928,6 +941,16 @@ class _MyTripScreenState extends State<MyTripScreen> {
 
                   const SizedBox(height: AppDimensions.spaceMd),
 
+                  // Currency Conversion Preview Section
+                  _buildCurrencyEstimationSection(context, trip, mandatoryTotal, remainingBudget),
+
+                  const SizedBox(height: AppDimensions.spaceMd),
+
+                  // Travel Timezone Comparison Section
+                  _buildTripTimeSection(context, trip, items),
+
+                  const SizedBox(height: AppDimensions.spaceMd),
+
                   // Action Buttons Row
                   SizedBox(
                     width: double.infinity,
@@ -1331,40 +1354,43 @@ class _MyTripScreenState extends State<MyTripScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Wajib Tiket & Retribusi',
-                    style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _formatCurrency(mandatoryCost),
-                    style: AppTypography.titleMd.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Wajib Tiket & Retribusi',
+                      style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
                     ),
-                  ),
-                  Builder(
-                    builder: (_) {
-                      final destNames = trip.items.map((e) => e.itemName).toList();
-                      final destLabel = destNames.isEmpty
-                          ? ''
-                          : ' (${destNames.take(2).join(' & ')}${destNames.length > 2 ? ' +${destNames.length - 2}' : ''})';
-                      return Text(
-                        '${trip.participantCount} Orang$destLabel',
-                        style: AppTypography.bodySm.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      );
-                    },
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatCurrency(mandatoryCost),
+                      style: AppTypography.titleMd.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Builder(
+                      builder: (_) {
+                        final destNames = trip.items.map((e) => e.itemName).toList();
+                        final destLabel = destNames.isEmpty
+                            ? ''
+                            : ' (${destNames.take(2).join(' & ')}${destNames.length > 2 ? ' +${destNames.length - 2}' : ''})';
+                        return Text(
+                          '${trip.participantCount} Orang$destLabel',
+                          style: AppTypography.bodySm.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -1390,6 +1416,646 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 ],
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Currency Conversion Preview Section
+  Widget _buildCurrencyEstimationSection(
+    BuildContext context,
+    TripModel trip,
+    double mandatoryTotal,
+    double remainingBudget,
+  ) {
+    final util = context.watch<UtilityProvider>();
+    final double actualCost = trip.totalActualCost > 0 ? trip.totalActualCost : mandatoryTotal;
+
+    // Convert values to selected currency
+    final convertedTarget = util.convertFromIdr(trip.targetBudget, _selectedCurrency);
+    final convertedActual = util.convertFromIdr(actualCost, _selectedCurrency);
+    final convertedRemaining = util.convertFromIdr(remainingBudget, _selectedCurrency);
+
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: AppColors.primary.withAlpha(25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer.withAlpha(80),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.currency_exchange, color: AppColors.primary, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Konversi Mata Uang',
+                    style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CurrencyTimeScreen(initialTab: 'currency'),
+                    ),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'Kalkulator',
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, size: 16, color: AppColors.primary),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Status & Refresh Pill
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        util.isUsingCachedRates ? Icons.cloud_done : Icons.cloud_outlined,
+                        size: 15,
+                        color: util.isUsingCachedRates ? AppColors.secondary : AppColors.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          util.isUsingCachedRates
+                              ? 'Kurs terakhir tersimpan (${util.formattedApiDate})'
+                              : 'Kurs Frankfurter (${util.formattedApiDate})',
+                          style: AppTypography.labelSm.copyWith(
+                            color: AppColors.onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                InkWell(
+                  onTap: util.isSyncing
+                      ? null
+                      : () async {
+                          final success = await util.syncRates();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  success
+                                      ? 'Kurs berhasil diperbarui dari Frankfurter API (${util.formattedApiDate}).'
+                                      : (util.errorMessage ?? 'Gagal memperbarui kurs.'),
+                                ),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: util.isSyncing
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                          )
+                        : Row(
+                            children: [
+                              const Icon(Icons.sync, size: 14, color: AppColors.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Perbarui',
+                                style: AppTypography.labelSm.copyWith(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          if (util.errorMessage != null && !util.hasRates) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.error.withAlpha(20),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, size: 16, color: AppColors.error),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      util.errorMessage!,
+                      style: AppTypography.bodySm.copyWith(color: AppColors.error, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 10),
+
+          // Currency Selector Tabs (IDR, USD, EUR, JPY)
+          Row(
+            children: ['IDR', 'USD', 'EUR', 'JPY'].map((code) {
+              final isSelected = _selectedCurrency == code;
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedCurrency = code;
+                      });
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : AppColors.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                        ),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        code,
+                        style: AppTypography.labelSm.copyWith(
+                          color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          const SizedBox(height: 12),
+
+          // 3 Metric Boxes: Anggaran, Pengeluaran, Sisa
+          Row(
+            children: [
+              Expanded(
+                child: _buildCurrencyMetricCard(
+                  title: 'Anggaran Target',
+                  idrValue: _formatCurrency(trip.targetBudget),
+                  convertedValue: util.hasRates || _selectedCurrency == 'IDR'
+                      ? util.formatCurrency(convertedTarget, _selectedCurrency)
+                      : '-',
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCurrencyMetricCard(
+                  title: 'Pengeluaran/Wajib',
+                  idrValue: _formatCurrency(actualCost),
+                  convertedValue: util.hasRates || _selectedCurrency == 'IDR'
+                      ? util.formatCurrency(convertedActual, _selectedCurrency)
+                      : '-',
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildCurrencyMetricCard(
+                  title: 'Sisa Anggaran',
+                  idrValue: _formatCurrency(remainingBudget),
+                  convertedValue: util.hasRates || _selectedCurrency == 'IDR'
+                      ? util.formatCurrency(convertedRemaining, _selectedCurrency)
+                      : '-',
+                  color: AppColors.primaryContainer,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          // Reference Footnote
+          Text(
+            '*Estimasi kurs referensi online (Frankfurter/ECB). Anggaran & pengeluaran asli tetap tersimpan dalam IDR.',
+            style: AppTypography.bodySm.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontSize: 10,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrencyMetricCard({
+    required String title,
+    required String idrValue,
+    required String convertedValue,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTypography.bodySm.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontSize: 10,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            convertedValue,
+            style: AppTypography.labelMd.copyWith(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 13,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            idrValue,
+            style: AppTypography.bodySm.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontSize: 9,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Travel Timezone Comparison Section
+  Widget _buildTripTimeSection(
+    BuildContext context,
+    TripModel trip,
+    List<TripItemModel> items,
+  ) {
+    final util = context.watch<UtilityProvider>();
+
+    // Determine baseline trip datetime from itinerary
+    DateTime baseDate;
+    try {
+      baseDate = DateTime.parse(trip.startDate);
+    } catch (_) {
+      baseDate = DateTime.now();
+    }
+
+    int baseHour = 8;
+    int baseMinute = 0;
+    String itineraryLabel = 'Jadwal Rencana Trip';
+
+    if (items.isNotEmpty && items.first.plannedTime.isNotEmpty) {
+      final raw = items.first.plannedTime.split('-').first.trim();
+      final parts = raw.split(':');
+      if (parts.length >= 2) {
+        final h = int.tryParse(parts[0].trim());
+        final m = int.tryParse(parts[1].trim());
+        if (h != null && m != null) {
+          baseHour = h;
+          baseMinute = m;
+          itineraryLabel = '${items.first.itemName} (${items.first.plannedTime})';
+        }
+      }
+    }
+
+    final originalTripDateTime = DateTime(baseDate.year, baseDate.month, baseDate.day, baseHour, baseMinute);
+    final effectiveDateTime = _customCompareDateTime ?? originalTripDateTime;
+    final comparisons = util.getPrimaryZoneComparisons(customDateTime: effectiveDateTime);
+
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.spaceMd),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: AppColors.secondary.withAlpha(25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryFixedDim.withAlpha(80),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.schedule, color: AppColors.secondary, size: 18),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Waktu Perjalanan',
+                    style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const CurrencyTimeScreen(initialTab: 'time'),
+                    ),
+                  );
+                },
+                child: Row(
+                  children: [
+                    Text(
+                      'Konverter',
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right, size: 16, color: AppColors.secondary),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+
+          if (trip.originCity != null && trip.originCity!.isNotEmpty) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryContainer.withAlpha(50),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.secondary.withAlpha(40)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.flight_takeoff_rounded, size: 14, color: AppColors.secondary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      'Rute Perjalanan: ${trip.originCity} ➔ ${trip.destinationCity ?? "Gunung Merapi (WIB)"}',
+                      style: AppTypography.bodySmall.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                        fontSize: 11,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          // Itinerary Time & Manual Picker Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.place, size: 14, color: AppColors.primary),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _customCompareDateTime != null
+                                  ? 'Waktu Uji Manual'
+                                  : 'Itinerary: $itineraryLabel',
+                              style: AppTypography.labelSm.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${DateFormat('dd MMM yyyy, HH:mm').format(effectiveDateTime)} WIB (Waktu Acuan Lokal)',
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
+                  children: [
+                    if (_customCompareDateTime != null)
+                      IconButton(
+                        tooltip: 'Kembali ke jadwal asli itinerary',
+                        icon: const Icon(Icons.undo, size: 16, color: AppColors.onSurfaceVariant),
+                        onPressed: () {
+                          setState(() {
+                            _customCompareDateTime = null;
+                          });
+                        },
+                      ),
+                    InkWell(
+                      onTap: () async {
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: effectiveDateTime,
+                          firstDate: DateTime(2024, 1, 1),
+                          lastDate: DateTime(2030, 12, 31),
+                        );
+                        if (pickedDate == null || !context.mounted) return;
+                        final pickedTime = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(effectiveDateTime),
+                        );
+                        if (pickedTime != null && context.mounted) {
+                          setState(() {
+                            _customCompareDateTime = DateTime(
+                              pickedDate.year,
+                              pickedDate.month,
+                              pickedDate.day,
+                              pickedTime.hour,
+                              pickedTime.minute,
+                            );
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.edit_calendar, size: 14, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Uji Waktu',
+                              style: AppTypography.labelSm.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // 4-Zone Comparison Cards (WIB, WITA, WIT, London)
+          Row(
+            children: comparisons.map((z) {
+              final isWib = z.code == 'WIB';
+              return Expanded(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                  decoration: BoxDecoration(
+                    color: isWib
+                        ? AppColors.primaryContainer.withAlpha(80)
+                        : AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(8),
+                    border: isWib ? Border.all(color: AppColors.primary.withAlpha(80)) : null,
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            z.code,
+                            style: AppTypography.labelSm.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: isWib ? AppColors.primary : AppColors.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        z.formattedTime,
+                        style: AppTypography.titleMd.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: isWib ? AppColors.primary : AppColors.onSurface,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        z.timeZoneName,
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      if (z.dayDiff != 0)
+                        Container(
+                          margin: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withAlpha(30),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            z.dayDiffBadge,
+                            style: AppTypography.labelSm.copyWith(
+                              fontSize: 9,
+                              color: AppColors.secondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
+
+          // Footnote
+          Text(
+            '*Waktu lokal Gunung Merapi (WIB) adalah waktu acuan utama tur. Mengganti zona uji tidak mengubah jadwal itinerary asli.',
+            style: AppTypography.bodySm.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontSize: 10,
+              fontStyle: FontStyle.italic,
+            ),
           ),
         ],
       ),

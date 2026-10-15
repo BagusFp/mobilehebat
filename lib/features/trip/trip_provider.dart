@@ -25,6 +25,14 @@ class TripProvider extends ChangeNotifier {
   TripProvider({TripRepository? repository})
     : _repository = repository ?? TripRepository();
 
+  void setTripsForTesting(List<TripModel> trips) {
+    _allTrips = List.from(trips);
+    if (_allTrips.isNotEmpty) {
+      _selectedTrip = _allTrips.first;
+    }
+    notifyListeners();
+  }
+
   // Getters
   List<TripModel> get allTrips => _allTrips;
   String get activeTab => _activeTab;
@@ -104,12 +112,19 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
-  /// Memperbarui informasi dasar trip builder (nama, tanggal, jumlah partisipan)
+  /// Memperbarui informasi dasar trip builder (nama, tanggal, jumlah partisipan, zona waktu, mata uang)
   void updateBuilderTripInfo({
     String? tripName,
     String? startDate,
     int? participantCount,
     double? targetBudget,
+    String? originCity,
+    String? originTimezone,
+    String? destinationCity,
+    String? destinationTimezone,
+    String? currencySource,
+    String? currencyTarget,
+    bool clearOrigin = false,
   }) {
     if (_builderTrip != null) {
       _builderTrip = _builderTrip!.copyWith(
@@ -117,6 +132,12 @@ class TripProvider extends ChangeNotifier {
         startDate: startDate ?? _builderTrip!.startDate,
         participantCount: participantCount ?? _builderTrip!.participantCount,
         targetBudget: targetBudget ?? _builderTrip!.targetBudget,
+        originCity: clearOrigin ? null : (originCity ?? _builderTrip!.originCity),
+        originTimezone: clearOrigin ? null : (originTimezone ?? _builderTrip!.originTimezone),
+        destinationCity: destinationCity ?? _builderTrip!.destinationCity,
+        destinationTimezone: destinationTimezone ?? _builderTrip!.destinationTimezone,
+        currencySource: currencySource ?? _builderTrip!.currencySource,
+        currencyTarget: currencyTarget ?? _builderTrip!.currencyTarget,
       );
       notifyListeners();
     }
@@ -303,6 +324,12 @@ class TripProvider extends ChangeNotifier {
         totalEstimatedCost: 64000.0,
         status: 'upcoming',
         createdAt: '2026-10-12',
+        originCity: null,
+        originTimezone: null,
+        destinationCity: 'Gunung Merapi (Kaliadem)',
+        destinationTimezone: 'Asia/Jakarta',
+        currencySource: 'IDR',
+        currencyTarget: 'USD',
       );
       _builderItems = [
         const TripItemModel(
@@ -419,6 +446,12 @@ class TripProvider extends ChangeNotifier {
       totalEstimatedCost: ticketCost + 10000.0,
       status: 'upcoming',
       createdAt: DateTime.now().toIso8601String(),
+      originCity: null,
+      originTimezone: null,
+      destinationCity: dest.name,
+      destinationTimezone: 'Asia/Jakarta',
+      currencySource: 'IDR',
+      currencyTarget: 'USD',
     );
     _builderItems = [
       TripItemModel(

@@ -18,6 +18,7 @@ import 'features/profile/profile_screen.dart';
 import 'features/quiz/quiz_provider.dart';
 import 'features/sensor/sensor_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:timezone/data/latest.dart' as tz;
 import 'core/config/supabase_config.dart';
 import 'core/services/gemini_service.dart';
 import 'features/trip/my_trip_screen.dart';
@@ -30,6 +31,9 @@ void main() async {
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  // Inisialisasi Database Zona Waktu IANA
+  tz.initializeTimeZones();
 
   // 1. Inisialisasi Supabase Cloud Database & Authentication
   if (SupabaseConfig.isConfigured) {

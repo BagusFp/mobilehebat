@@ -274,7 +274,7 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Offline Cache Status Pill
+        // Offline Cache / API Status Pill
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
@@ -291,49 +291,119 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.cloud_done, color: AppColors.secondary, size: 20),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tersimpan (Offline Cache)',
-                        style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Row(
+                  children: [
+                    Icon(
+                      provider.isUsingCachedRates ? Icons.cloud_done : Icons.cloud_outlined,
+                      color: provider.isUsingCachedRates ? AppColors.secondary : AppColors.primary,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                provider.isUsingCachedRates
+                                    ? 'Kurs terakhir tersimpan'
+                                    : 'Kurs Referensi Frankfurter',
+                                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: provider.isUsingCachedRates
+                                      ? AppColors.secondaryContainer
+                                      : AppColors.primaryContainer.withAlpha(120),
+                                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                                ),
+                                child: Text(
+                                  'Tersimpan (Offline Cache)',
+                                  style: AppTypography.labelSm.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: provider.isUsingCachedRates
+                                        ? AppColors.secondary
+                                        : AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            provider.cacheStatusSubtitle,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
                       ),
-                      Text(
-                        'Diperbarui: ${provider.lastSyncText}',
-                        style: AppTypography.bodySm.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
               IconButton(
                 icon: RotationTransition(
                   turns: _spinController,
-                  child: const Icon(Icons.sync, color: AppColors.primary, size: 20),
+                  child: provider.isSyncing
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        )
+                      : const Icon(Icons.sync, color: AppColors.primary, size: 20),
                 ),
-                onPressed: () async {
-                  _spinController.forward(from: 0.0);
-                  await provider.syncRates();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Kurs valuta Merapi berhasil disinkronkan.'),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
-                  }
-                },
+                onPressed: provider.isSyncing
+                    ? null
+                    : () async {
+                        _spinController.forward(from: 0.0);
+                        final success = await provider.syncRates();
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                success
+                                    ? 'Kurs valuta berhasil disinkronkan dari Frankfurter API (${provider.formattedApiDate}).'
+                                    : (provider.errorMessage ?? 'Gagal memperbarui kurs.'),
+                              ),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      },
               ),
             ],
           ),
         ),
+        if (provider.errorMessage != null) ...[
+          const SizedBox(height: AppDimensions.spaceSm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.error.withAlpha(20),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+              border: Border.all(color: AppColors.error.withAlpha(80)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    provider.errorMessage!,
+                    style: AppTypography.bodySm.copyWith(color: AppColors.error, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppDimensions.spaceMd),
 
         // Currency Calculator Card
@@ -660,6 +730,32 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
             );
           }).toList(),
         ),
+        const SizedBox(height: AppDimensions.spaceMd),
+
+        // Disclaimer Note
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerHigh.withAlpha(90),
+            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_outline, size: 16, color: AppColors.secondary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Catatan: Kurs referensi bersumber dari European Central Bank (ECB) via Frankfurter API. Kurs diperbarui berkala secara harian (bukan real-time transaksi per detik) dan digunakan sebagai estimasi nilai tukar wisatawan.',
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                    fontSize: 11,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -807,11 +903,40 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              provider.formattedTravelerTime,
+                              style: AppTypography.headlineSm.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer.withAlpha(120),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                provider.travelerTimezoneAbbr,
+                                style: AppTypography.labelSm.copyWith(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                         Text(
-                          provider.formattedTravelerTime,
-                          style: AppTypography.headlineSm.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.onSurface,
+                          '${provider.formattedTravelerDate}${provider.dayDifferenceFromMerapi != 0 ? " (${provider.dayDifferenceBadgeText})" : ""}',
+                          style: AppTypography.bodySm.copyWith(
+                            color: provider.dayDifferenceFromMerapi != 0 ? AppColors.secondary : AppColors.onSurfaceVariant,
+                            fontSize: 10,
+                            fontWeight: provider.dayDifferenceFromMerapi != 0 ? FontWeight.bold : FontWeight.normal,
                           ),
                         ),
                         Text(
@@ -942,19 +1067,36 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                 style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
               ),
               const SizedBox(height: 6),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                childAspectRatio: 2.8,
-                crossAxisSpacing: 8,
-                mainAxisSpacing: 8,
-                children: [
-                  _buildTzBadge('WIB (UTC+7)', provider.getTimeForZone(0), isHighlight: true),
-                  _buildTzBadge('WITA (UTC+8)', provider.getTimeForZone(1)),
-                  _buildTzBadge('WIT (UTC+9)', provider.getTimeForZone(2)),
-                  _buildTzBadge('London (BST)', provider.getTimeForZone(-6)),
-                ],
+              Builder(
+                builder: (context) {
+                  final comparisons = provider.getPrimaryZoneComparisons();
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 2.5,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                    ),
+                    itemCount: comparisons.length,
+                    itemBuilder: (context, idx) {
+                      final item = comparisons[idx];
+                      final isWib = item.code == 'WIB';
+                      final label = item.code == 'London'
+                          ? 'London (${item.timeZoneName})'
+                          : '${item.code} (${item.utcOffset})';
+                      final timeWithDay = item.dayDiff != 0
+                          ? '${item.formattedTime} (${item.dayDiffBadge})'
+                          : item.formattedTime;
+                      return _buildTzBadge(
+                        label,
+                        timeWithDay,
+                        isHighlight: isWib,
+                      );
+                    },
+                  );
+                },
               ),
             ],
           ),
