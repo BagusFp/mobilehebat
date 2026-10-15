@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../../data/models/destination_model.dart';
+import '../../data/models/trip_expense_model.dart';
 import '../../data/models/trip_item_model.dart';
 import '../../data/models/trip_model.dart';
 import '../../data/repositories/trip_repository.dart';
@@ -13,12 +14,16 @@ class TripProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _emptyCacheMessage;
 
+  // Active Trip Expenses State
+  List<TripExpenseModel> _activeTripExpenses = [];
+  bool _isLoadingExpenses = false;
+
   // Builder State (Untuk Layar Buat Trip)
   TripModel? _builderTrip;
   List<TripItemModel> _builderItems = [];
 
   TripProvider({TripRepository? repository})
-      : _repository = repository ?? TripRepository();
+    : _repository = repository ?? TripRepository();
 
   // Getters
   List<TripModel> get allTrips => _allTrips;
@@ -29,8 +34,50 @@ class TripProvider extends ChangeNotifier {
   List<TripItemModel> get builderItems => _builderItems;
   bool get isUsingCachedData => _repository.isUsingCachedData;
   String? get emptyCacheMessage => _emptyCacheMessage;
+  List<TripExpenseModel> get activeTripExpenses => _activeTripExpenses;
+  bool get isLoadingExpenses => _isLoadingExpenses;
+
+  // Active Trip Progress & Budget Getters
+  double get activeTripTotalExpenses =>
+      _activeTripExpenses.fold(0.0, (sum, e) => sum + e.amount);
+
+  double get activeTripRemainingBudget {
+    final budget = _selectedTrip?.targetBudget ?? 0.0;
+    return budget - activeTripTotalExpenses;
+  }
+
+  int get activeTripCompletedCount =>
+      (_selectedTrip?.items ?? []).where((i) => i.isCompleted).length;
+
+  int get activeTripTotalCount => (_selectedTrip?.items ?? []).length;
+
+  double get activeTripProgress => activeTripTotalCount > 0
+      ? activeTripCompletedCount / activeTripTotalCount
+      : 0.0;
+
+  TripItemModel? get nextDestination {
+    if (_selectedTrip == null || _selectedTrip!.items.isEmpty) return null;
+    final pending = _selectedTrip!.items.where((i) => !i.isCompleted).toList();
+    return pending.isNotEmpty ? pending.first : null;
+  }
 
   List<TripModel> get displayedTrips {
+    if (_activeTab == 'upcoming') {
+      final list = _allTrips
+          .where(
+            (t) =>
+                t.status == 'upcoming' ||
+                t.status == 'active' ||
+                t.status == 'planned',
+          )
+          .toList();
+      list.sort((a, b) {
+        if (a.status == 'active' && b.status != 'active') return -1;
+        if (b.status == 'active' && a.status != 'active') return 1;
+        return (b.id ?? 0).compareTo(a.id ?? 0);
+      });
+      return list;
+    }
     return _allTrips.where((t) => t.status == _activeTab).toList();
   }
 
@@ -47,6 +94,83 @@ class TripProvider extends ChangeNotifier {
   double get totalMandatoryCost => totalTicketCost + parkingFee;
   double get targetBudget => _builderTrip?.targetBudget ?? 400000.0;
   double get remainingBudget => targetBudget - totalMandatoryCost;
+
+  /// Mengatur target pagu anggaran pada pembuatan/edit trip
+  void setBuilderTargetBudget(double newBudget) {
+    if (newBudget < 0) return;
+    if (_builderTrip != null) {
+      _builderTrip = _builderTrip!.copyWith(targetBudget: newBudget);
+      notifyListeners();
+    }
+  }
+
+  /// Memperbarui informasi dasar trip builder (nama, tanggal, jumlah partisipan)
+  void updateBuilderTripInfo({
+    String? tripName,
+    String? startDate,
+    int? participantCount,
+    double? targetBudget,
+  }) {
+    if (_builderTrip != null) {
+      _builderTrip = _builderTrip!.copyWith(
+        tripName: tripName ?? _builderTrip!.tripName,
+        startDate: startDate ?? _builderTrip!.startDate,
+        participantCount: participantCount ?? _builderTrip!.participantCount,
+        targetBudget: targetBudget ?? _builderTrip!.targetBudget,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Memperbarui jadwal waktu destinasi tertentu pada builder
+  void updateBuilderItemSchedule(
+    int index, {
+    String? plannedTime,
+    double? durationHours,
+    String? itemSubtitle,
+  }) {
+    if (index >= 0 && index < _builderItems.length) {
+      _builderItems[index] = _builderItems[index].copyWith(
+        plannedTime: plannedTime ?? _builderItems[index].plannedTime,
+        durationHours: durationHours ?? _builderItems[index].durationHours,
+        itemSubtitle: itemSubtitle ?? _builderItems[index].itemSubtitle,
+      );
+      notifyListeners();
+    }
+  }
+
+  /// Otomatis menyusun jadwal berurutan mulai dari jam start tertentu (misal jam 07:30)
+  void autoScheduleBuilderItems({int startHour = 7, int startMinute = 30}) {
+    if (_builderItems.isEmpty) return;
+
+    int currentMinutes = startHour * 60 + startMinute;
+
+    for (int i = 0; i < _builderItems.length; i++) {
+      final item = _builderItems[i];
+      final durationMins = (item.durationHours * 60).round();
+
+      final startH = currentMinutes ~/ 60;
+      final startM = currentMinutes % 60;
+
+      final endMinutes = currentMinutes + durationMins;
+      final endH = endMinutes ~/ 60;
+      final endM = endMinutes % 60;
+
+      final formattedStart =
+          '${startH.toString().padLeft(2, '0')}:${startM.toString().padLeft(2, '0')}';
+      final formattedEnd =
+          '${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
+
+      _builderItems[i] = item.copyWith(
+        plannedTime: '$formattedStart - $formattedEnd',
+      );
+
+      final travelMins =
+          item.connectingTimeMinutes > 0 ? item.connectingTimeMinutes : 15;
+      currentMinutes = endMinutes + travelMins;
+    }
+    notifyListeners();
+  }
 
   // Total Jam Aktivitas & Perjalanan
   double get totalActivityHours {
@@ -72,6 +196,7 @@ class TripProvider extends ChangeNotifier {
     _emptyCacheMessage = null;
     _builderTrip = null;
     _builderItems = [];
+    _activeTripExpenses = [];
     notifyListeners();
   }
 
@@ -97,12 +222,22 @@ class TripProvider extends ChangeNotifier {
     if (seedIfEmpty) {
       await _repository.initTrips();
     }
-    _allTrips = await _repository.getUserTrips(userId, forceOffline: forceOffline);
+    _allTrips = await _repository.getUserTrips(
+      userId,
+      forceOffline: forceOffline,
+    );
 
     if (_allTrips.isNotEmpty) {
-      // Prioritaskan trip upcoming pertama
-      final upcoming = _allTrips.where((t) => t.status == 'upcoming');
-      _selectedTrip = upcoming.isNotEmpty ? upcoming.first : _allTrips.first;
+      // Prioritaskan trip aktif jika ada, lalu upcoming
+      final active = _allTrips.where((t) => t.status == 'active');
+      if (active.isNotEmpty) {
+        _selectedTrip = active.first;
+      } else {
+        final upcoming = _allTrips.where(
+          (t) => t.status == 'upcoming' || t.status == 'planned',
+        );
+        _selectedTrip = upcoming.isNotEmpty ? upcoming.first : _allTrips.first;
+      }
     } else {
       _selectedTrip = null;
       if (_repository.isUsingCachedData) {
@@ -138,11 +273,18 @@ class TripProvider extends ChangeNotifier {
     if (tripId != null) {
       final trip = _allTrips.firstWhere(
         (t) => t.id == tripId,
-        orElse: () => const TripModel(userId: 1, tripName: '', startDate: '', createdAt: ''),
+        orElse: () => const TripModel(
+          userId: 1,
+          tripName: '',
+          startDate: '',
+          createdAt: '',
+        ),
       );
       return trip.items.any((item) => item.destinationId == destinationId);
     }
-    return _allTrips.any((t) => t.items.any((item) => item.destinationId == destinationId));
+    return _allTrips.any(
+      (t) => t.items.any((item) => item.destinationId == destinationId),
+    );
   }
 
   /// Inisialisasi builder untuk membuat trip baru atau mengedit trip
@@ -310,14 +452,17 @@ class TripProvider extends ChangeNotifier {
     }
 
     final newItems = List<TripItemModel>.from(trip.items);
-    final itemCost = destination.ticketPrice > 0 ? (destination.ticketPrice * 2) : 10000.0;
+    final itemCost = destination.ticketPrice > 0
+        ? (destination.ticketPrice * 2)
+        : 10000.0;
     final newItem = TripItemModel(
       tripId: tripId,
       destinationId: destination.id,
       itemName: destination.name,
       itemSubtitle: '${destination.categoryName} • ${destination.address}',
       visitOrder: newItems.length + 1,
-      plannedTime: '${12 + (newItems.length % 5)}:00 - ${13 + (newItems.length % 5)}:30',
+      plannedTime:
+          '${12 + (newItems.length % 5)}:00 - ${13 + (newItems.length % 5)}:30',
       durationHours: 1.5,
       estimatedCost: itemCost,
       imageUrl: destination.imageUrl,
@@ -353,7 +498,9 @@ class TripProvider extends ChangeNotifier {
     if (tripIndex == -1) return false;
 
     final trip = _allTrips[tripIndex];
-    final newItems = trip.items.where((item) => item.destinationId != destinationId).toList();
+    final newItems = trip.items
+        .where((item) => item.destinationId != destinationId)
+        .toList();
     for (int i = 0; i < newItems.length; i++) {
       newItems[i] = newItems[i].copyWith(visitOrder: i + 1);
     }
@@ -380,13 +527,21 @@ class TripProvider extends ChangeNotifier {
 
   /// Simpan builder trip ke SQLite (menangani create baru maupun update edit)
   Future<void> saveBuilderTrip(int userId, {String status = 'upcoming'}) async {
-    final finalTrip = (_builderTrip ?? const TripModel(userId: 1, tripName: 'Trip Baru', startDate: '', createdAt: '')).copyWith(
-      userId: userId,
-      status: status,
-      totalEstimatedCost: totalMandatoryCost,
-      createdAt: DateTime.now().toIso8601String(),
-      items: _builderItems,
-    );
+    final finalTrip =
+        (_builderTrip ??
+                const TripModel(
+                  userId: 1,
+                  tripName: 'Trip Baru',
+                  startDate: '',
+                  createdAt: '',
+                ))
+            .copyWith(
+              userId: userId,
+              status: status,
+              totalEstimatedCost: totalMandatoryCost,
+              createdAt: DateTime.now().toIso8601String(),
+              items: _builderItems,
+            );
 
     if (_builderTrip?.id != null) {
       await _repository.updateTrip(finalTrip.copyWith(id: _builderTrip!.id));
@@ -439,5 +594,183 @@ class TripProvider extends ChangeNotifier {
   Future<void> deleteTrip(int tripId, int userId) async {
     await _repository.deleteTrip(tripId);
     await loadUserTrips(userId);
+  }
+
+  // ===========================================================================
+  // MODE PERJALANAN AKTIF (ACTIVE TRIP & EXPENSES)
+  // ===========================================================================
+
+  /// Memuat riwayat pengeluaran aktual untuk trip tertentu
+  Future<void> loadTripExpenses(int tripId) async {
+    _isLoadingExpenses = true;
+    notifyListeners();
+    try {
+      _activeTripExpenses = await _repository.getTripExpenses(tripId);
+    } catch (_) {
+      _activeTripExpenses = [];
+    }
+    _isLoadingExpenses = false;
+    notifyListeners();
+  }
+
+  /// Memulai mode perjalanan aktif untuk suatu trip
+  Future<void> startActiveTrip(int tripId) async {
+    await _repository.startTrip(tripId);
+    final updatedTrip = await _repository.getTripWithItems(tripId);
+    if (updatedTrip != null) {
+      _selectedTrip = updatedTrip;
+      final idx = _allTrips.indexWhere((t) => t.id == tripId);
+      if (idx != -1) {
+        _allTrips[idx] = updatedTrip;
+      }
+    } else if (_selectedTrip != null && _selectedTrip!.id == tripId) {
+      _selectedTrip = _selectedTrip!.copyWith(
+        status: 'active',
+        startedAt: DateTime.now().toIso8601String(),
+      );
+    }
+    await loadTripExpenses(tripId);
+    notifyListeners();
+  }
+
+  /// Menandai destinasi sudah dikunjungi secara manual
+  Future<void> markDestinationCompleted(int tripId, int itemId) async {
+    if (_selectedTrip == null) return;
+
+    // Cegah double completion jika sudah selesai
+    final item = _selectedTrip!.items.firstWhere(
+      (it) => it.id == itemId,
+      orElse: () => const TripItemModel(itemName: '', visitOrder: 0),
+    );
+    if (item.isCompleted) return;
+
+    await _repository.markDestinationVisited(tripId, itemId, true);
+
+    final updatedItems = _selectedTrip!.items.map((it) {
+      if (it.id == itemId) {
+        return it.copyWith(
+          isCompleted: true,
+          completedAt: DateTime.now().toIso8601String(),
+        );
+      }
+      return it;
+    }).toList();
+
+    _selectedTrip = _selectedTrip!.copyWith(items: updatedItems);
+    final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+    if (tripIdx != -1) {
+      _allTrips[tripIdx] = _selectedTrip!;
+    }
+
+    // Auto-akumulasi: jika destinasi memiliki harga tiket dan belum dicatat,
+    // otomatis masukkan ke daftar pengeluaran aktual
+    if (item.estimatedCost > 0) {
+      final alreadyRecorded = _activeTripExpenses.any(
+        (exp) =>
+            exp.destinationId == item.destinationId ||
+            exp.destinationName == item.itemName,
+      );
+      if (!alreadyRecorded) {
+        final autoExpense = TripExpenseModel(
+          tripId: tripId,
+          userId: _selectedTrip!.userId,
+          destinationId: item.destinationId,
+          destinationName: item.itemName,
+          category: 'Tiket & Retribusi',
+          amount: item.estimatedCost,
+          notes: 'Tiket masuk ${item.itemName} (Otomatis saat kunjungan)',
+          spentAt: DateTime.now().toIso8601String(),
+          createdAt: DateTime.now().toIso8601String(),
+        );
+        await addExpense(autoExpense);
+      }
+    }
+
+    notifyListeners();
+  }
+
+  /// Mengubah target alokasi anggaran trip
+  Future<void> updateTripTargetBudget(int tripId, double newTargetBudget) async {
+    if (newTargetBudget < 0) return;
+    if (_selectedTrip != null && _selectedTrip!.id == tripId) {
+      _selectedTrip = _selectedTrip!.copyWith(targetBudget: newTargetBudget);
+    }
+    final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+    if (tripIdx != -1) {
+      _allTrips[tripIdx] =
+          _allTrips[tripIdx].copyWith(targetBudget: newTargetBudget);
+      await _repository.updateTrip(_allTrips[tripIdx]);
+    }
+    notifyListeners();
+  }
+
+  /// Mencatat pengeluaran aktual baru
+  Future<void> addExpense(TripExpenseModel expense) async {
+    final id = await _repository.addExpense(expense);
+    final savedExpense = expense.copyWith(id: id);
+    _activeTripExpenses.insert(0, savedExpense);
+
+    if (_selectedTrip != null) {
+      _selectedTrip = _selectedTrip!.copyWith(
+        totalActualCost: activeTripTotalExpenses,
+      );
+      final tripIdx = _allTrips.indexWhere((t) => t.id == expense.tripId);
+      if (tripIdx != -1) {
+        _allTrips[tripIdx] = _selectedTrip!;
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Menghapus catatan pengeluaran
+  Future<void> removeExpense(int expenseId, int tripId) async {
+    await _repository.deleteExpense(expenseId, tripId);
+    _activeTripExpenses.removeWhere((e) => e.id == expenseId);
+
+    if (_selectedTrip != null) {
+      _selectedTrip = _selectedTrip!.copyWith(
+        totalActualCost: activeTripTotalExpenses,
+      );
+      final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+      if (tripIdx != -1) {
+        _allTrips[tripIdx] = _selectedTrip!;
+      }
+    }
+    notifyListeners();
+  }
+
+  /// Mengakhiri perjalanan aktif
+  Future<void> finishActiveTrip(int tripId) async {
+    final totalActual = activeTripTotalExpenses;
+    await _repository.completeTrip(tripId, totalActualCost: totalActual);
+
+    final completedTime = DateTime.now().toIso8601String();
+    if (_selectedTrip != null && _selectedTrip!.id == tripId) {
+      _selectedTrip = _selectedTrip!.copyWith(
+        status: 'completed',
+        completedAt: completedTime,
+        totalActualCost: totalActual,
+      );
+    }
+    final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+    if (tripIdx != -1) {
+      _allTrips[tripIdx] = _allTrips[tripIdx].copyWith(
+        status: 'completed',
+        completedAt: completedTime,
+        totalActualCost: totalActual,
+      );
+    }
+    notifyListeners();
+  }
+
+  /// Memilih dan memuat trip berdasarkan ID beserta rincian item & pengeluarannya
+  Future<TripModel?> selectTripById(int tripId) async {
+    final trip = await _repository.getTripWithItems(tripId);
+    if (trip != null) {
+      _selectedTrip = trip;
+      await loadTripExpenses(tripId);
+      notifyListeners();
+    }
+    return trip;
   }
 }

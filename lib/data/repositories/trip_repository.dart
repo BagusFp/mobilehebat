@@ -1,5 +1,6 @@
 import '../../core/database/database_helper.dart';
 import '../../core/services/supabase_service.dart';
+import '../models/trip_expense_model.dart';
 import '../models/trip_item_model.dart';
 import '../models/trip_model.dart';
 
@@ -180,6 +181,87 @@ class TripRepository {
         whereArgs: [tripId],
       );
     } catch (_) {}
+  }
+
+  // ===========================================================================
+  // ACTIVE TRIP & EXPENSES
+  // ===========================================================================
+
+  /// Mengubah status trip menjadi 'active' (Memulai perjalanan)
+  Future<void> startTrip(int tripId) async {
+    final now = DateTime.now().toIso8601String();
+    try {
+      await _dbHelper.updateTripStatus(tripId, 'active', startedAt: now);
+      SupabaseService().updateTripStatus(tripId, 'active', startedAt: now).ignore();
+    } catch (_) {}
+  }
+
+  /// Mengubah status trip menjadi 'completed' (Mengakhiri perjalanan)
+  Future<void> completeTrip(int tripId, {double? totalActualCost}) async {
+    final now = DateTime.now().toIso8601String();
+    try {
+      await _dbHelper.updateTripStatus(
+        tripId,
+        'completed',
+        completedAt: now,
+        totalActualCost: totalActualCost,
+      );
+      SupabaseService().updateTripStatus(
+        tripId,
+        'completed',
+        completedAt: now,
+        totalActualCost: totalActualCost,
+      ).ignore();
+    } catch (_) {}
+  }
+
+  /// Menandai satu destinasi dalam trip sudah dikunjungi
+  Future<void> markDestinationVisited(int tripId, int itemId, bool isCompleted) async {
+    final now = isCompleted ? DateTime.now().toIso8601String() : null;
+    try {
+      await _dbHelper.markTripItemCompleted(tripId, itemId, isCompleted, completedAt: now);
+      final trip = await getTripWithItems(tripId);
+      if (trip != null) {
+        SupabaseService().updateTripItems(tripId, trip.items).ignore();
+      }
+    } catch (_) {}
+  }
+
+  /// Menambahkan pengeluaran baru pada trip
+  Future<int> addExpense(TripExpenseModel expense) async {
+    try {
+      final id = await _dbHelper.saveTripExpense(expense);
+      SupabaseService().createTripExpense(expense.copyWith(id: id)).ignore();
+      return id;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// Menghapus pengeluaran trip
+  Future<void> deleteExpense(int expenseId, int tripId) async {
+    try {
+      await _dbHelper.deleteTripExpense(expenseId, tripId);
+      SupabaseService().deleteTripExpense(expenseId).ignore();
+    } catch (_) {}
+  }
+
+  /// Mengambil daftar pengeluaran untuk trip tertentu
+  Future<List<TripExpenseModel>> getTripExpenses(int tripId) async {
+    try {
+      final cached = await _dbHelper.getTripExpenses(tripId);
+      if (cached.isNotEmpty) {
+        return cached;
+      }
+      final remote = await SupabaseService().fetchTripExpenses(tripId);
+      if (remote.isNotEmpty) {
+        for (final exp in remote) {
+          await _dbHelper.saveTripExpense(exp);
+        }
+        return remote;
+      }
+    } catch (_) {}
+    return [];
   }
 
   /// Fallback demo trips

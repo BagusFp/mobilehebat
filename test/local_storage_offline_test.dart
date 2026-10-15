@@ -68,7 +68,10 @@ void main() {
         participant_count INTEGER DEFAULT 1,
         target_budget REAL DEFAULT 0,
         total_estimated_cost REAL DEFAULT 0,
+        total_actual_cost REAL DEFAULT 0,
         status TEXT DEFAULT 'upcoming',
+        started_at TEXT,
+        completed_at TEXT,
         reminder_enabled INTEGER DEFAULT 1,
         is_saved_offline INTEGER DEFAULT 1,
         banner_image_url TEXT,
@@ -92,6 +95,24 @@ void main() {
         elevation_mdpl INTEGER DEFAULT 900,
         connecting_distance_km REAL DEFAULT 3.5,
         connecting_time_minutes INTEGER DEFAULT 15,
+        is_completed INTEGER DEFAULT 0,
+        completed_at TEXT,
+        FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE trip_expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id INTEGER NOT NULL,
+        user_id INTEGER,
+        destination_id INTEGER,
+        destination_name TEXT,
+        category TEXT NOT NULL,
+        amount REAL NOT NULL,
+        notes TEXT,
+        spent_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
         FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
       )
     ''');

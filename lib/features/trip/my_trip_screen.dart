@@ -9,6 +9,7 @@ import '../../data/models/trip_model.dart';
 import '../auth/auth_provider.dart';
 import '../map/map_screen.dart';
 import '../map/offline_map_screen.dart';
+import 'active_trip_screen.dart';
 import 'create_trip_screen.dart';
 import 'trip_provider.dart';
 
@@ -37,6 +38,175 @@ class _MyTripScreenState extends State<MyTripScreen> {
       decimalDigits: 0,
     );
     return formatter.format(price);
+  }
+
+  Widget _buildConfirmRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.secondary),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: AppTypography.bodySm.copyWith(
+                color: AppColors.onSurfaceVariant,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Text(': '),
+          Expanded(
+            child: Text(
+              value,
+              style: AppTypography.bodySm.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.onSurface,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleStartTrip(
+    BuildContext context,
+    TripModel trip,
+    TripProvider tripProvider,
+  ) async {
+    // 1. Validasi: jika itinerary tidak memiliki destinasi
+    if (trip.items.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: AppColors.error),
+              SizedBox(width: 8),
+              Text('Itinerary Kosong'),
+            ],
+          ),
+          content: const Text(
+            'Rencana perjalanan ini belum memiliki destinasi wisata. Silakan tambahkan destinasi terlebih dahulu sebelum memulai perjalanan aktif.',
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryContainer,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Mengerti'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // 2. Deteksi apakah tanggal perjalanan masih di masa depan
+    bool isFutureDate = false;
+    try {
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      DateTime? tripDate = DateTime.tryParse(trip.startDate);
+      if (tripDate != null) {
+        final pureTripDate = DateTime(tripDate.year, tripDate.month, tripDate.day);
+        if (pureTripDate.isAfter(today)) {
+          isFutureDate = true;
+        }
+      }
+    } catch (_) {}
+
+    // 3. Konfirmasi Mulai Sekarang
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg)),
+          title: Row(
+            children: const [
+              Icon(Icons.hiking, color: AppColors.primary),
+              SizedBox(width: 8),
+              Text('Mulai Perjalanan?'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (isFutureDate) ...[
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondaryFixedDim.withAlpha(50),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.secondary.withAlpha(100)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline, color: AppColors.secondary, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Jadwal perjalanan ini adalah ${trip.startDate} (belum dijadwalkan untuk hari ini). Apakah Anda ingin memulainya lebih awal?',
+                            style: AppTypography.bodySm.copyWith(color: AppColors.onSurface),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                Text(
+                  'Konfirmasi informasi perjalanan:',
+                  style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                ),
+                const SizedBox(height: 8),
+                _buildConfirmRow(Icons.map_outlined, 'Nama', trip.tripName),
+                _buildConfirmRow(Icons.calendar_today, 'Tanggal', trip.startDate),
+                _buildConfirmRow(Icons.place_outlined, 'Destinasi', '${trip.items.length} Destinasi'),
+                _buildConfirmRow(Icons.account_balance_wallet_outlined, 'Estimasi Anggaran', _formatCurrency(trip.targetBudget)),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Batal'),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryContainer,
+                foregroundColor: AppColors.onPrimary,
+              ),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Mulai Sekarang'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && context.mounted) {
+      if (trip.id == null) return;
+      await tripProvider.startActiveTrip(trip.id!);
+      if (context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ActiveTripScreen(tripId: trip.id!),
+          ),
+        );
+      }
+    }
   }
 
   void _showTripMenuSheet(BuildContext context, TripModel trip) {
@@ -126,12 +296,21 @@ class _MyTripScreenState extends State<MyTripScreen> {
     final auth = context.watch<AuthProvider>();
     final user = auth.currentUser;
 
-    // Upcoming trip hero: ambil trip aktif atau trip pertama dengan status upcoming
-    final upcomingTrips = tripProvider.allTrips.where((t) => t.status == 'upcoming').toList();
-    final activeTrip = tripProvider.selectedTrip ?? (upcomingTrips.isNotEmpty ? upcomingTrips.first : null);
+    // Upcoming trip hero: ambil trip aktif atau trip pertama dengan status upcoming/active
+    final upcomingTrips = tripProvider.allTrips.where((t) => t.status == 'upcoming' || t.status == 'active').toList();
+    upcomingTrips.sort((a, b) {
+      if (a.status == 'active' && b.status != 'active') return -1;
+      if (a.status != 'active' && b.status == 'active') return 1;
+      return 0;
+    });
+    final activeTrip = tripProvider.selectedTrip != null && upcomingTrips.any((t) => t.id == tripProvider.selectedTrip!.id)
+        ? tripProvider.selectedTrip
+        : (upcomingTrips.isNotEmpty ? upcomingTrips.first : null);
 
     // Draft trips
     final draftTrips = tripProvider.allTrips.where((t) => t.status == 'draft').toList();
+    // Completed trips
+    final completedTrips = tripProvider.allTrips.where((t) => t.status == 'completed').toList();
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -207,6 +386,43 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 // 4. Tab Body Content
                 if (tripProvider.activeTab == 'upcoming') ...[
                   if (activeTrip != null) ...[
+                    if (upcomingTrips.length > 1)
+                      Container(
+                        height: 38,
+                        margin: const EdgeInsets.only(bottom: 6),
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: upcomingTrips.length,
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
+                          itemBuilder: (ctx, idx) {
+                            final t = upcomingTrips[idx];
+                            final isSelected = t.id == activeTrip.id;
+                            final isActive = t.status == 'active';
+                            return ChoiceChip(
+                              selected: isSelected,
+                              showCheckmark: false,
+                              avatar: Icon(
+                                isActive ? Icons.play_circle_fill : Icons.backpack,
+                                size: 14,
+                                color: isSelected ? AppColors.onPrimary : AppColors.primary,
+                              ),
+                              label: Text(
+                                t.tripName,
+                                style: AppTypography.labelSm.copyWith(
+                                  color: isSelected ? AppColors.onPrimary : AppColors.onSurface,
+                                  fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                              selectedColor: AppColors.primary,
+                              backgroundColor: AppColors.surfaceContainerHigh,
+                              onSelected: (_) {
+                                tripProvider.selectTrip(t);
+                              },
+                            );
+                          },
+                        ),
+                      ),
                     // Primary Active Trip Hero Card
                     _buildActiveTripHeroCard(context, activeTrip, tripProvider),
                     // Route Elevation Miniature Map Preview
@@ -224,7 +440,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 ] else if (tripProvider.activeTab == 'draft') ...[
                   _buildDraftTabList(context, draftTrips, tripProvider, user?.id ?? (draftTrips.isNotEmpty ? draftTrips.first.userId : 1)),
                 ] else ...[
-                  _buildCompletedTabContent(),
+                  _buildCompletedTabContent(context, completedTrips, tripProvider),
                 ],
 
                 const SizedBox(height: 80), // Padding untuk Floating Action Button
@@ -405,18 +621,28 @@ class _MyTripScreenState extends State<MyTripScreen> {
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                   decoration: BoxDecoration(
-                                    color: AppColors.secondaryContainer,
+                                    color: trip.status == 'active'
+                                        ? AppColors.primary
+                                        : AppColors.secondaryContainer,
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      const Icon(Icons.check_circle, size: 12, color: AppColors.secondary),
+                                      Icon(
+                                        trip.status == 'active' ? Icons.radar : Icons.check_circle,
+                                        size: 12,
+                                        color: trip.status == 'active' ? AppColors.onPrimary : AppColors.secondary,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
-                                        'Terkonfirmasi • Siap Jalan',
+                                        trip.status == 'active'
+                                            ? 'Sedang Berlangsung • Perjalanan Aktif'
+                                            : 'Terkonfirmasi • Siap Jalan',
                                         style: AppTypography.labelSm.copyWith(
-                                          color: AppColors.onSecondaryContainer,
+                                          color: trip.status == 'active'
+                                              ? AppColors.onPrimary
+                                              : AppColors.onSecondaryContainer,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -708,7 +934,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
                     height: 50,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryContainer,
+                        backgroundColor: trip.status == 'active'
+                            ? AppColors.primary
+                            : AppColors.primaryContainer,
                         foregroundColor: AppColors.onPrimary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
@@ -716,16 +944,29 @@ class _MyTripScreenState extends State<MyTripScreen> {
                         elevation: 2,
                       ),
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Memulai petualangan rute "${trip.tripName}"!'),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
+                        if (trip.id == null) return;
+                        if (trip.status == 'active') {
+                          tripProvider.selectTripById(trip.id!);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ActiveTripScreen(tripId: trip.id!),
+                            ),
+                          );
+                        } else {
+                          _handleStartTrip(context, trip, tripProvider);
+                        }
                       },
-                      icon: const Icon(Icons.play_circle_filled, size: 22),
+                      icon: Icon(
+                        trip.status == 'active'
+                            ? Icons.directions_walk_rounded
+                            : Icons.play_circle_filled,
+                        size: 22,
+                      ),
                       label: Text(
-                        'Mulai Trip Sekarang',
+                        trip.status == 'active'
+                            ? 'Lanjutkan Perjalanan Aktif'
+                            : 'Mulai Trip Sekarang',
                         style: AppTypography.headlineSm.copyWith(
                           fontSize: 16,
                           color: AppColors.onPrimary,
@@ -1105,12 +1346,22 @@ class _MyTripScreenState extends State<MyTripScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  Text(
-                    '${trip.participantCount} Orang (Plunyon & Kaliadem)',
-                    style: AppTypography.bodySm.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                      fontSize: 11,
-                    ),
+                  Builder(
+                    builder: (_) {
+                      final destNames = trip.items.map((e) => e.itemName).toList();
+                      final destLabel = destNames.isEmpty
+                          ? ''
+                          : ' (${destNames.take(2).join(' & ')}${destNames.length > 2 ? ' +${destNames.length - 2}' : ''})';
+                      return Text(
+                        '${trip.participantCount} Orang$destLabel',
+                        style: AppTypography.bodySm.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      );
+                    },
                   ),
                 ],
               ),
@@ -1522,26 +1773,151 @@ class _MyTripScreenState extends State<MyTripScreen> {
   }
 
   // Tab Selesai Content (Saat tab "Selesai" aktif)
-  Widget _buildCompletedTabContent() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppDimensions.spaceXl),
-        child: Column(
-          children: [
-            const Icon(Icons.task_alt, size: 64, color: AppColors.secondary),
-            const SizedBox(height: 12),
-            Text(
-              'Belum Ada Trip yang Selesai',
-              style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Riwayat perjalanan Merapi yang telah kamu selesaikan akan tercatat otomatis di sini bersama dokumentasi fotomu.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-              textAlign: TextAlign.center,
-            ),
-          ],
+  Widget _buildCompletedTabContent(
+    BuildContext context,
+    List<TripModel> completedTrips,
+    TripProvider tripProvider,
+  ) {
+    if (completedTrips.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimensions.spaceXl),
+          child: Column(
+            children: [
+              const Icon(Icons.task_alt, size: 64, color: AppColors.secondary),
+              const SizedBox(height: 12),
+              Text(
+                'Belum Ada Trip yang Selesai',
+                style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Riwayat perjalanan Merapi yang telah kamu selesaikan akan tercatat otomatis di sini bersama dokumentasi fotomu.',
+                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
         ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
+      child: Column(
+        children: completedTrips.map((trip) {
+          final completedDestCount = trip.items.where((i) => i.isCompleted).length;
+          final totalCost = trip.totalActualCost > 0 ? trip.totalActualCost : 0.0;
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(AppDimensions.spaceMd),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+              boxShadow: [
+                BoxShadow(
+                  color: AppColors.onSurface.withAlpha(8),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondaryContainer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.check_circle, size: 12, color: AppColors.secondary),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Selesai',
+                            style: AppTypography.labelSm.copyWith(
+                              color: AppColors.onSecondaryContainer,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      trip.completedAt != null && trip.completedAt!.length >= 10
+                          ? trip.completedAt!.substring(0, 10)
+                          : trip.startDate,
+                      style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  trip.tripName,
+                  style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '$completedDestCount/${trip.items.length} Destinasi Selesai Dikunjungi',
+                  style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                ),
+                const Divider(height: 16),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Total Pengeluaran', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                        Text(
+                          _formatCurrency(totalCost),
+                          style: AppTypography.titleMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text('Anggaran Awal', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+                        Text(
+                          _formatCurrency(trip.targetBudget),
+                          style: AppTypography.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onPressed: () {
+                      if (trip.id == null) return;
+                      tripProvider.selectTrip(trip);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ActiveTripScreen(tripId: trip.id!)),
+                      );
+                    },
+                    icon: const Icon(Icons.receipt_long_outlined, size: 16),
+                    label: const Text('Lihat Ringkasan & Pengeluaran'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }

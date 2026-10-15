@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/destination_model.dart';
+import '../../data/models/trip_expense_model.dart';
 import '../../data/models/trip_item_model.dart';
 import '../../data/models/trip_model.dart';
 import '../config/supabase_config.dart';
@@ -341,6 +342,117 @@ class SupabaseService {
       return true;
     } catch (e) {
       debugPrint('SupabaseService.deleteTrip error: $e');
+      return false;
+    }
+  }
+
+  /// Memperbarui status trip di Supabase (upcoming, active, completed)
+  Future<bool> updateTripStatus(
+    int tripId,
+    String status, {
+    String? startedAt,
+    String? completedAt,
+    double? totalActualCost,
+  }) async {
+    if (!isInitialized) return false;
+    try {
+      final Map<String, dynamic> payload = {
+        'status': status,
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+      if (startedAt != null) payload['started_at'] = startedAt;
+      if (completedAt != null) payload['completed_at'] = completedAt;
+      if (totalActualCost != null) payload['total_actual_cost'] = totalActualCost;
+
+      await client
+          .from('trips')
+          .update(payload)
+          .eq('id', tripId)
+          .timeout(const Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.updateTripStatus error: $e');
+      return false;
+    }
+  }
+
+  /// Memperbarui items (destinasi) trip di Supabase
+  Future<bool> updateTripItems(int tripId, List<TripItemModel> items) async {
+    if (!isInitialized) return false;
+    try {
+      await client
+          .from('trips')
+          .update({
+            'items': items.map((it) => it.toMap()).toList(),
+            'updated_at': DateTime.now().toIso8601String(),
+          })
+          .eq('id', tripId)
+          .timeout(const Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.updateTripItems error: $e');
+      return false;
+    }
+  }
+
+  /// Menambahkan pengeluaran trip ke Supabase
+  Future<bool> createTripExpense(TripExpenseModel expense) async {
+    if (!isInitialized) return false;
+    try {
+      final user = currentUser;
+      final payload = {
+        'trip_id': expense.tripId,
+        if (user != null) 'user_id': user.id,
+        if (expense.destinationId != null) 'destination_id': expense.destinationId,
+        'destination_name': expense.destinationName,
+        'category': expense.category,
+        'amount': expense.amount,
+        'notes': expense.notes,
+        'spent_at': expense.spentAt,
+        'created_at': expense.createdAt,
+      };
+
+      await client.from('trip_expenses').insert(payload).timeout(const Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.createTripExpense error: $e');
+      return false;
+    }
+  }
+
+  /// Mengambil daftar pengeluaran trip dari Supabase
+  Future<List<TripExpenseModel>> fetchTripExpenses(int tripId) async {
+    if (!isInitialized) return [];
+    try {
+      final List<dynamic> data = await client
+          .from('trip_expenses')
+          .select()
+          .eq('trip_id', tripId)
+          .order('spent_at', ascending: false)
+          .timeout(const Duration(seconds: 5));
+
+      return data.map((item) {
+        final map = Map<String, dynamic>.from(item);
+        return TripExpenseModel.fromMap(map);
+      }).toList();
+    } catch (e) {
+      debugPrint('SupabaseService.fetchTripExpenses error: $e');
+      return [];
+    }
+  }
+
+  /// Menghapus pengeluaran trip dari Supabase
+  Future<bool> deleteTripExpense(int expenseId) async {
+    if (!isInitialized) return false;
+    try {
+      await client
+          .from('trip_expenses')
+          .delete()
+          .eq('id', expenseId)
+          .timeout(const Duration(seconds: 5));
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.deleteTripExpense error: $e');
       return false;
     }
   }

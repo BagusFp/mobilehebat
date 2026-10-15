@@ -3,6 +3,7 @@ import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../data/mock/mock_destinations.dart';
 import '../../data/models/destination_model.dart';
+import '../../data/models/trip_expense_model.dart';
 import '../../data/models/trip_item_model.dart';
 import '../../data/models/trip_model.dart';
 import '../utils/crypto_helper.dart';
@@ -45,6 +46,38 @@ class DatabaseHelper {
       onOpen: (db) async {
         try {
           await db.execute('ALTER TABLE users ADD COLUMN supabase_id TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN total_actual_cost REAL DEFAULT 0');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN started_at TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN completed_at TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trip_items ADD COLUMN is_completed INTEGER DEFAULT 0');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trip_items ADD COLUMN completed_at TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS trip_expenses (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              trip_id INTEGER NOT NULL,
+              user_id INTEGER NOT NULL,
+              destination_id INTEGER,
+              destination_name TEXT,
+              category TEXT NOT NULL,
+              amount REAL NOT NULL,
+              notes TEXT,
+              spent_at TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+            )
+          ''');
         } catch (_) {}
       },
     );
@@ -102,10 +135,13 @@ class DatabaseHelper {
         participant_count INTEGER DEFAULT 1,
         target_budget REAL DEFAULT 0,
         total_estimated_cost REAL DEFAULT 0,
+        total_actual_cost REAL DEFAULT 0,
         status TEXT DEFAULT 'upcoming',
         reminder_enabled INTEGER DEFAULT 1,
         is_saved_offline INTEGER DEFAULT 1,
         banner_image_url TEXT,
+        started_at TEXT,
+        completed_at TEXT,
         created_at TEXT NOT NULL
       )
     ''');
@@ -127,6 +163,8 @@ class DatabaseHelper {
         elevation_mdpl INTEGER DEFAULT 900,
         connecting_distance_km REAL DEFAULT 3.5,
         connecting_time_minutes INTEGER DEFAULT 15,
+        is_completed INTEGER DEFAULT 0,
+        completed_at TEXT,
         FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
       )
     ''');
@@ -176,6 +214,23 @@ class DatabaseHelper {
         rating INTEGER NOT NULL,
         message TEXT NOT NULL,
         submitted_at TEXT NOT NULL
+      )
+    ''');
+
+    // 9. Tabel Trip Expenses (Mode Perjalanan Aktif)
+    await db.execute('''
+      CREATE TABLE trip_expenses (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        trip_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        destination_id INTEGER,
+        destination_name TEXT,
+        category TEXT NOT NULL,
+        amount REAL NOT NULL,
+        notes TEXT,
+        spent_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
       )
     ''');
 
@@ -498,5 +553,92 @@ class DatabaseHelper {
       });
       return true;
     }
+  }
+
+  // ===========================================================================
+  // ACTIVE TRIP & EXPENSES HELPERS
+  // ===========================================================================
+
+  /// Memperbarui status trip (upcoming, active, completed)
+  Future<void> updateTripStatus(
+    int tripId,
+    String status, {
+    String? startedAt,
+    String? completedAt,
+    double? totalActualCost,
+  }) async {
+    final db = await database;
+    final Map<String, dynamic> values = {'status': status};
+    if (startedAt != null) values['started_at'] = startedAt;
+    if (completedAt != null) values['completed_at'] = completedAt;
+    if (totalActualCost != null) values['total_actual_cost'] = totalActualCost;
+    await db.update('trips', values, where: 'id = ?', whereArgs: [tripId]);
+  }
+
+  /// Menandai destinasi dalam trip sudah dikunjungi
+  Future<void> markTripItemCompleted(
+    int tripId,
+    int itemId,
+    bool isCompleted, {
+    String? completedAt,
+  }) async {
+    final db = await database;
+    await db.update(
+      'trip_items',
+      {
+        'is_completed': isCompleted ? 1 : 0,
+        'completed_at': completedAt ?? (isCompleted ? DateTime.now().toIso8601String() : null),
+      },
+      where: 'id = ? AND trip_id = ?',
+      whereArgs: [itemId, tripId],
+    );
+  }
+
+  /// Menyimpan pengeluaran trip baru
+  Future<int> saveTripExpense(TripExpenseModel expense) async {
+    final db = await database;
+    final id = await db.insert(
+      'trip_expenses',
+      expense.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    await recalculateTripActualCost(expense.tripId);
+    return id;
+  }
+
+  /// Mengambil seluruh pengeluaran untuk trip tertentu
+  Future<List<TripExpenseModel>> getTripExpenses(int tripId) async {
+    final db = await database;
+    final maps = await db.query(
+      'trip_expenses',
+      where: 'trip_id = ?',
+      whereArgs: [tripId],
+      orderBy: 'spent_at DESC',
+    );
+    return maps.map((m) => TripExpenseModel.fromMap(m)).toList();
+  }
+
+  /// Menghapus pengeluaran trip tertentu
+  Future<void> deleteTripExpense(int expenseId, int tripId) async {
+    final db = await database;
+    await db.delete('trip_expenses', where: 'id = ?', whereArgs: [expenseId]);
+    await recalculateTripActualCost(tripId);
+  }
+
+  /// Menghitung ulang total pengeluaran aktual dan menyimpan ke tabel trips
+  Future<double> recalculateTripActualCost(int tripId) async {
+    final db = await database;
+    final result = await db.rawQuery(
+      'SELECT SUM(amount) as total FROM trip_expenses WHERE trip_id = ?',
+      [tripId],
+    );
+    final total = (result.first['total'] as num?)?.toDouble() ?? 0.0;
+    await db.update(
+      'trips',
+      {'total_actual_cost': total},
+      where: 'id = ?',
+      whereArgs: [tripId],
+    );
+    return total;
   }
 }

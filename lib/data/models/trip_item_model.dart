@@ -13,6 +13,8 @@ class TripItemModel {
   final int elevationMdpl;
   final double connectingDistanceKm;
   final int connectingTimeMinutes;
+  final bool isCompleted;
+  final String? completedAt;
 
   const TripItemModel({
     this.id,
@@ -29,6 +31,8 @@ class TripItemModel {
     this.elevationMdpl = 900,
     this.connectingDistanceKm = 3.5,
     this.connectingTimeMinutes = 15,
+    this.isCompleted = false,
+    this.completedAt,
   });
 
   TripItemModel copyWith({
@@ -46,6 +50,8 @@ class TripItemModel {
     int? elevationMdpl,
     double? connectingDistanceKm,
     int? connectingTimeMinutes,
+    bool? isCompleted,
+    String? completedAt,
   }) {
     return TripItemModel(
       id: id ?? this.id,
@@ -62,6 +68,8 @@ class TripItemModel {
       elevationMdpl: elevationMdpl ?? this.elevationMdpl,
       connectingDistanceKm: connectingDistanceKm ?? this.connectingDistanceKm,
       connectingTimeMinutes: connectingTimeMinutes ?? this.connectingTimeMinutes,
+      isCompleted: isCompleted ?? this.isCompleted,
+      completedAt: completedAt ?? this.completedAt,
     );
   }
 
@@ -81,6 +89,8 @@ class TripItemModel {
       elevationMdpl: map['elevation_mdpl'] as int? ?? 900,
       connectingDistanceKm: (map['connecting_distance_km'] as num?)?.toDouble() ?? 3.5,
       connectingTimeMinutes: map['connecting_time_minutes'] as int? ?? 15,
+      isCompleted: (map['is_completed'] as int? ?? 0) == 1 || (map['is_completed'] == true),
+      completedAt: map['completed_at'] as String?,
     );
   }
 
@@ -100,6 +110,8 @@ class TripItemModel {
       'elevation_mdpl': elevationMdpl,
       'connecting_distance_km': connectingDistanceKm,
       'connecting_time_minutes': connectingTimeMinutes,
+      'is_completed': isCompleted ? 1 : 0,
+      if (completedAt != null) 'completed_at': completedAt,
     };
   }
 }
