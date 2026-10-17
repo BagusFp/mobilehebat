@@ -98,7 +98,7 @@ class TripProvider extends ChangeNotifier {
     return total;
   }
 
-  double get parkingFee => 10000.0;
+  double get parkingFee => _builderItems.isEmpty ? 0.0 : 10000.0;
   double get totalMandatoryCost => totalTicketCost + parkingFee;
   double get targetBudget => _builderTrip?.targetBudget ?? 400000.0;
   double get remainingBudget => targetBudget - totalMandatoryCost;
@@ -143,21 +143,85 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
-  /// Memperbarui jadwal waktu destinasi tertentu pada builder
+  /// Memperbarui jadwal waktu destinasi tertentu pada builder dan otomatis mengalirkan (cascade)
+  /// waktu selesai dan waktu mulai ke destinasi-destinasi berikutnya
   void updateBuilderItemSchedule(
     int index, {
     String? plannedTime,
     double? durationHours,
     String? itemSubtitle,
   }) {
-    if (index >= 0 && index < _builderItems.length) {
-      _builderItems[index] = _builderItems[index].copyWith(
-        plannedTime: plannedTime ?? _builderItems[index].plannedTime,
-        durationHours: durationHours ?? _builderItems[index].durationHours,
-        itemSubtitle: itemSubtitle ?? _builderItems[index].itemSubtitle,
-      );
-      notifyListeners();
+    if (index < 0 || index >= _builderItems.length) return;
+
+    final currentItem = _builderItems[index];
+    final newDuration = durationHours ?? currentItem.durationHours;
+
+    // Tentukan waktu mulai (startHour & startMinute)
+    int startHour = 7;
+    int startMinute = 30;
+
+    final targetPlannedTime = plannedTime ?? currentItem.plannedTime;
+
+    // Coba parse jam mulai dari plannedTime (format: "07:30 - 09:00" atau "07:30")
+    final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(targetPlannedTime);
+    if (match != null) {
+      startHour = int.tryParse(match.group(1)!) ?? 7;
+      startMinute = int.tryParse(match.group(2)!) ?? 30;
     }
+
+    final startMinutesTotal = startHour * 60 + startMinute;
+    final durationMinutesTotal = (newDuration * 60).round();
+    final endMinutesTotal = startMinutesTotal + durationMinutesTotal;
+
+    final startH = (startMinutesTotal ~/ 60) % 24;
+    final startM = startMinutesTotal % 60;
+    final endH = (endMinutesTotal ~/ 60) % 24;
+    final endM = endMinutesTotal % 60;
+
+    final formattedStart =
+        '${startH.toString().padLeft(2, '0')}:${startM.toString().padLeft(2, '0')}';
+    final formattedEnd =
+        '${endH.toString().padLeft(2, '0')}:${endM.toString().padLeft(2, '0')}';
+
+    // Perbarui item yang diedit
+    _builderItems[index] = currentItem.copyWith(
+      plannedTime: '$formattedStart - $formattedEnd',
+      durationHours: newDuration,
+      itemSubtitle: itemSubtitle ?? currentItem.itemSubtitle,
+    );
+
+    // Kaskade secara otomatis ke destinasi berikutnya di bawahnya
+    int nextStartMinutes = endMinutesTotal +
+        (currentItem.connectingTimeMinutes > 0
+            ? currentItem.connectingTimeMinutes
+            : 15);
+
+    for (int k = index + 1; k < _builderItems.length; k++) {
+      final nextItem = _builderItems[k];
+      final nextDurMins = (nextItem.durationHours * 60).round();
+      final nextEndMinutes = nextStartMinutes + nextDurMins;
+
+      final nStartH = (nextStartMinutes ~/ 60) % 24;
+      final nStartM = nextStartMinutes % 60;
+      final nEndH = (nextEndMinutes ~/ 60) % 24;
+      final nEndM = nextEndMinutes % 60;
+
+      final nFmtStart =
+          '${nStartH.toString().padLeft(2, '0')}:${nStartM.toString().padLeft(2, '0')}';
+      final nFmtEnd =
+          '${nEndH.toString().padLeft(2, '0')}:${nEndM.toString().padLeft(2, '0')}';
+
+      _builderItems[k] = nextItem.copyWith(
+        plannedTime: '$nFmtStart - $nFmtEnd',
+      );
+
+      final travel = nextItem.connectingTimeMinutes > 0
+          ? nextItem.connectingTimeMinutes
+          : 15;
+      nextStartMinutes = nextEndMinutes + travel;
+    }
+
+    notifyListeners();
   }
 
   /// Otomatis menyusun jadwal berurutan mulai dari jam start tertentu (misal jam 07:30)
@@ -284,9 +348,13 @@ class TripProvider extends ChangeNotifier {
   }
 
   TripModel? get activeOrUpcomingTrip {
-    if (_selectedTrip != null) return _selectedTrip;
-    final upcoming = _allTrips.where((t) => t.status == 'upcoming');
+    if (_selectedTrip != null && _selectedTrip!.status != 'completed') return _selectedTrip;
+    final active = _allTrips.where((t) => t.status == 'active');
+    if (active.isNotEmpty) return active.first;
+    final upcoming = _allTrips.where((t) => t.status == 'upcoming' || t.status == 'planned');
     if (upcoming.isNotEmpty) return upcoming.first;
+    final draft = _allTrips.where((t) => t.status == 'draft');
+    if (draft.isNotEmpty) return draft.first;
     return _allTrips.isNotEmpty ? _allTrips.first : null;
   }
 
@@ -309,10 +377,29 @@ class TripProvider extends ChangeNotifier {
   }
 
   /// Inisialisasi builder untuk membuat trip baru atau mengedit trip
-  void initBuilderTrip({TripModel? existingTrip}) {
+  void initBuilderTrip({TripModel? existingTrip, bool empty = true}) {
     if (existingTrip != null) {
       _builderTrip = existingTrip;
       _builderItems = List.from(existingTrip.items);
+    } else if (empty) {
+      // Inisialisasi trip baru kosong sesuai alur pembuatan
+      _builderTrip = const TripModel(
+        userId: 1,
+        tripName: 'Rencana Trip Baru',
+        startDate: 'Sabtu, 19 Okt 2024',
+        participantCount: 2,
+        targetBudget: 400000.0,
+        totalEstimatedCost: 0.0,
+        status: 'upcoming',
+        createdAt: '2026-10-12',
+        originCity: null,
+        originTimezone: null,
+        destinationCity: 'Gunung Merapi (Kaliadem)',
+        destinationTimezone: 'Asia/Jakarta',
+        currencySource: 'IDR',
+        currencyTarget: 'USD',
+      );
+      _builderItems = [];
     } else {
       // Inisialisasi template default Eksplorasi Merapi 1 Hari
       _builderTrip = const TripModel(
@@ -383,9 +470,12 @@ class TripProvider extends ChangeNotifier {
   void removeBuilderItem(int index) {
     if (index >= 0 && index < _builderItems.length) {
       _builderItems.removeAt(index);
-      // Re-index visit orders
+      // Re-index visit orders & recalculate schedule
       for (int i = 0; i < _builderItems.length; i++) {
         _builderItems[i] = _builderItems[i].copyWith(visitOrder: i + 1);
+      }
+      if (_builderItems.isNotEmpty) {
+        autoScheduleBuilderItems();
       }
       notifyListeners();
     }
@@ -402,6 +492,7 @@ class TripProvider extends ChangeNotifier {
     for (int i = 0; i < _builderItems.length; i++) {
       _builderItems[i] = _builderItems[i].copyWith(visitOrder: i + 1);
     }
+    autoScheduleBuilderItems();
     notifyListeners();
   }
 
@@ -410,12 +501,35 @@ class TripProvider extends ChangeNotifier {
     final newOrder = _builderItems.length + 1;
     final itemCost = dest.ticketPrice > 0 ? (dest.ticketPrice * 2) : 10000.0;
 
+    // Tentukan waktu kunjungan secara sekuensial dari jadwal sebelumnya
+    String planned = '07:30 - 09:00';
+    if (_builderItems.isNotEmpty) {
+      final last = _builderItems.last;
+      final matches =
+          RegExp(r'(\d{1,2}):(\d{2})').allMatches(last.plannedTime).toList();
+      int startMins = 7 * 60 + 30;
+      if (matches.length >= 2) {
+        final endH = int.parse(matches[1].group(1)!);
+        final endM = int.parse(matches[1].group(2)!);
+        final travel =
+            last.connectingTimeMinutes > 0 ? last.connectingTimeMinutes : 15;
+        startMins = endH * 60 + endM + travel;
+      }
+      final endMins = startMins + 90; // Default 1.5 jam
+      final sH = (startMins ~/ 60) % 24;
+      final sM = startMins % 60;
+      final eH = (endMins ~/ 60) % 24;
+      final eM = endMins % 60;
+      planned =
+          '${sH.toString().padLeft(2, '0')}:${sM.toString().padLeft(2, '0')} - ${eH.toString().padLeft(2, '0')}:${eM.toString().padLeft(2, '0')}';
+    }
+
     final newItem = TripItemModel(
       destinationId: dest.id,
       itemName: dest.name,
       itemSubtitle: '${dest.categoryName} • ${dest.address}',
       visitOrder: newOrder,
-      plannedTime: '13:30 - 15:00',
+      plannedTime: planned,
       durationHours: 1.5,
       estimatedCost: itemCost,
       imageUrl: dest.imageUrl,
@@ -560,6 +674,7 @@ class TripProvider extends ChangeNotifier {
 
   /// Simpan builder trip ke SQLite (menangani create baru maupun update edit)
   Future<void> saveBuilderTrip(int userId, {String status = 'upcoming'}) async {
+    final targetStatus = _builderTrip?.status ?? status;
     final finalTrip =
         (_builderTrip ??
                 const TripModel(
@@ -570,14 +685,23 @@ class TripProvider extends ChangeNotifier {
                 ))
             .copyWith(
               userId: userId,
-              status: status,
+              status: targetStatus,
               totalEstimatedCost: totalMandatoryCost,
               createdAt: DateTime.now().toIso8601String(),
-              items: _builderItems,
+              items: List<TripItemModel>.from(_builderItems),
             );
 
     if (_builderTrip?.id != null) {
-      await _repository.updateTrip(finalTrip.copyWith(id: _builderTrip!.id));
+      final updatedTrip = finalTrip.copyWith(id: _builderTrip!.id);
+      final idx = _allTrips.indexWhere((t) => t.id == _builderTrip!.id);
+      if (idx != -1) {
+        _allTrips[idx] = updatedTrip;
+      }
+      if (_selectedTrip?.id == _builderTrip!.id) {
+        _selectedTrip = updatedTrip;
+      }
+      notifyListeners();
+      await _repository.updateTrip(updatedTrip);
     } else {
       await _repository.createTrip(finalTrip);
     }
@@ -606,6 +730,24 @@ class TripProvider extends ChangeNotifier {
       }
       notifyListeners();
       await _repository.toggleReminder(tripId, newStatus);
+    }
+  }
+
+  /// Memperbarui status trip (upcoming, draft, completed) dan menyinkronkannya
+  Future<void> updateTripStatus(int tripId, String newStatus) async {
+    final index = _allTrips.indexWhere((t) => t.id == tripId);
+    if (index != -1) {
+      final now = DateTime.now().toIso8601String();
+      final updated = _allTrips[index].copyWith(
+        status: newStatus,
+        completedAt: newStatus == 'completed' ? now : _allTrips[index].completedAt,
+      );
+      _allTrips[index] = updated;
+      if (_selectedTrip?.id == tripId) {
+        _selectedTrip = updated;
+      }
+      notifyListeners();
+      await _repository.updateTripStatus(tripId, newStatus);
     }
   }
 
@@ -775,9 +917,8 @@ class TripProvider extends ChangeNotifier {
   /// Mengakhiri perjalanan aktif
   Future<void> finishActiveTrip(int tripId) async {
     final totalActual = activeTripTotalExpenses;
-    await _repository.completeTrip(tripId, totalActualCost: totalActual);
-
     final completedTime = DateTime.now().toIso8601String();
+
     if (_selectedTrip != null && _selectedTrip!.id == tripId) {
       _selectedTrip = _selectedTrip!.copyWith(
         status: 'completed',
@@ -793,7 +934,10 @@ class TripProvider extends ChangeNotifier {
         totalActualCost: totalActual,
       );
     }
+    _activeTab = 'completed';
     notifyListeners();
+
+    await _repository.completeTrip(tripId, totalActualCost: totalActual);
   }
 
   /// Memilih dan memuat trip berdasarkan ID beserta rincian item & pengeluarannya

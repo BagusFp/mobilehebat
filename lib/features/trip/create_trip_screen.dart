@@ -1,6 +1,10 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:sensors_plus/sensors_plus.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
@@ -30,15 +34,19 @@ class CreateTripScreen extends StatefulWidget {
 class _CreateTripScreenState extends State<CreateTripScreen> {
   int _currentStep = 1; // Mulai urut dari langkah 1 (Informasi & Peserta)
   late TextEditingController _tripNameController;
-  bool _isTimezoneExpanded = true;
-  bool _isCurrencyExpanded = true;
+  bool _isTimezoneExpanded = false;
+  bool _isCurrencyExpanded = false;
+  StreamSubscription<AccelerometerEvent>? _shakeSubscription;
+  DateTime _lastShakeTime = DateTime.now();
+  bool _isGachaOpen = false;
 
   @override
   void initState() {
     super.initState();
     _tripNameController = TextEditingController(
-      text: 'Eksplorasi Merapi 1 Hari',
+      text: 'Rencana Trip Baru',
     );
+    _initShakeSensor();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tripProvider = context.read<TripProvider>();
       final util = context.read<UtilityProvider>();
@@ -53,7 +61,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         tripProvider.initBuilderWithDestination(widget.initialDestination!);
         _tripNameController.text = 'Wisata ${widget.initialDestination!.name}';
       } else {
-        tripProvider.initBuilderTrip();
+        if (tripProvider.builderTrip == null) {
+          tripProvider.initBuilderTrip(empty: true);
+        }
         if (tripProvider.builderTrip != null) {
           _tripNameController.text = tripProvider.builderTrip!.tripName;
         }
@@ -63,8 +73,80 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
   @override
   void dispose() {
+    _shakeSubscription?.cancel();
     _tripNameController.dispose();
     super.dispose();
+  }
+
+  void _initShakeSensor() {
+    try {
+      _shakeSubscription = accelerometerEventStream().listen(
+        (event) {
+          if (!mounted || _currentStep != 2 || _isGachaOpen) return;
+          final double gForce = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+          // Deteksi hentakan goyang ponsel (> 14.5 m/s^2)
+          if (gForce > 14.5) {
+            final now = DateTime.now();
+            if (now.difference(_lastShakeTime).inMilliseconds > 1600) {
+              _lastShakeTime = now;
+              HapticFeedback.heavyImpact();
+              _openGachaShakeDialog(context);
+            }
+          }
+        },
+        onError: (err) {
+          debugPrint('Shake sensor in create trip unavailable: $err');
+        },
+      );
+    } catch (e) {
+      debugPrint('Shake sensor init catch: $e');
+    }
+  }
+
+  void _openGachaShakeDialog(BuildContext context) {
+    if (_isGachaOpen) return;
+    final destProvider = context.read<DestinationProvider>();
+    final tripProvider = context.read<TripProvider>();
+    final destinations = destProvider.allDestinations;
+
+    if (destinations.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Daftar destinasi belum termuat.'),
+          duration: Duration(seconds: 1),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isGachaOpen = true;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogCtx) => _GachaShakeDestinationDialog(
+        availableDestinations: destinations,
+        existingItems: tripProvider.builderItems,
+        onAddDestination: (selectedDest) {
+          tripProvider.addDestinationToBuilder(selectedDest);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('🎉 ${selectedDest.name} berhasil ditambahkan ke rute trip!'),
+              backgroundColor: AppColors.primary,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        },
+      ),
+    ).then((_) {
+      if (mounted) {
+        setState(() {
+          _isGachaOpen = false;
+        });
+      }
+    });
   }
 
   String get _stepTitle {
@@ -88,99 +170,352 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     TripItemModel item,
     TripProvider tripProvider,
   ) {
-    final controller = TextEditingController(text: item.plannedTime);
+    // Parse start time from plannedTime (e.g. "08:00 - 09:30" or "08:00")
+    TimeOfDay selectedStart = const TimeOfDay(hour: 8, minute: 0);
+    final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(item.plannedTime);
+    if (match != null) {
+      final h = int.tryParse(match.group(1) ?? '') ?? 8;
+      final m = int.tryParse(match.group(2) ?? '') ?? 0;
+      selectedStart = TimeOfDay(hour: h.clamp(0, 23), minute: m.clamp(0, 59));
+    }
+
+    double selectedDuration = item.durationHours > 0 ? item.durationHours : 1.5;
+
+    String formatTimeOfDay(TimeOfDay tod) {
+      final h = tod.hour.toString().padLeft(2, '0');
+      final m = tod.minute.toString().padLeft(2, '0');
+      return '$h:$m';
+    }
+
+    TimeOfDay computeEndTime(TimeOfDay start, double durationHours) {
+      final startMins = start.hour * 60 + start.minute;
+      final durMins = (durationHours * 60).round();
+      final endTotal = startMins + durMins;
+      return TimeOfDay(
+        hour: (endTotal ~/ 60) % 24,
+        minute: endTotal % 60,
+      );
+    }
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.access_time_filled, color: AppColors.primary),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Waktu di ${item.itemName}',
-                style: const TextStyle(fontSize: 16),
-                overflow: TextOverflow.ellipsis,
-              ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
+          final endTod = computeEndTime(selectedStart, selectedDuration);
+          final formattedRange =
+              '${formatTimeOfDay(selectedStart)} - ${formatTimeOfDay(endTod)}';
+
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
             ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Format rentang waktu kunjungan (WIB):',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: controller,
-              decoration: const InputDecoration(
-                labelText: 'Rentang Jam',
-                hintText: 'Contoh: 08:00 - 09:30',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 6,
+            title: Row(
               children: [
-                ActionChip(
-                  label: const Text(
-                    '07:00 - 08:30',
-                    style: TextStyle(fontSize: 11),
+                const Icon(Icons.access_time_filled, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Jadwal di ${item.itemName}',
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  onPressed: () => controller.text = '07:00 - 08:30',
-                ),
-                ActionChip(
-                  label: const Text(
-                    '09:00 - 10:30',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  onPressed: () => controller.text = '09:00 - 10:30',
-                ),
-                ActionChip(
-                  label: const Text(
-                    '11:00 - 12:30',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  onPressed: () => controller.text = '11:00 - 12:30',
-                ),
-                ActionChip(
-                  label: const Text(
-                    '13:30 - 15:00',
-                    style: TextStyle(fontSize: 11),
-                  ),
-                  onPressed: () => controller.text = '13:30 - 15:00',
                 ),
               ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pilih jam mulai kunjungan menggunakan pemilih jam visual:',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Pop-up Jam Visual Button Card
+                  InkWell(
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: dialogContext,
+                        initialTime: selectedStart,
+                        helpText: 'PILIH JAM MULAI KUNJUNGAN',
+                        cancelText: 'BATAL',
+                        confirmText: 'PILIH JAM',
+                        builder: (context, child) {
+                          return MediaQuery(
+                            data: MediaQuery.of(context).copyWith(
+                              alwaysUse24HourFormat: true,
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null) {
+                        setDialogState(() {
+                          selectedStart = picked;
+                        });
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(14),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(15),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.primary.withAlpha(80),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(
+                              Icons.schedule,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Jam Mulai',
+                                  style: AppTypography.labelSmall.copyWith(
+                                    color: AppColors.outline,
+                                  ),
+                                ),
+                                Text(
+                                  '${formatTimeOfDay(selectedStart)} WIB',
+                                  style: AppTypography.titleLarge.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.touch_app,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Pilih Jam',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                  // Preset Jam Mulai Cepat
+                  Text(
+                    'Preset Jam Mulai:',
+                    style: AppTypography.labelSmall.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      const TimeOfDay(hour: 7, minute: 0),
+                      const TimeOfDay(hour: 8, minute: 0),
+                      const TimeOfDay(hour: 9, minute: 30),
+                      const TimeOfDay(hour: 11, minute: 0),
+                      const TimeOfDay(hour: 13, minute: 30),
+                      const TimeOfDay(hour: 15, minute: 0),
+                    ].map((tod) {
+                      final isSelected =
+                          selectedStart.hour == tod.hour &&
+                          selectedStart.minute == tod.minute;
+                      return ChoiceChip(
+                        label: Text(
+                          formatTimeOfDay(tod),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.onSurface,
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: AppColors.primary,
+                        backgroundColor: AppColors.surfaceContainerLow,
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (sel) {
+                          if (sel) {
+                            setDialogState(() {
+                              selectedStart = tod;
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 14),
+                  // Durasi Kunjungan
+                  Text(
+                    'Durasi Waktu Santai:',
+                    style: AppTypography.labelSmall.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.outline,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [0.5, 1.0, 1.5, 2.0, 2.5, 3.0].map((d) {
+                      final isSelected = selectedDuration == d;
+                      final label = d % 1 == 0 ? '${d.toInt()} Jam' : '$d Jam';
+                      return ChoiceChip(
+                        label: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.onSurface,
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: AppColors.secondary,
+                        backgroundColor: AppColors.surfaceContainerLow,
+                        visualDensity: VisualDensity.compact,
+                        onSelected: (sel) {
+                          if (sel) {
+                            setDialogState(() {
+                              selectedDuration = d;
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  const SizedBox(height: 14),
+                  // Preview Rentang Jam
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.surfaceContainer),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.timelapse_rounded,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Rentang Jam Kunjungan:',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: AppColors.outline,
+                                  fontSize: 10.5,
+                                ),
+                              ),
+                              Text(
+                                '$formattedRange WIB',
+                                style: AppTypography.bodyMedium.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                tripProvider.updateBuilderItemSchedule(
-                  index,
-                  plannedTime: controller.text.trim(),
-                );
-                Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Simpan'),
-          ),
-        ],
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Batal'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: () {
+                  tripProvider.updateBuilderItemSchedule(
+                    index,
+                    plannedTime: formattedRange,
+                    durationHours: selectedDuration,
+                  );
+                  Navigator.pop(ctx);
+                },
+                child: const Text('Terapkan Jadwal'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -230,6 +565,8 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               label: Text(
                 'Gunakan Biaya Destinasi (${_formatCurrency(mandatoryCost)})',
                 style: const TextStyle(fontSize: 11),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -327,6 +664,59 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       ],
                     ),
                   ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        _openGachaShakeDialog(context);
+                      },
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.secondaryContainer,
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          border: Border.all(
+                            color: AppColors.primary.withAlpha(60),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.screen_rotation_alt, size: 20, color: AppColors.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Bingung Memilih? Goyang HP untuk Destinasi',
+                                    style: AppTypography.labelMd.copyWith(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'Kocok ponselmu secara fisik dengan sensor akselerometer',
+                                    style: AppTypography.bodySm.copyWith(
+                                      color: AppColors.onSecondaryContainer,
+                                      fontSize: 10.5,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const Icon(Icons.arrow_forward_ios, size: 12, color: AppColors.primary),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   Expanded(
                     child: ListView.separated(
                       controller: scrollController,
@@ -491,7 +881,36 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             ),
           ],
         ),
-        actions: const [],
+        actions: [
+          TextButton.icon(
+            onPressed: () async {
+              final authProvider = context.read<AuthProvider>();
+              final tripProvider = context.read<TripProvider>();
+              final userId = authProvider.currentUser?.id ?? 1;
+              await tripProvider.saveBuilderTrip(userId, status: 'draft');
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Rencana perjalanan berhasil disimpan sebagai draft.'),
+                    backgroundColor: AppColors.secondary,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+                tripProvider.setActiveTab('draft');
+                Navigator.of(context).pop();
+              }
+            },
+            icon: const Icon(Icons.drafts_outlined, size: 16, color: AppColors.primary),
+            label: Text(
+              'Simpan Draft',
+              style: AppTypography.labelMd.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Stack(
         children: [
@@ -556,7 +975,22 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             title: 'Jadwal',
                             isDone: _currentStep > 3,
                             isActive: _currentStep == 3,
-                            onTap: () => setState(() => _currentStep = 3),
+                            onTap: () {
+                              if (tripProvider.builderItems.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Silakan tambah minimal 1 destinasi terlebih dahulu.',
+                                    ),
+                                    backgroundColor:
+                                        AppColors.volcanoStatusWaspada,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              setState(() => _currentStep = 3);
+                            },
                           ),
                           _buildStepLine(isDone: _currentStep > 3),
                           _buildStepNode(
@@ -564,7 +998,22 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             title: 'Budget',
                             isDone: false,
                             isActive: _currentStep == 4,
-                            onTap: () => setState(() => _currentStep = 4),
+                            onTap: () {
+                              if (tripProvider.builderItems.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Silakan tambah minimal 1 destinasi terlebih dahulu.',
+                                    ),
+                                    backgroundColor:
+                                        AppColors.volcanoStatusWaspada,
+                                    duration: Duration(seconds: 2),
+                                  ),
+                                );
+                                return;
+                              }
+                              setState(() => _currentStep = 4);
+                            },
                           ),
                         ],
                       ),
@@ -576,134 +1025,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 if (_currentStep == 1)
                   _buildStep1Information(context, tripProvider),
                 if (_currentStep == 2) ...[
-                  // 2. Trip Metadata Banner
-                  Padding(
-                    padding: const EdgeInsets.all(AppDimensions.margin),
-                    child: Container(
-                      padding: const EdgeInsets.all(AppDimensions.spaceMd),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLowest,
-                        borderRadius: AppDimensions.roundedXl,
-                        border: Border.all(color: AppColors.surfaceContainer),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.onSurface.withAlpha(5),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.terrain,
-                                      size: 20,
-                                      color: AppColors.primary,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Text(
-                                        tripProvider.builderTrip?.tripName ??
-                                            'Eksplorasi Merapi 1 Hari',
-                                        style: AppTypography.titleMd.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 6),
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 4,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.calendar_today,
-                                          size: 14,
-                                          color: AppColors.outline,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          tripProvider.builderTrip?.startDate ??
-                                              'Sabtu, 19 Okt 2024',
-                                          style: AppTypography.bodySm,
-                                        ),
-                                      ],
-                                    ),
-                                    const Text(
-                                      '•',
-                                      style: TextStyle(
-                                        color: AppColors.outline,
-                                      ),
-                                    ),
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.group,
-                                          size: 14,
-                                          color: AppColors.outline,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '${tripProvider.builderTrip?.participantCount ?? 2} Orang',
-                                          style: AppTypography.bodySm,
-                                        ),
-                                      ],
-                                    ),
-                                    const Text(
-                                      '•',
-                                      style: TextStyle(
-                                        color: AppColors.outline,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Target ${_formatCurrency(tripProvider.targetBudget)}',
-                                      style: AppTypography.bodySm.copyWith(
-                                        color: AppColors.primary,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          InkWell(
-                            onTap: () {
-                              setState(() => _currentStep = 1);
-                            },
-                            borderRadius: BorderRadius.circular(18),
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerLow,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.edit,
-                                size: 18,
-                                color: AppColors.primary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppDimensions.spaceMd),
+                  const SizedBox(height: AppDimensions.spaceSm),
 
                   // 4. Destination Reorderable List Section
                   Padding(
@@ -768,60 +1090,115 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.margin,
                     ),
-                    child: Column(
-                      children: List.generate(items.length, (idx) {
-                        final item = items[idx];
-                        return Column(
-                          children: [
-                            _buildDestinationCard(
-                              context,
-                              item,
-                              idx,
-                              tripProvider,
+                    child: items.isEmpty
+                        ? Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 28,
                             ),
-                            if (idx < items.length - 1)
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 6,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.secondary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      'Perjalanan via Jl. Kaliurang (${item.connectingTimeMinutes} mnt • ${item.connectingDistanceKm} km)',
-                                      style: AppTypography.labelSm.copyWith(
-                                        color: AppColors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      width: 6,
-                                      height: 6,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.secondary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainerLowest,
+                              borderRadius: AppDimensions.roundedXl,
+                              border: Border.all(
+                                color: AppColors.surfaceContainer,
                               ),
-                          ],
-                        );
-                      }),
-                    ),
+                            ),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryContainer
+                                        .withAlpha(50),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.add_location_alt_outlined,
+                                    size: 28,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'Belum Ada Destinasi Terpilih',
+                                  style: AppTypography.titleMedium.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Daftar destinasi masih kosong. Silakan tambah destinasi wisata Merapi untuk mulai menyusun itinerary dan rincian waktu kunjungan.',
+                                  textAlign: TextAlign.center,
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : Column(
+                            children: List.generate(items.length, (idx) {
+                              final item = items[idx];
+                              return Column(
+                                children: [
+                                  _buildDestinationCard(
+                                    context,
+                                    item,
+                                    idx,
+                                    tripProvider,
+                                  ),
+                                  if (idx < items.length - 1)
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 6,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.secondary,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Flexible(
+                                            child: Text(
+                                              'Perjalanan via Jl. Kaliurang (${item.connectingTimeMinutes} mnt • ${item.connectingDistanceKm} km)',
+                                              style:
+                                                  AppTypography.labelSm.copyWith(
+                                                color:
+                                                    AppColors.onSurfaceVariant,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Container(
+                                            width: 6,
+                                            height: 6,
+                                            decoration: const BoxDecoration(
+                                              color: AppColors.secondary,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              );
+                            }),
+                          ),
                   ),
                   const SizedBox(height: AppDimensions.spaceSm),
 
-                  // Button: Tambah Destinasi Lain
+                  // Button: Tambah Destinasi
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppDimensions.margin,
@@ -844,12 +1221,149 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                           size: 20,
                         ),
                         label: Text(
-                          'Tambah Destinasi Lain di Sekitar Merapi',
+                          items.isEmpty
+                              ? 'Tambah Destinasi di Sekitar Merapi'
+                              : 'Tambah Destinasi Lain di Sekitar Merapi',
                           style: AppTypography.labelLg.copyWith(
                             color: AppColors.primary,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Gamified Kocok HP / Gacha Destination Banner
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimensions.margin,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primaryContainer.withAlpha(220),
+                            AppColors.secondaryContainer.withAlpha(200),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: AppDimensions.roundedLg,
+                        border: Border.all(
+                          color: AppColors.primary.withAlpha(90),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withAlpha(25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: AppDimensions.roundedMd,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(40),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.screen_rotation_alt,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        'Bingung Mau ke Mana?',
+                                        style: AppTypography.titleSmall.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.onSurface,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFC58A32),
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: const Text(
+                                        'GACHA',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Goyang HP atau ketuk tombol untuk rekomendasi acak lereng Merapi.',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.onSurfaceVariant,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(
+                                  AppDimensions.radiusMd,
+                                ),
+                              ),
+                            ),
+                            onPressed: () => _openGachaShakeDialog(context),
+                            icon: const Icon(Icons.screen_rotation_alt, size: 16),
+                            label: const Text(
+                              'Goyang HP',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -873,22 +1387,29 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.analytics,
-                                    size: 20,
-                                    color: AppColors.primary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Kalkulator Rencana Trip',
-                                    style: AppTypography.titleMd.copyWith(
-                                      fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.analytics,
+                                      size: 20,
+                                      color: AppColors.primary,
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Kalkulator Rencana Trip',
+                                        style: AppTypography.titleMd.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 8,
@@ -910,78 +1431,31 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                           ),
                           const SizedBox(height: AppDimensions.spaceMd),
 
-                          // Time & Duration Gauge
-                          Container(
-                            padding: const EdgeInsets.all(
-                              AppDimensions.spaceSm,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLow,
-                              borderRadius: AppDimensions.roundedLg,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.schedule,
-                                      size: 22,
-                                      color: AppColors.primary,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Total Durasi Aktivitas',
-                                          style: AppTypography.labelSm.copyWith(
-                                            color: AppColors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                        Text(
-                                          '5 Jam 30 Menit',
-                                          style: AppTypography.headlineSm
-                                              .copyWith(
-                                                fontWeight: FontWeight.bold,
-                                                color: AppColors.onSurface,
-                                              ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  'Termasuk 45 mnt perjalanan',
-                                  style: AppTypography.labelSm.copyWith(
-                                    color: AppColors.secondary,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: AppDimensions.spaceMd),
-
                           // Budget Breakdown
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.payments,
-                                    size: 16,
-                                    color: AppColors.outline,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Total Tiket & Donasi (2 Orang)',
-                                    style: AppTypography.bodySm,
-                                  ),
-                                ],
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.payments,
+                                      size: 16,
+                                      color: AppColors.outline,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Total Tiket & Donasi (${tripProvider.builderTrip?.participantCount ?? 1} Orang)',
+                                        style: AppTypography.bodySm,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
                                 _formatCurrency(tripProvider.totalTicketCost),
                                 style: AppTypography.bodySm.copyWith(
@@ -994,20 +1468,27 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.local_parking,
-                                    size: 16,
-                                    color: AppColors.outline,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'Estimasi Parkir Kendaraan',
-                                    style: AppTypography.bodySm,
-                                  ),
-                                ],
+                              Expanded(
+                                child: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.local_parking,
+                                      size: 16,
+                                      color: AppColors.outline,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        'Estimasi Parkir Kendaraan',
+                                        style: AppTypography.bodySm,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const SizedBox(width: 8),
                               Text(
                                 _formatCurrency(tripProvider.parkingFee),
                                 style: AppTypography.bodySm.copyWith(
@@ -1031,12 +1512,17 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Estimasi Biaya Wajib',
-                                  style: AppTypography.bodySm.copyWith(
-                                    fontWeight: FontWeight.w600,
+                                Expanded(
+                                  child: Text(
+                                    'Estimasi Biaya Wajib',
+                                    style: AppTypography.bodySm.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   _formatCurrency(
                                     tripProvider.totalMandatoryCost,
@@ -1065,75 +1551,95 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      width: 32,
-                                      height: 32,
-                                      decoration: const BoxDecoration(
-                                        color: AppColors.primary,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.check_circle,
-                                        color: AppColors.onPrimary,
-                                        size: 18,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Sisa Target Budget',
-                                          style: AppTypography.labelSm.copyWith(
-                                            color:
-                                                AppColors.onSecondaryContainer,
-                                          ),
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      Container(
+                                        width: 32,
+                                        height: 32,
+                                        decoration: const BoxDecoration(
+                                          color: AppColors.primary,
+                                          shape: BoxShape.circle,
                                         ),
-                                        Text(
-                                          _formatCurrency(
-                                            tripProvider.remainingBudget,
-                                          ),
-                                          style: AppTypography.titleMd.copyWith(
+                                        child: const Icon(
+                                          Icons.check_circle,
+                                          color: AppColors.onPrimary,
+                                          size: 18,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Sisa Target Budget',
+                                              style: AppTypography.labelSm
+                                                  .copyWith(
+                                                    color: AppColors
+                                                        .onSecondaryContainer,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              _formatCurrency(
+                                                tripProvider.remainingBudget,
+                                              ),
+                                              style: AppTypography.titleMd
+                                                  .copyWith(
+                                                    color: AppColors.primary,
+                                                    fontWeight:
+                                                        FontWeight.bold,
+                                                  ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color:
+                                              AppColors.surfaceContainerLowest,
+                                          borderRadius:
+                                              AppDimensions.roundedSm,
+                                        ),
+                                        child: Text(
+                                          'SANGAT AMAN',
+                                          style: AppTypography.labelSm.copyWith(
                                             color: AppColors.primary,
                                             fontWeight: FontWeight.bold,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 8,
-                                        vertical: 3,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surfaceContainerLowest,
-                                        borderRadius: AppDimensions.roundedSm,
-                                      ),
-                                      child: Text(
-                                        'SANGAT AMAN',
-                                        style: AppTypography.labelSm.copyWith(
-                                          color: AppColors.primary,
-                                          fontWeight: FontWeight.bold,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      'Untuk makan & oleh-oleh',
-                                      style: AppTypography.bodySm.copyWith(
-                                        color: AppColors.onSurfaceVariant,
-                                        fontSize: 11,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'Untuk makan & oleh-oleh',
+                                        style: AppTypography.bodySm.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                          fontSize: 11,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -1213,6 +1719,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             elevation: 2,
                           ),
                           onPressed: () async {
+                            if (_currentStep == 2 &&
+                                tripProvider.builderItems.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Silakan tambah minimal 1 destinasi sebelum melanjutkan.',
+                                  ),
+                                  backgroundColor:
+                                      AppColors.volcanoStatusWaspada,
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                              return;
+                            }
                             if (_currentStep < 4) {
                               setState(() => _currentStep++);
                             } else {
@@ -1874,10 +2394,14 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       color: AppColors.primary,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Atur Jadwal & Waktu Kunjungan',
-                      style: AppTypography.titleMedium.copyWith(
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Text(
+                        'Atur Jadwal & Waktu Kunjungan',
+                        style: AppTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -1924,8 +2448,112 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           ),
           const SizedBox(height: AppDimensions.spaceMd),
 
+          // Dynamic Total Durasi Aktivitas & Perjalanan (Pindah dari Langkah 2 ke Jadwal)
+          if (items.isNotEmpty) ...[
+            Builder(
+              builder: (ctx) {
+                final totalActivityMins =
+                    (tripProvider.totalActivityHours * 60).round();
+                final totalTravelMins = tripProvider.totalTravelMinutes;
+                final totalTripMins = totalActivityMins + totalTravelMins;
+                final tripHours = totalTripMins ~/ 60;
+                final tripMins = totalTripMins % 60;
+                final totalDurationString = tripHours > 0
+                    ? (tripMins > 0
+                        ? '$tripHours Jam $tripMins Menit'
+                        : '$tripHours Jam')
+                    : '$tripMins Menit';
+
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: AppColors.surfaceContainer),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(20),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(
+                          Icons.schedule,
+                          size: 24,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Total Durasi Aktivitas & Perjalanan',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              totalDurationString,
+                              style: AppTypography.titleMedium.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${(tripProvider.totalActivityHours).toStringAsFixed(1).replaceAll('.0', '')} Jam kunjungan • $totalTravelMins mnt perjalanan antar lokasi',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.secondary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: AppDimensions.spaceMd),
+          ],
+
           // List of items in schedule
-          ListView.separated(
+          if (items.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppDimensions.spaceLg),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: AppDimensions.roundedXl,
+                border: Border.all(color: AppColors.surfaceContainer),
+              ),
+              child: Center(
+                child: Text(
+                  'Belum ada destinasi untuk dijadwalkan. Silakan kembali ke langkah Destinasi dan tambahkan destinasi terlebih dahulu.',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: items.length,
@@ -1953,11 +2581,15 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       color: AppColors.secondary,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Perjalanan ~${currentItem.connectingTimeMinutes > 0 ? currentItem.connectingTimeMinutes : 15} mnt (${currentItem.connectingDistanceKm > 0 ? currentItem.connectingDistanceKm : 3.5} km)${nextItem != null ? " ke ${nextItem.itemName}" : ""}',
-                      style: AppTypography.labelSmall.copyWith(
-                        color: AppColors.onSurfaceVariant,
-                        fontSize: 11,
+                    Expanded(
+                      child: Text(
+                        'Perjalanan ~${currentItem.connectingTimeMinutes > 0 ? currentItem.connectingTimeMinutes : 15} mnt (${currentItem.connectingDistanceKm > 0 ? currentItem.connectingDistanceKm : 3.5} km)${nextItem != null ? " ke ${nextItem.itemName}" : ""}',
+                        style: AppTypography.labelSmall.copyWith(
+                          color: AppColors.onSurfaceVariant,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -2028,50 +2660,57 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        InkWell(
-                          onTap: () => _showEditTimeDialog(
-                            context,
-                            i,
-                            item,
-                            tripProvider,
-                          ),
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
+                        Flexible(
+                          child: InkWell(
+                            onTap: () => _showEditTimeDialog(
+                              context,
+                              i,
+                              item,
+                              tripProvider,
                             ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryContainer.withAlpha(140),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(
-                                  Icons.access_time_filled,
-                                  size: 15,
-                                  color: AppColors.onPrimaryContainer,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  item.plannedTime,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer.withAlpha(140),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.access_time_filled,
+                                    size: 15,
                                     color: AppColors.onPrimaryContainer,
                                   ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.edit,
-                                  size: 12,
-                                  color: AppColors.onPrimaryContainer,
-                                ),
-                              ],
+                                  const SizedBox(width: 6),
+                                  Flexible(
+                                    child: Text(
+                                      item.plannedTime,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                        color: AppColors.onPrimaryContainer,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.edit,
+                                    size: 12,
+                                    color: AppColors.onPrimaryContainer,
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           'Durasi: ${item.durationHours} Jam',
                           style: AppTypography.labelSmall.copyWith(
@@ -2152,22 +2791,29 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.account_balance_wallet,
-                          color: AppColors.primary,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Target Anggaran (Pagu Awal)',
-                          style: AppTypography.titleMedium.copyWith(
-                            fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.account_balance_wallet,
+                            color: AppColors.primary,
+                            size: 22,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Target Anggaran (Pagu Awal)',
+                              style: AppTypography.titleMedium.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(
                         Icons.edit,
@@ -2221,6 +2867,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     icon: const Icon(Icons.sync_alt_rounded, size: 18),
                     label: Text(
                       'Samakan Target dengan Biaya Destinasi (${_formatCurrency(mandatoryCost)})',
+                      style: const TextStyle(fontSize: 11.5),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
@@ -2350,17 +2999,26 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: const [
-                        Icon(
-                          Icons.local_parking_rounded,
-                          size: 16,
-                          color: AppColors.outline,
-                        ),
-                        SizedBox(width: 6),
-                        Text('Parkir Kendaraan & Retribusi Kawasan'),
-                      ],
+                    Expanded(
+                      child: Row(
+                        children: const [
+                          Icon(
+                            Icons.local_parking_rounded,
+                            size: 16,
+                            color: AppColors.outline,
+                          ),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Parkir Kendaraan & Retribusi Kawasan',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       _formatCurrency(parkingFee),
                       style: AppTypography.bodyMedium.copyWith(
@@ -2797,10 +3455,14 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              'Zona Waktu Perjalanan',
-                              style: AppTypography.titleMedium.copyWith(
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                'Zona Waktu Perjalanan',
+                                style: AppTypography.titleMedium.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -2901,46 +3563,48 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         ),
                       ),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                originCity == null
-                                    ? Icons.location_on_outlined
-                                    : Icons.flight_takeoff_rounded,
-                                size: 20,
-                                color: originCity == null
-                                    ? AppColors.outline
-                                    : AppColors.secondary,
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    originCity ??
-                                        'Belum dipilih (Ketuk untuk memilih)',
-                                    style: AppTypography.bodyMedium.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: originCity == null
-                                          ? AppColors.outline
-                                          : AppColors.onSurface,
-                                    ),
-                                  ),
-                                  Text(
-                                    originCity == null
-                                        ? 'Zona waktu belum ditentukan'
-                                        : '$originZoneLabel ($originTimezone)',
-                                    style: AppTypography.bodySmall.copyWith(
-                                      color: AppColors.onSurfaceVariant,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                          Icon(
+                            originCity == null
+                                ? Icons.location_on_outlined
+                                : Icons.flight_takeoff_rounded,
+                            size: 20,
+                            color: originCity == null
+                                ? AppColors.outline
+                                : AppColors.secondary,
                           ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  originCity ??
+                                      'Belum dipilih (Ketuk untuk memilih)',
+                                  style: AppTypography.bodyMedium.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: originCity == null
+                                        ? AppColors.outline
+                                        : AppColors.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  originCity == null
+                                      ? 'Zona waktu belum ditentukan'
+                                      : '$originZoneLabel ($originTimezone)',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.onSurfaceVariant,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 4),
                           const Icon(
                             Icons.arrow_drop_down,
                             color: AppColors.outline,
@@ -2955,12 +3619,16 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'KOTA TUJUAN DESTINASI',
-                        style: AppTypography.labelSmall.copyWith(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: AppColors.primary,
+                      Flexible(
+                        child: Text(
+                          'KOTA TUJUAN DESTINASI',
+                          style: AppTypography.labelSmall.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: AppColors.primary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
@@ -3320,10 +3988,14 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              'Konversi Mata Uang',
-                              style: AppTypography.titleMedium.copyWith(
-                                fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Text(
+                                'Konversi Mata Uang',
+                                style: AppTypography.titleMedium.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 6),
@@ -3350,9 +4022,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         const SizedBox(height: 2),
                         Text(
                           util.hasRates
-                              ? (util.isUsingCachedRates
-                                    ? 'Kurs terakhir tersimpan (${util.formattedApiDate})'
-                                    : 'Kurs Referensi Frankfurter (${util.formattedApiDate})')
+                              ? 'Kurs Referensi Frankfurter (${util.formattedApiDate})'
                               : (util.errorMessage ?? 'Ambil kurs online...'),
                           style: AppTypography.bodySmall.copyWith(
                             color: AppColors.onSurfaceVariant,
@@ -3411,9 +4081,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                               Expanded(
                                 child: Text(
                                   util.hasRates
-                                      ? (util.isUsingCachedRates
-                                            ? 'Kurs terakhir tersimpan (${util.formattedApiDate})'
-                                            : 'Kurs API Frankfurt (${util.formattedApiDate})')
+                                      ? 'Kurs API Frankfurt (${util.formattedApiDate})'
                                       : (util.errorMessage ??
                                             'Belum ada data kurs'),
                                   style: AppTypography.bodySmall.copyWith(
@@ -3526,33 +4194,39 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      _buildCurrencyChip(
-                        code: 'USD',
-                        symbol: r'$',
-                        flag: '🇺🇸',
-                        isSelected: targetCode == 'USD',
-                        onTap: () => tripProvider.updateBuilderTripInfo(
-                          currencyTarget: 'USD',
+                      Expanded(
+                        child: _buildCurrencyChip(
+                          code: 'USD',
+                          symbol: r'$',
+                          flag: '🇺🇸',
+                          isSelected: targetCode == 'USD',
+                          onTap: () => tripProvider.updateBuilderTripInfo(
+                            currencyTarget: 'USD',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _buildCurrencyChip(
-                        code: 'EUR',
-                        symbol: '€',
-                        flag: '🇪🇺',
-                        isSelected: targetCode == 'EUR',
-                        onTap: () => tripProvider.updateBuilderTripInfo(
-                          currencyTarget: 'EUR',
+                      Expanded(
+                        child: _buildCurrencyChip(
+                          code: 'EUR',
+                          symbol: '€',
+                          flag: '🇪🇺',
+                          isSelected: targetCode == 'EUR',
+                          onTap: () => tripProvider.updateBuilderTripInfo(
+                            currencyTarget: 'EUR',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _buildCurrencyChip(
-                        code: 'JPY',
-                        symbol: '¥',
-                        flag: '🇯🇵',
-                        isSelected: targetCode == 'JPY',
-                        onTap: () => tripProvider.updateBuilderTripInfo(
-                          currencyTarget: 'JPY',
+                      Expanded(
+                        child: _buildCurrencyChip(
+                          code: 'JPY',
+                          symbol: '¥',
+                          flag: '🇯🇵',
+                          isSelected: targetCode == 'JPY',
+                          onTap: () => tripProvider.updateBuilderTripInfo(
+                            currencyTarget: 'JPY',
+                          ),
                         ),
                       ),
                     ],
@@ -3711,30 +4385,37 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(20),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.currency_exchange_rounded,
+                        color: AppColors.primary,
+                        size: 18,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.currency_exchange_rounded,
-                      color: AppColors.primary,
-                      size: 18,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Konversi Valuta Anggaran',
+                        style: AppTypography.titleMedium.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Konversi Valuta Anggaran',
-                    style: AppTypography.titleMedium.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -3765,29 +4446,36 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           Row(
             children: currencyOptions.map((opt) {
               final isSelected = targetCode == opt['code'];
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(
-                    '${opt['flag']} ${opt['code']} (${opt['symbol']})',
+              return Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                  child: ChoiceChip(
+                    label: Center(
+                      child: Text(
+                        '${opt['flag']} ${opt['code']} (${opt['symbol']})',
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : AppColors.onSurface,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    selected: isSelected,
+                    selectedColor: AppColors.primary,
+                    backgroundColor: AppColors.surfaceContainerLow,
+                    padding: EdgeInsets.zero,
+                    onSelected: (selected) {
+                      if (selected) {
+                        tripProvider.updateBuilderTripInfo(
+                          currencyTarget: opt['code']!,
+                        );
+                      }
+                    },
                   ),
-                  selected: isSelected,
-                  selectedColor: AppColors.primary,
-                  labelStyle: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.onSurface,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
-                    fontSize: 12,
-                  ),
-                  backgroundColor: AppColors.surfaceContainerLow,
-                  onSelected: (selected) {
-                    if (selected) {
-                      tripProvider.updateBuilderTripInfo(
-                        currencyTarget: opt['code']!,
-                      );
-                    }
-                  },
                 ),
               );
             }).toList(),
@@ -3808,25 +4496,30 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Target Anggaran',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Target Anggaran',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Text(
-                          _formatCurrency(targetBudget),
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.outline,
-                            fontSize: 11,
+                          Text(
+                            _formatCurrency(targetBudget),
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.outline,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       util.hasRates
                           ? util.formatCurrency(convertedTarget, targetCode)
@@ -3844,25 +4537,30 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Biaya Wajib (Tiket + Retribusi)',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Biaya Wajib (Tiket + Retribusi)',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Text(
-                          _formatCurrency(mandatoryCost),
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.outline,
-                            fontSize: 11,
+                          Text(
+                            _formatCurrency(mandatoryCost),
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.outline,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       util.hasRates
                           ? util.formatCurrency(convertedMandatory, targetCode)
@@ -3880,29 +4578,34 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isDeficit
-                              ? 'Defisit Anggaran'
-                              : 'Sisa Anggaran Fleksibel',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: isDeficit
-                                ? AppColors.error
-                                : AppColors.secondary,
-                            fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isDeficit
+                                ? 'Defisit Anggaran'
+                                : 'Sisa Anggaran Fleksibel',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: isDeficit
+                                  ? AppColors.error
+                                  : AppColors.secondary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        Text(
-                          '${isDeficit ? "-" : ""}${_formatCurrency(remainingBudget.abs())}',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.outline,
-                            fontSize: 11,
+                          Text(
+                            '${isDeficit ? "-" : ""}${_formatCurrency(remainingBudget.abs())}',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.outline,
+                              fontSize: 11,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       util.hasRates
                           ? '${isDeficit ? "-" : ""}${util.formatCurrency(convertedRemaining, targetCode)}'
@@ -3928,7 +4631,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               Expanded(
                 child: Text(
                   util.hasRates
-                      ? 'Acuan: 1 $targetCode = Rp ${_formatRateIdr(unitRate)} IDR (${util.isUsingCachedRates ? "Kurs terakhir tersimpan" : "Frankfurter API"}, ${util.formattedApiDate})'
+                      ? 'Acuan: 1 $targetCode = Rp ${_formatRateIdr(unitRate)} IDR (Frankfurter API, ${util.formattedApiDate})'
                       : 'Data kurs belum dimuat',
                   style: AppTypography.bodySmall.copyWith(
                     color: AppColors.outline,
@@ -4000,7 +4703,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.primary : AppColors.surfaceContainerLow,
           borderRadius: BorderRadius.circular(10),
@@ -4009,16 +4712,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           ),
         ),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(flag, style: const TextStyle(fontSize: 13)),
-            const SizedBox(width: 6),
-            Text(
-              '$code ($symbol)',
-              style: TextStyle(
-                color: isSelected ? Colors.white : AppColors.onSurface,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-                fontSize: 12,
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                '$code ($symbol)',
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.onSurface,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  fontSize: 11.5,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -4122,3 +4829,752 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     }
   }
 }
+
+// ----------------------------------------------------------------------------
+// DIALOG GACHA: KOCOK HP MENGGUNAKAN SENSOR AKSELEROMETER FISIK (BUKAN DADU)
+// ----------------------------------------------------------------------------
+enum _GachaPhase { waitingShake, rollingSuspense, revealed }
+
+class _GachaShakeDestinationDialog extends StatefulWidget {
+  final List<DestinationModel> availableDestinations;
+  final List<TripItemModel> existingItems;
+  final Function(DestinationModel) onAddDestination;
+
+  const _GachaShakeDestinationDialog({
+    required this.availableDestinations,
+    required this.existingItems,
+    required this.onAddDestination,
+  });
+
+  @override
+  State<_GachaShakeDestinationDialog> createState() => _GachaShakeDestinationDialogState();
+}
+
+class _GachaShakeDestinationDialogState extends State<_GachaShakeDestinationDialog>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _animController;
+  StreamSubscription<AccelerometerEvent>? _dialogShakeSub;
+  Timer? _shufflingTimer;
+  Timer? _countdownTimer;
+
+  _GachaPhase _phase = _GachaPhase.waitingShake;
+  String _rollingStepText = '⚡ Goyangan HP Terdeteksi! Mengacak rute...';
+  String _currentCandidateName = 'Menyiapkan opsi destinasi...';
+  DestinationModel? _revealedDestination;
+  double _currentGForce = 9.8;
+  DateTime _lastDialogShake = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+    )..repeat(reverse: true);
+
+    _initDialogSensor();
+  }
+
+  void _initDialogSensor() {
+    try {
+      _dialogShakeSub = accelerometerEventStream().listen(
+        (event) {
+          if (!mounted || _phase != _GachaPhase.waitingShake) return;
+          final double gForce = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+          setState(() {
+            _currentGForce = gForce;
+          });
+
+          // Deteksi hentakan fisik ponsel (> 13.5 m/s^2)
+          if (gForce > 13.5) {
+            final now = DateTime.now();
+            if (now.difference(_lastDialogShake).inMilliseconds > 1200) {
+              _lastDialogShake = now;
+              _triggerRollSuspense();
+            }
+          }
+        },
+        onError: (err) {
+          debugPrint('Shake sensor in dialog error: $err');
+        },
+      );
+    } catch (e) {
+      debugPrint('Shake sensor in dialog catch: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _dialogShakeSub?.cancel();
+    _shufflingTimer?.cancel();
+    _countdownTimer?.cancel();
+    _animController.dispose();
+    super.dispose();
+  }
+
+  void _triggerRollSuspense() {
+    _shufflingTimer?.cancel();
+    _countdownTimer?.cancel();
+
+    setState(() {
+      _phase = _GachaPhase.rollingSuspense;
+      _rollingStepText = '⚡ Goyangan HP Terdeteksi! Mengacak rute...';
+    });
+
+    HapticFeedback.heavyImpact();
+
+    final rand = Random();
+    int shuffleIndex = 0;
+    _shufflingTimer = Timer.periodic(const Duration(milliseconds: 90), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      shuffleIndex++;
+      final candidate = widget.availableDestinations[rand.nextInt(widget.availableDestinations.length)];
+      setState(() {
+        _currentCandidateName = candidate.name;
+        if (shuffleIndex == 7) {
+          _rollingStepText = '⛰️ Menganalisis spot lereng Merapi...';
+        } else if (shuffleIndex == 14) {
+          _rollingStepText = '✨ Destinasi kejutan ditemukan!';
+        }
+      });
+    });
+
+    // Jeda suspense 2.1 detik layaknya gacha
+    _countdownTimer = Timer(const Duration(milliseconds: 2100), () {
+      if (!mounted) return;
+      _shufflingTimer?.cancel();
+
+      // Utamakan destinasi yang belum ada di itinerary trip
+      final unadded = widget.availableDestinations.where((d) {
+        return !widget.existingItems.any((item) => item.destinationId == d.id);
+      }).toList();
+
+      final pool = unadded.isNotEmpty ? unadded : widget.availableDestinations;
+      final selected = pool[rand.nextInt(pool.length)];
+
+      HapticFeedback.heavyImpact();
+
+      setState(() {
+        _revealedDestination = selected;
+        _phase = _GachaPhase.revealed;
+      });
+    });
+  }
+
+  void _resetToWaitingShake() {
+    setState(() {
+      _phase = _GachaPhase.waitingShake;
+    });
+    _animController.repeat(reverse: true);
+    HapticFeedback.lightImpact();
+  }
+
+  String _formatCurrency(double price) {
+    if (price <= 0) return 'Gratis';
+    final formatter = NumberFormat.currency(
+      locale: 'id_ID',
+      symbol: 'Rp ',
+      decimalDigits: 0,
+    );
+    return formatter.format(price);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
+      ),
+      backgroundColor: AppColors.surfaceContainerLowest,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppDimensions.margin),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            child: _buildCurrentPhaseView(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCurrentPhaseView() {
+    switch (_phase) {
+      case _GachaPhase.waitingShake:
+        return _buildWaitingShakeView();
+      case _GachaPhase.rollingSuspense:
+        return _buildRollingSuspenseView();
+      case _GachaPhase.revealed:
+        return _buildRevealedView();
+    }
+  }
+
+  // 1. PHASE 1: Menunggu HP Digoyang (Shake Listener Aktif)
+  Widget _buildWaitingShakeView() {
+    return Column(
+      key: const ValueKey('waiting_shake_view'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+
+        // Visual Smartphone Shaking
+        _buildSmartphoneGraphic(isShaking: true, isPulsing: false),
+        const SizedBox(height: 20),
+
+        // Main Instruction
+        Text(
+          'Goyangkan Ponselmu Sekarang!',
+          style: AppTypography.titleLarge.copyWith(
+            fontWeight: FontWeight.bold,
+            color: AppColors.onSurface,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 6),
+
+        Text(
+          'Kocok HP fisikmu ke kiri dan kanan. Sensor akselerometer akan otomatis memilihkan destinasi terbaik di lereng Merapi.',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.onSurfaceVariant,
+            height: 1.4,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+
+        // Status Sensor Aktif Badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.secondaryContainer,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+            border: Border.all(
+              color: AppColors.primary.withAlpha(60),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  'Sensor Akselerometer Siaga: ${_currentGForce.toStringAsFixed(1)} m/s²',
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.onSecondaryContainer,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Tombol Simulasi Manual (Fallback Emulator / Desktop)
+        OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: BorderSide(color: AppColors.primary.withAlpha(120)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+            ),
+          ),
+          onPressed: _triggerRollSuspense,
+          icon: const Icon(Icons.touch_app, size: 18),
+          label: const Text(
+            'Simulasi Goyang HP (Ketuk Manual)',
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+      ],
+    );
+  }
+
+  // 2. PHASE 2: Animasi Jeda Suspense Gacha
+  Widget _buildRollingSuspenseView() {
+    return Column(
+      key: const ValueKey('rolling_suspense_view'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(height: 8),
+
+        // Visual Smartphone Shaking & Glowing
+        _buildSmartphoneGraphic(isShaking: true, isPulsing: true),
+        const SizedBox(height: 20),
+
+        // Rolling Step Status Text
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: Text(
+            _rollingStepText,
+            key: ValueKey(_rollingStepText),
+            style: AppTypography.titleMedium.copyWith(
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        const SizedBox(height: 6),
+
+        Text(
+          'Sedang mengocok destinasi terbaik lereng Merapi...',
+          style: AppTypography.bodySmall.copyWith(
+            color: AppColors.onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 16),
+
+        // Rapid Shuffling Candidate Ticker Box
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+            border: Border.all(
+              color: AppColors.primary.withAlpha(80),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.location_on, size: 16, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  _currentCandidateName,
+                  style: AppTypography.labelLarge.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Progress line
+        const ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(4)),
+          child: SizedBox(
+            width: 140,
+            child: LinearProgressIndicator(
+              minHeight: 4,
+              backgroundColor: AppColors.surfaceContainer,
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Batal'),
+        ),
+      ],
+    );
+  }
+
+  // 3. PHASE 3: Hasil Destinasi Terpilih (Reveal)
+  Widget _buildRevealedView() {
+    final dest = _revealedDestination;
+    if (dest == null) return const SizedBox.shrink();
+
+    return Column(
+      key: const ValueKey('revealed_view'),
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Celebratory Header Pill
+        Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFC58A32).withAlpha(25),
+              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+              border: Border.all(color: const Color(0xFFC58A32).withAlpha(120)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.auto_awesome, color: Color(0xFFC58A32), size: 16),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'DESTINASI KEJUTAN TERPILIH!',
+                    style: AppTypography.labelSm.copyWith(
+                      color: const Color(0xFFC58A32),
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.5,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // Destination Card
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+            border: Border.all(color: AppColors.surfaceContainer),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Hero Image with Overlays
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusLg)),
+                child: Stack(
+                  children: [
+                    SizedBox(
+                      height: 140,
+                      width: double.infinity,
+                      child: dest.imageUrl != null && dest.imageUrl!.startsWith('http')
+                          ? Image.network(
+                              dest.imageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Container(
+                                color: AppColors.primaryContainer,
+                                child: const Center(
+                                  child: Icon(Icons.landscape, size: 40, color: Colors.white70),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              color: AppColors.primaryContainer,
+                              child: const Center(
+                                child: Icon(Icons.landscape, size: 40, color: Colors.white70),
+                              ),
+                            ),
+                    ),
+                    // Kategori Tag
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withAlpha(220),
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                        ),
+                        child: Text(
+                          dest.categoryName,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // MDPL Badge
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(160),
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                        ),
+                        child: Text(
+                          '${dest.elevationMdpl} mdpl',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      dest.name,
+                      style: AppTypography.titleLarge.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.confirmation_number_outlined, size: 14, color: AppColors.primary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Tiket: ${_formatCurrency(dest.ticketPrice)}',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        const Icon(Icons.location_on_outlined, size: 14, color: AppColors.onSurfaceVariant),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            dest.address,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      dest.description,
+                      style: AppTypography.bodySmall.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Action Buttons
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+              ),
+              elevation: 2,
+            ),
+            onPressed: () {
+              widget.onAddDestination(dest);
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.check_circle, size: 20),
+            label: const FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Tambahkan ke Rencana Trip',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                  ),
+                ),
+                onPressed: _resetToWaitingShake,
+                icon: const Icon(Icons.screen_rotation_alt, size: 18),
+                label: const FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Goyang HP Lagi (Kocok Ulang)',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Visual Ilustrasi Smartphone Bergetar / Bergoyang
+  Widget _buildSmartphoneGraphic({required bool isShaking, required bool isPulsing}) {
+    return AnimatedBuilder(
+      animation: _animController,
+      builder: (context, child) {
+        final angle = isShaking ? sin(_animController.value * pi * 4) * 0.22 : 0.0;
+        final offsetX = isShaking ? sin(_animController.value * pi * 6) * 10.0 : 0.0;
+        final scale = isPulsing ? 1.0 + (sin(_animController.value * pi * 2) * 0.08) : 1.0;
+
+        return Transform.translate(
+          offset: Offset(offsetX, 0),
+          child: Transform.rotate(
+            angle: angle,
+            child: Transform.scale(
+              scale: scale,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  // Outer glowing halo
+                  if (isPulsing)
+                    Container(
+                      width: 100,
+                      height: 140,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.primary.withAlpha(90),
+                            blurRadius: 24,
+                            spreadRadius: 6,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                  // Phone Body Frame
+                  Container(
+                    width: 72,
+                    height: 124,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF263238), Color(0xFF1E282D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isPulsing ? AppColors.primary : const Color(0xFF607D8B),
+                        width: 2.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primary.withAlpha(isPulsing ? 120 : 40),
+                          blurRadius: isPulsing ? 20 : 10,
+                          spreadRadius: isPulsing ? 4 : 1,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // Top Speaker Notch
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Container(
+                            width: 18,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: Colors.white38,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+
+                        // Center Screen Display
+                        Container(
+                          width: 58,
+                          height: 80,
+                          decoration: BoxDecoration(
+                            color: isPulsing
+                                ? AppColors.primaryContainer
+                                : const Color(0xFF101619),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              isPulsing ? Icons.auto_awesome : Icons.vibration,
+                              color: isPulsing ? AppColors.onPrimary : AppColors.primary,
+                              size: 28,
+                            ),
+                          ),
+                        ),
+
+                        // Bottom Home Indicator Bar
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Container(
+                            width: 24,
+                            height: 3,
+                            decoration: BoxDecoration(
+                              color: Colors.white38,
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Left & Right Vibration Arc Icons
+                  Positioned(
+                    left: -18,
+                    child: Icon(
+                      Icons.graphic_eq,
+                      color: AppColors.primary.withAlpha(isShaking ? 220 : 80),
+                      size: 20,
+                    ),
+                  ),
+                  Positioned(
+                    right: -18,
+                    child: Icon(
+                      Icons.graphic_eq,
+                      color: AppColors.primary.withAlpha(isShaking ? 220 : 80),
+                      size: 20,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+

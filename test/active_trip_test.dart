@@ -523,7 +523,7 @@ void main() {
 
     test('6. Alur Pagu Anggaran, Auto-Akumulasi Tiket & Auto-Scheduling', () async {
       // Test A: Builder Target Budget & Penyesuaian dengan Biaya Wajib
-      tripProvider.initBuilderTrip();
+      tripProvider.initBuilderTrip(empty: false);
       expect(tripProvider.targetBudget, 400000.0); // Default pagu
       expect(tripProvider.totalMandatoryCost, 64000.0); // 54k tiket + 10k parkir
 
@@ -549,6 +549,33 @@ void main() {
       expect(tripProvider.activeTripExpenses.length, 1);
       expect(tripProvider.activeTripExpenses.first.amount, firstItem.estimatedCost);
       expect(tripProvider.activeTripTotalExpenses, firstItem.estimatedCost);
+    });
+
+    test('7. Builder Default Kosong & Kaskade Perubahan Durasi Jadwal', () {
+      // Inisialisasi builder default harus kosong
+      tripProvider.initBuilderTrip(empty: true);
+      expect(tripProvider.builderItems.isEmpty, true);
+      expect(tripProvider.totalMandatoryCost, 0.0);
+      expect(tripProvider.parkingFee, 0.0);
+
+      // Muat preset untuk pengujian kaskade durasi
+      tripProvider.initBuilderTrip(empty: false);
+      expect(tripProvider.builderItems.length, 3);
+      tripProvider.autoScheduleBuilderItems(startHour: 7, startMinute: 30);
+      expect(tripProvider.builderItems[0].plannedTime, '07:30 - 09:00');
+      expect(tripProvider.builderItems[1].plannedTime, '09:15 - 10:45');
+
+      // Ubah durasi item pertama dari 1.5 jam menjadi 2.0 jam
+      tripProvider.updateBuilderItemSchedule(0, durationHours: 2.0);
+
+      // Item 0 berubah rentang jamnya menjadi 07:30 - 09:30
+      expect(tripProvider.builderItems[0].plannedTime, '07:30 - 09:30');
+      expect(tripProvider.builderItems[0].durationHours, 2.0);
+
+      // Item 1 otomatis berkaskade mundur: 09:30 + 15 mnt travel = 09:45 - 11:15
+      expect(tripProvider.builderItems[1].plannedTime, '09:45 - 11:15');
+      // Item 2 otomatis berkaskade mundur: 11:15 + 12 mnt travel = 11:27 - 12:27
+      expect(tripProvider.builderItems[2].plannedTime, '11:27 - 12:27');
     });
   });
 }

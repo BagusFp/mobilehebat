@@ -79,6 +79,32 @@ class GeoHelper {
     return distanceFromMerapiSummit(lat, lng) >= 3.0;
   }
 
+  /// Menghitung sudut bearing (arah kompas dalam derajat 0° - 360°) dari titik awal ke tujuan
+  static double calculateBearing({
+    required double startLat,
+    required double startLng,
+    required double endLat,
+    required double endLng,
+  }) {
+    final phi1 = _degreesToRadians(startLat);
+    final phi2 = _degreesToRadians(endLat);
+    final deltaLambda = _degreesToRadians(endLng - startLng);
+    final y = sin(deltaLambda) * cos(phi2);
+    final x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(deltaLambda);
+    final theta = atan2(y, x);
+    return (theta * 180.0 / pi + 360.0) % 360.0;
+  }
+
+  /// Menghitung bearing dari lokasi pengguna ke Puncak Gunung Merapi
+  static double bearingToMerapiSummit(double userLat, double userLng) {
+    return calculateBearing(
+      startLat: userLat,
+      startLng: userLng,
+      endLat: merapiSummitLat,
+      endLng: merapiSummitLng,
+    );
+  }
+
   static double _degreesToRadians(double degrees) {
     return degrees * (pi / 180.0);
   }

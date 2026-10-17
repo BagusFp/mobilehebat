@@ -46,10 +46,15 @@ class BudgetSummaryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Kalkulator Rencana Budget',
-                style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+              Expanded(
+                child: Text(
+                  'Kalkulator Rencana Budget',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
@@ -70,32 +75,42 @@ class BudgetSummaryCard extends StatelessWidget {
           // Total & Target
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Total Estimasi', style: AppTypography.bodySmall),
-                  Text(
-                    _formatCurrency(totalSpent),
-                    style: AppTypography.headlineSmall.copyWith(
-                      color: isOverBudget ? AppColors.error : AppColors.primary,
-                      fontWeight: FontWeight.bold,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Total Estimasi', style: AppTypography.bodySmall),
+                    Text(
+                      _formatCurrency(totalSpent),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.headlineSmall.copyWith(
+                        color: isOverBudget ? AppColors.error : AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('Target Anggaran', style: AppTypography.bodySmall),
-                  Text(
-                    _formatCurrency(targetBudget),
-                    style: AppTypography.titleMedium.copyWith(
-                      color: AppColors.onSurface,
-                      fontWeight: FontWeight.w600,
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('Target Anggaran', style: AppTypography.bodySmall),
+                    Text(
+                      _formatCurrency(targetBudget),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleMedium.copyWith(
+                        color: AppColors.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -128,10 +143,15 @@ class BudgetSummaryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Sisa Anggaran Cadangan',
-                style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
+              Expanded(
+                child: Text(
+                  'Sisa Anggaran Cadangan',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 _formatCurrency(remaining.abs()),
                 style: AppTypography.titleSmall.copyWith(
@@ -150,7 +170,15 @@ class BudgetSummaryCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: AppTypography.bodySmall),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTypography.bodySmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const SizedBox(width: 8),
         Text(
           _formatCurrency(amount),
           style: AppTypography.bodySmall.copyWith(

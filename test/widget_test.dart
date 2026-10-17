@@ -169,7 +169,9 @@ void main() {
 
     final fakeAuth = AuthProvider();
     final destProvider = DestinationProvider();
-    await destProvider.loadDestinations(userId: 1);
+    await tester.runAsync(() async {
+      await destProvider.loadDestinations(userId: 1);
+    });
 
     await tester.pumpWidget(
       MeraTripApp(
@@ -205,6 +207,7 @@ void main() {
     expect(find.text('Buat Trip'), findsOneWidget);
     expect(find.text('Tanya AI'), findsOneWidget);
     expect(find.text('Kawasan Wisata Kaliadem & Merapi View'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 11));
   });
 
   testWidgets('Layar Explore menampilkan search bar, category chips, dan card destinasi', (WidgetTester tester) async {
@@ -254,7 +257,6 @@ void main() {
     expect(find.text('Semua'), findsOneWidget);
     expect(find.text('Alam'), findsWidgets);
     expect(find.text('Sejarah'), findsWidgets);
-    expect(find.text('Mode Offline Aktif'), findsOneWidget);
     expect(find.text('Bunker Kaliadem'), findsWidgets);
   });
 
@@ -360,7 +362,7 @@ void main() {
 
   test('TripProvider calculates budget and manages builder items', () {
     final provider = TripProvider();
-    provider.initBuilderTrip();
+    provider.initBuilderTrip(empty: false);
 
     expect(provider.builderTrip != null, true);
     expect(provider.builderItems.length, 3);
@@ -504,14 +506,22 @@ void main() {
     expect(find.text('LANGKAH 2 DARI 4'), findsOneWidget);
     expect(find.text('Pilih & Atur Destinasi'), findsOneWidget);
 
-    // Verifikasi Item Perjalanan
-    expect(find.text('Plunyon Kalikuning'), findsOneWidget);
-    expect(find.text('Bunker Kaliadem'), findsOneWidget);
-    expect(find.text('Museum Sisa Hartaku'), findsOneWidget);
-
-    // Verifikasi Action buttons
-    expect(find.text('Tambah Destinasi Lain di Sekitar Merapi'), findsOneWidget);
+    // Verifikasi Kondisi Default Kosong & Tombol Tambah
+    expect(find.text('Belum Ada Destinasi Terpilih'), findsOneWidget);
+    expect(find.text('Tambah Destinasi di Sekitar Merapi'), findsOneWidget);
     expect(find.text('Kalkulator Rencana Trip'), findsOneWidget);
+
+    // Tambahkan destinasi ke builder
+    final plunyon = destProvider.allDestinations.firstWhere(
+      (d) => d.name.contains('Plunyon'),
+      orElse: () => destProvider.allDestinations.first,
+    );
+    tripProvider.addDestinationToBuilder(plunyon);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // Verifikasi Item Perjalanan setelah ditambahkan
+    expect(find.text(plunyon.name), findsOneWidget);
     expect(find.text('Lanjut ke Atur Jadwal'), findsOneWidget);
   });
 
@@ -1090,7 +1100,7 @@ void main() {
     expect(find.text('Semua'), findsOneWidget);
     expect(find.text('Pengingat Trip'), findsOneWidget);
     expect(find.text('Info Vulkanik'), findsOneWidget);
-    expect(find.text('Sistem & Offline'), findsWidgets);
+    expect(find.text('Sistem & Notifikasi'), findsWidgets);
 
     // Validasi Feed Notifikasi
     expect(find.text('Aktivitas Terbaru'), findsOneWidget);
@@ -1392,23 +1402,14 @@ void main() {
 
     // Validasi Identitas Penjelajah
     expect(find.text('Bima Sakti'), findsOneWidget);
-    expect(find.text('Terverifikasi Sleman & Boyolali'), findsOneWidget);
-    expect(find.textContaining('Jejak Karbon: 14 kg CO₂e Tereduksi'), findsOneWidget);
+    expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
 
-    // Validasi Statistik & Pangkat Jagawana
-    expect(find.text('Statistik & Pangkat Alam'), findsOneWidget);
-    expect(find.textContaining('Jagawana Merapi Tingkat 3'), findsWidgets);
-    expect(find.text('850'), findsOneWidget);
-    expect(find.text('Poin Jagawana'), findsOneWidget);
-
-    // Validasi Menu Tiles Utilitas
-    expect(find.text('Destinasi Favorit & Tersimpan'), findsOneWidget);
-    expect(find.text('Riwayat & Draft Perjalanan'), findsOneWidget);
-    expect(find.text('Manajer Data Offline'), findsOneWidget);
-    expect(find.text('Konverter Kurs & Zona Waktu'), findsOneWidget);
-    expect(find.text('Eksplorasi Sensor Lapangan'), findsOneWidget);
+    // Validasi Bagian Navigasi & Pengaturan (Hanya 3 Menu)
+    expect(find.text('Navigasi & Pengaturan'), findsOneWidget);
     expect(find.text('Mini Game Kuis Merapi'), findsOneWidget);
-    expect(find.text('Catatan Bukti Blockchain'), findsOneWidget);
+    expect(find.text('Refleksi Kuliah & Evaluasi PAM'), findsOneWidget);
+    expect(find.text('Kunci Biometrik Aplikasi'), findsOneWidget);
+    expect(find.text('Keluar dari Akun'), findsOneWidget);
 
     // Scroll ke item menu Refleksi Kuliah & Evaluasi PAM
     await tester.scrollUntilVisible(find.text('Refleksi Kuliah & Evaluasi PAM'), 200);
@@ -1436,7 +1437,10 @@ void main() {
     // Tap 'Kirim Evaluasi & Simpan'
     await tester.tap(find.text('Kirim Evaluasi & Simpan'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
+    await tester.runAsync(() async {
+      await Future.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
 
     // Validasi Dialog Berhasil
     expect(find.text('Evaluasi Terkirim!'), findsOneWidget);

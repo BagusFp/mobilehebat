@@ -311,21 +311,26 @@ class BlockchainScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isGenesis ? AppColors.surfaceContainer : AppColors.secondaryContainer,
-                            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
-                          ),
-                          child: Text(
-                            isGenesis ? 'Genesis Block' : 'Blok Riwayat Sah',
-                            style: AppTypography.labelSm.copyWith(
-                              color: isGenesis ? AppColors.onSurfaceVariant : AppColors.onSecondaryContainer,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: isGenesis ? AppColors.surfaceContainer : AppColors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                            ),
+                            child: Text(
+                              isGenesis ? 'Genesis Block' : 'Blok Riwayat Sah',
+                              style: AppTypography.labelSm.copyWith(
+                                color: isGenesis ? AppColors.onSurfaceVariant : AppColors.onSecondaryContainer,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Text(
                           block.referenceId,
                           style: AppTypography.labelSm.copyWith(
@@ -542,6 +547,8 @@ class BlockchainScreen extends StatelessWidget {
                 label: Text(
                   chain.isAuditing ? 'Mengaudit SHA-256 Rantai...' : 'Validasi Seluruh Rantai Blok',
                   style: AppTypography.labelLg.copyWith(fontWeight: FontWeight.bold),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
@@ -602,6 +609,8 @@ class BlockchainScreen extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: chain.isTamperedState ? AppColors.primary : AppColors.error),

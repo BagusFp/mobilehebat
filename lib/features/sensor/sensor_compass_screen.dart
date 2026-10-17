@@ -7,6 +7,7 @@ import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
 
 import '../explore/destination_detail_screen.dart';
+import '../games/merapi_jeep_game_page.dart';
 import '../map/map_screen.dart';
 import 'sensor_provider.dart';
 
@@ -101,6 +102,91 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                 _buildShakeSection(context, sensorProvider)
               else
                 _buildCompassSection(context, sensorProvider),
+
+              const SizedBox(height: AppDimensions.spaceLg),
+
+              // 4. Game Sensor Merapi Jeep 2D Run Card
+              _buildJeepGameCard(context),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Card Mini Game Jeep 2D Run (Live Sensor Demo)
+  Widget _buildJeepGameCard(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const MerapiJeepGamePage()),
+          );
+        },
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+            border: Border.all(color: AppColors.surfaceContainer),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.onSurface.withValues(alpha: 0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: const Center(
+                  child: Text('🚙', style: TextStyle(fontSize: 22)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          'Mini Game: Merapi Jeep 2D',
+                          style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                          ),
+                          child: const Text(
+                            'LIVE SENSOR',
+                            style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Uji sensor gerak & akselerometer Anda di game lari 2D Lava Tour!',
+                      style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
             ],
           ),
         ),
@@ -227,13 +313,17 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                           : AppColors.onSurfaceVariant,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Goyang Ponsel',
-                      style: AppTypography.labelLg.copyWith(
-                        color: _activeMode == 'shake'
-                            ? AppColors.onPrimary
-                            : AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        'Goyang Ponsel',
+                        style: AppTypography.labelLg.copyWith(
+                          color: _activeMode == 'shake'
+                              ? AppColors.onPrimary
+                              : AppColors.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -266,13 +356,17 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                           : AppColors.onSurfaceVariant,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Kompas Lapangan',
-                      style: AppTypography.labelLg.copyWith(
-                        color: _activeMode == 'compass'
-                            ? AppColors.onPrimary
-                            : AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        'Kompas Lapangan',
+                        style: AppTypography.labelLg.copyWith(
+                          color: _activeMode == 'compass'
+                              ? AppColors.onPrimary
+                              : AppColors.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
@@ -474,7 +568,10 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                   const SizedBox(height: 12),
 
                   // Kategori & Tiket
-                  Row(
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -490,7 +587,6 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                           ),
                         ),
                       ),
-                      const SizedBox(width: 8),
                       Text(
                         '• Tiket: ${_formatCurrency(dest.ticketPrice)}',
                         style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
@@ -590,16 +686,23 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.device_unknown, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Perangkat tanpa sensor getar?',
-                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurface),
-                  ),
-                ],
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.device_unknown, color: AppColors.primary, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Perangkat tanpa sensor getar?',
+                        style: AppTypography.bodySm.copyWith(color: AppColors.onSurface),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               TextButton(
                 onPressed: () {
                   _triggerShakeAnimation();
@@ -881,31 +984,40 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.landscape, size: 22, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              target.name,
-                              style: AppTypography.labelLg.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.onSurface,
-                              ),
+                    Expanded(
+                      child: Row(
+                        children: [
+                          const Icon(Icons.landscape, size: 22, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  target.name,
+                                  style: AppTypography.labelLg.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.onSurface,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'Jarak Garis Lurus: ${target.distanceKm.toStringAsFixed(1)} km',
+                                  style: AppTypography.bodySm.copyWith(
+                                    color: AppColors.onSurfaceVariant,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
                             ),
-                            Text(
-                              'Jarak Garis Lurus: ${target.distanceKm.toStringAsFixed(1)} km',
-                              style: AppTypography.bodySm.copyWith(
-                                color: AppColors.onSurfaceVariant,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 20, color: AppColors.primary),
                       tooltip: 'Kalibrasi Sensor Kompas',
@@ -1018,11 +1130,14 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
               );
             },
             icon: const Icon(Icons.map, size: 20),
-            label: Text(
-              'Buka di Peta Navigasi Lengkap',
-              style: AppTypography.labelLg.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.onPrimary,
+            label: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                'Buka di Peta Navigasi Lengkap',
+                style: AppTypography.labelLg.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onPrimary,
+                ),
               ),
             ),
           ),
@@ -1076,11 +1191,11 @@ class CompassDialPainter extends CustomPainter {
       canvas.drawLine(start, end, tickPaint);
     }
 
-    // Cardinal Markers Text (U, T, S, B)
-    _drawCardinalText(canvas, 'U', center.dx, 20, isNorth: true);
-    _drawCardinalText(canvas, 'T', size.width - 20, center.dy);
+    // Cardinal Markers Text (U / N, T / E, S, B / W)
+    _drawCardinalText(canvas, 'U (N)', center.dx, 20, isNorth: true);
+    _drawCardinalText(canvas, 'T (E)', size.width - 24, center.dy);
     _drawCardinalText(canvas, 'S', center.dx, size.height - 20);
-    _drawCardinalText(canvas, 'B', 20, center.dy);
+    _drawCardinalText(canvas, 'B (W)', 24, center.dy);
   }
 
   void _drawCardinalText(Canvas canvas, String text, double x, double y, {bool isNorth = false}) {

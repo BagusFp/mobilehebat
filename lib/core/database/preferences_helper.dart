@@ -44,12 +44,15 @@ class PreferencesHelper {
     await prefs.setBool(_keyIsLoggedIn, true);
   }
 
+  static const String _keyUserPhoto = 'user_photo';
+
   Future<void> clearSession() async {
     final prefs = _preferences ?? await SharedPreferences.getInstance();
     await prefs.remove(_keyUserId);
     await prefs.remove(_keySupabaseId);
     await prefs.remove(_keyUserEmail);
     await prefs.remove(_keyUserName);
+    await prefs.remove(_keyUserPhoto);
     await prefs.remove(_keyAuthToken);
     await prefs.setBool(_keyIsLoggedIn, false);
   }
@@ -72,6 +75,24 @@ class PreferencesHelper {
 
   String? getUserName() {
     return _preferences?.getString(_keyUserName);
+  }
+
+  Future<void> setUserName(String name) async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    await prefs.setString(_keyUserName, name);
+  }
+
+  String? getUserPhoto() {
+    return _preferences?.getString(_keyUserPhoto);
+  }
+
+  Future<void> setUserPhoto(String? photo) async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    if (photo == null || photo.isEmpty) {
+      await prefs.remove(_keyUserPhoto);
+    } else {
+      await prefs.setString(_keyUserPhoto, photo);
+    }
   }
 
   // Biometric Preference

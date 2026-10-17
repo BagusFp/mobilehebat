@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
+import '../../core/widgets/offline_banner.dart';
 import '../../data/models/destination_model.dart';
 import '../auth/auth_provider.dart';
 import 'destination_detail_screen.dart';
@@ -48,62 +49,65 @@ class _ExploreScreenState extends State<ExploreScreen> {
     final provider = context.read<DestinationProvider>();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimensions.margin,
-              vertical: AppDimensions.spaceMd,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.outlineVariant,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppDimensions.spaceMd),
-                Text(
-                  'Urutkan Destinasi Berdasarkan',
-                  style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: AppDimensions.spaceSm),
-                ...[
-                  'Destinasi Populer',
-                  'Biaya Terendah',
-                  'Terdekat',
-                ].map((option) {
-                  final isSelected = provider.sortOption == option;
-                  return ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      option,
-                      style: AppTypography.bodyMd.copyWith(
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                        color: isSelected ? AppColors.primary : AppColors.onSurface,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimensions.margin,
+                vertical: AppDimensions.spaceMd,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    trailing: isSelected
-                        ? const Icon(Icons.check, color: AppColors.primary)
-                        : null,
-                    onTap: () {
-                      provider.setSortOption(option);
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
-              ],
+                  ),
+                  const SizedBox(height: AppDimensions.spaceMd),
+                  Text(
+                    'Urutkan Destinasi Berdasarkan',
+                    style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: AppDimensions.spaceSm),
+                  ...[
+                    'Destinasi Populer',
+                    'Biaya Terendah',
+                    'Terdekat',
+                  ].map((option) {
+                    final isSelected = provider.sortOption == option;
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(
+                        option,
+                        style: AppTypography.bodyMd.copyWith(
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? AppColors.primary : AppColors.onSurface,
+                        ),
+                      ),
+                      trailing: isSelected
+                          ? const Icon(Icons.check, color: AppColors.primary)
+                          : null,
+                      onTap: () {
+                        provider.setSortOption(option);
+                        Navigator.pop(ctx);
+                      },
+                    );
+                  }),
+                ],
+              ),
             ),
           ),
         );
@@ -114,92 +118,99 @@ class _ExploreScreenState extends State<ExploreScreen> {
   void _showFilterModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColors.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimensions.margin,
-              vertical: AppDimensions.spaceMd,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.outlineVariant,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppDimensions.spaceMd),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Filter Destinasi',
-                      style: AppTypography.headlineSm.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        context.read<DestinationProvider>().setSelectedCategory('Semua');
-                        Navigator.pop(ctx);
-                      },
-                      child: const Text('Reset'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.spaceSm),
-                Text(
-                  'Kawasan Lereng',
-                  style: AppTypography.labelMd.copyWith(color: AppColors.onSurfaceVariant),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  children: [
-                    FilterChip(
-                      selected: true,
-                      label: const Text('Cangkringan'),
-                      onSelected: (_) {},
-                      selectedColor: AppColors.secondaryContainer,
-                    ),
-                    FilterChip(
-                      selected: false,
-                      label: const Text('Pakem / Kaliurang'),
-                      onSelected: (_) {},
-                    ),
-                    FilterChip(
-                      selected: false,
-                      label: const Text('Klaten & Selo'),
-                      onSelected: (_) {},
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppDimensions.spaceLg),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryContainer,
-                      foregroundColor: AppColors.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: AppDimensions.roundedLg,
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimensions.margin,
+                vertical: AppDimensions.spaceMd,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Terapkan Filter'),
                   ),
-                ),
-              ],
+                  const SizedBox(height: AppDimensions.spaceMd),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Filter Destinasi',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.headlineSm.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          context.read<DestinationProvider>().setSelectedCategory('Semua');
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Reset'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimensions.spaceSm),
+                  Text(
+                    'Kawasan Lereng',
+                    style: AppTypography.labelMd.copyWith(color: AppColors.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilterChip(
+                        selected: true,
+                        label: const Text('Cangkringan'),
+                        onSelected: (_) {},
+                        selectedColor: AppColors.secondaryContainer,
+                      ),
+                      FilterChip(
+                        selected: false,
+                        label: const Text('Pakem / Kaliurang'),
+                        onSelected: (_) {},
+                      ),
+                      FilterChip(
+                        selected: false,
+                        label: const Text('Klaten & Selo'),
+                        onSelected: (_) {},
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimensions.spaceLg),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryContainer,
+                        foregroundColor: AppColors.onPrimary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppDimensions.roundedLg,
+                        ),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Terapkan Filter'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -223,6 +234,9 @@ class _ExploreScreenState extends State<ExploreScreen> {
           },
           child: CustomScrollView(
             slivers: [
+              const SliverToBoxAdapter(
+                child: OfflineBanner(isOffline: true),
+              ),
               // 3. Search & Filter Bar Section
               SliverToBoxAdapter(
                 child: Padding(
@@ -323,7 +337,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
               // 4. Horizontal Category Chips
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: 44,
+                  height: (44.0 * MediaQuery.textScalerOf(context).scale(1.0)).clamp(44.0, 58.0),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
                     scrollDirection: Axis.horizontal,
@@ -388,36 +402,43 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      InkWell(
-                        onTap: () => _showSortModal(context),
-                        borderRadius: AppDimensions.roundedFull,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainer,
-                            borderRadius: AppDimensions.roundedFull,
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.swap_vert,
-                                size: 16,
-                                color: AppColors.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                'Urutkan: ${provider.sortOption}',
-                                style: AppTypography.labelSm.copyWith(
-                                  color: AppColors.onSurface,
-                                  fontWeight: FontWeight.w600,
+                      Flexible(
+                        child: InkWell(
+                          onTap: () => _showSortModal(context),
+                          borderRadius: AppDimensions.roundedFull,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceContainer,
+                              borderRadius: AppDimensions.roundedFull,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.swap_vert,
+                                  size: 16,
+                                  color: AppColors.primary,
                                 ),
-                              ),
-                              const Icon(Icons.arrow_drop_down, size: 16),
-                            ],
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    'Urutkan: ${provider.sortOption}',
+                                    style: AppTypography.labelSm.copyWith(
+                                      color: AppColors.onSurface,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const Icon(Icons.arrow_drop_down, size: 16),
+                              ],
+                            ),
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       // View Mode Toggle (List / Grid)
                       Container(
                         padding: const EdgeInsets.all(3),
@@ -510,26 +531,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      if (provider.isUsingCachedData)
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.cloud_off_rounded,
-                              size: 14,
-                              color: AppColors.secondary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Mode Offline Aktif',
-                              style: AppTypography.labelSm.copyWith(
-                                color: AppColors.secondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
                     ],
                   ),
                 ),
@@ -603,7 +604,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       crossAxisCount: 2,
                       crossAxisSpacing: AppDimensions.spaceSm,
                       mainAxisSpacing: AppDimensions.spaceSm,
-                      childAspectRatio: 0.72,
+                      childAspectRatio: 0.68,
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (ctx, idx) {
@@ -632,7 +633,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
     AuthProvider auth,
   ) {
     final isFav = provider.isFavorite(dest.id);
-    final isOffline = provider.isSavedOffline(dest.id);
 
     return Container(
       decoration: BoxDecoration(
@@ -695,33 +695,6 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 left: 10,
                 child: Row(
                   children: [
-                    if (isOffline)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withAlpha(220),
-                          borderRadius: AppDimensions.roundedFull,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.offline_pin,
-                              size: 13,
-                              color: AppColors.onPrimary,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Tersimpan Offline',
-                              style: AppTypography.labelSm.copyWith(
-                                color: AppColors.onPrimary,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    const SizedBox(width: 6),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -740,48 +713,26 @@ class _ExploreScreenState extends State<ExploreScreen> {
                   ],
                 ),
               ),
-              // Top Right Micro Buttons
+              // Top Right Favorite Button
               Positioned(
                 top: 10,
                 right: 10,
-                child: Row(
-                  children: [
-                    InkWell(
-                      onTap: () => provider.toggleFavorite(dest.id, userId: auth.currentUser?.id),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLowest.withAlpha(230),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isFav ? Icons.favorite : Icons.favorite_border,
-                          size: 18,
-                          color: isFav ? AppColors.error : AppColors.onSurfaceVariant,
-                        ),
-                      ),
+                child: InkWell(
+                  onTap: () => provider.toggleFavorite(dest.id, userId: auth.currentUser?.id),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLowest.withAlpha(230),
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 6),
-                    InkWell(
-                      onTap: () => provider.toggleOfflineSave(dest.id),
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLowest.withAlpha(230),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isOffline ? Icons.download_done : Icons.download,
-                          size: 18,
-                          color: AppColors.primary,
-                        ),
-                      ),
+                    child: Icon(
+                      isFav ? Icons.favorite : Icons.favorite_border,
+                      size: 18,
+                      color: isFav ? AppColors.error : AppColors.onSurfaceVariant,
                     ),
-                  ],
+                  ),
                 ),
               ),
               // Distance & Elevation Overlay
@@ -792,39 +743,52 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.landscape,
-                          size: 14,
-                          color: AppColors.secondaryContainer,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${dest.elevationMdpl} mdpl',
-                          style: AppTypography.labelSm.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.landscape,
+                            size: 14,
+                            color: AppColors.secondaryContainer,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              '${dest.elevationMdpl} mdpl',
+                              style: AppTypography.labelSm.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.near_me,
-                          size: 14,
-                          color: AppColors.secondaryContainer,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${dest.distanceKm} km dari Pos',
-                          style: AppTypography.labelSm.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.near_me,
+                            size: 14,
+                            color: AppColors.secondaryContainer,
                           ),
-                        ),
-                      ],
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              '${dest.distanceKm} km dari Pos',
+                              style: AppTypography.labelSm.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -878,23 +842,29 @@ class _ExploreScreenState extends State<ExploreScreen> {
                       ),
                     ),
                     const SizedBox(width: AppDimensions.spaceSm),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          'Tiket Masuk',
-                          style: AppTypography.labelSm.copyWith(
-                            color: AppColors.onSurfaceVariant,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Tiket Masuk',
+                            style: AppTypography.labelSm.copyWith(
+                              color: AppColors.onSurfaceVariant,
+                            ),
                           ),
-                        ),
-                        Text(
-                          dest.ticketPrice > 0 ? _formatCurrency(dest.ticketPrice) : 'Gratis',
-                          style: AppTypography.titleMd.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              dest.ticketPrice > 0 ? _formatCurrency(dest.ticketPrice) : 'Gratis',
+                              style: AppTypography.titleMd.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -913,7 +883,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     Expanded(
                       child: SizedBox(
                         height: 44,
-                        child: ElevatedButton.icon(
+                        child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryContainer,
                             foregroundColor: AppColors.onPrimary,
@@ -930,8 +900,21 @@ class _ExploreScreenState extends State<ExploreScreen> {
                               ),
                             );
                           },
-                          icon: Text('Lihat Detail', style: AppTypography.labelLg),
-                          label: const Icon(Icons.arrow_forward, size: 18),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  'Lihat Detail',
+                                  style: AppTypography.labelLg,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(Icons.arrow_forward, size: 18),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1068,11 +1051,15 @@ class _ExploreScreenState extends State<ExploreScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    dest.ticketPrice > 0 ? _formatCurrency(dest.ticketPrice) : 'Gratis',
-                    style: AppTypography.labelMd.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.bold,
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      dest.ticketPrice > 0 ? _formatCurrency(dest.ticketPrice) : 'Gratis',
+                      style: AppTypography.labelMd.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],

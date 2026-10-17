@@ -87,36 +87,44 @@ class _LoginScreenState extends State<LoginScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainer,
-                      borderRadius: AppDimensions.roundedFull,
-                      border: Border.all(color: AppColors.secondary.withAlpha(50)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.secondary,
-                            shape: BoxShape.circle,
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainer,
+                        borderRadius: AppDimensions.roundedFull,
+                        border: Border.all(color: AppColors.secondary.withAlpha(50)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.secondary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Merapi Eco-Portal • Terverifikasi',
-                          style: AppTypography.labelSmall.copyWith(
-                            color: AppColors.onSurfaceVariant,
-                            fontWeight: FontWeight.w700,
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              'Merapi Eco-Portal • Terverifikasi',
+                              style: AppTypography.labelSmall.copyWith(
+                                color: AppColors.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(Icons.eco_rounded, size: 16, color: AppColors.secondary),
                       const SizedBox(width: 4),

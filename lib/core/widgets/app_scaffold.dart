@@ -75,7 +75,9 @@ class AppScaffold extends StatelessWidget {
                   ],
               bottom: showVolcanoStatusBar
                   ? PreferredSize(
-                      preferredSize: const Size.fromHeight(32.0),
+                      preferredSize: Size.fromHeight(
+                        MediaQuery.textScalerOf(context).scale(34.0).clamp(32.0, 52.0),
+                      ),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
                         width: double.infinity,

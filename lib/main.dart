@@ -5,6 +5,7 @@ import 'core/constants/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_scaffold.dart';
 import 'features/auth/auth_provider.dart';
+import 'features/auth/biometric_lock_screen.dart';
 import 'features/auth/login_screen.dart';
 import 'features/ai_assistant/ai_assistant_provider.dart';
 import 'features/blockchain/blockchain_provider.dart';
@@ -135,13 +136,19 @@ class MeraTripApp extends StatelessWidget {
   }
 }
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
 
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
+    // 1. Splash loading state saat inisialisasi awal
     if (!authProvider.isInitialized) {
       return const Scaffold(
         backgroundColor: AppColors.background,
@@ -151,10 +158,17 @@ class AuthGate extends StatelessWidget {
       );
     }
 
+    // 2. Pengguna belum login atau sesi Supabase telah berakhir/logout
     if (!authProvider.isLoggedIn) {
       return const LoginScreen();
     }
 
+    // 3. Pengguna login, biometrik aktif, dan status aplikasi terkunci
+    if (authProvider.isBiometricEnabled && authProvider.isLocked) {
+      return const BiometricLockScreen();
+    }
+
+    // 4. Pengguna login, sesi valid, dan tidak terkunci -> Buka Home
     return const MeraTripShellScreen();
   }
 }

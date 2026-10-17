@@ -27,7 +27,9 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveHeight = height ?? AppDimensions.buttonHeight;
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final baseHeight = height ?? AppDimensions.buttonHeight;
+    final effectiveHeight = height != null ? height! : (baseHeight * textScale).clamp(baseHeight, 72.0);
 
     if (variant == ButtonVariant.outline) {
       return SizedBox(

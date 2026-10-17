@@ -90,38 +90,76 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: const [],
+        actions: [
+          IconButton(
+            icon: utilityProvider.isSyncing
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                  )
+                : const Icon(Icons.refresh, color: AppColors.primary),
+            tooltip: 'Perbarui Kurs Frankfurter',
+            onPressed: utilityProvider.isSyncing
+                ? null
+                : () async {
+                    _spinController.forward(from: 0.0);
+                    final success = await utilityProvider.syncRates();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? 'Kurs berhasil diperbarui dari Frankfurter API (${utilityProvider.formattedApiDate}).'
+                                : (utilityProvider.errorMessage ?? 'Gagal memperbarui kurs.'),
+                          ),
+                          backgroundColor: success ? AppColors.primary : AppColors.error,
+                          duration: const Duration(seconds: 2),
+                        ),
+                      );
+                    }
+                  },
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimensions.margin,
-            AppDimensions.spaceSm,
-            AppDimensions.margin,
-            AppDimensions.spaceXl,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Context Status Bar: Merapi Hub Utility
-              _buildContextBar(),
-              const SizedBox(height: AppDimensions.spaceMd),
+        child: RefreshIndicator(
+          color: AppColors.primary,
+          onRefresh: () async {
+            await utilityProvider.syncRates();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              AppDimensions.margin,
+              AppDimensions.spaceSm,
+              AppDimensions.margin,
+              AppDimensions.spaceXl,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Context Status Bar: Merapi Hub Utility
+                _buildContextBar(),
+                const SizedBox(height: AppDimensions.spaceMd),
 
-              // 2. Tab Switcher: Kurs Valuta vs Zona Waktu
-              _buildTabSwitcher(),
-              const SizedBox(height: AppDimensions.spaceLg),
+                // 2. Tab Switcher: Kurs Valuta vs Zona Waktu
+                _buildTabSwitcher(),
+                const SizedBox(height: AppDimensions.spaceLg),
 
-              // 3. Tab Content
-              if (_activeTab == 'currency')
-                _buildCurrencyTab(context, utilityProvider)
-              else
-                _buildTimeTab(context, utilityProvider),
+                // 3. Tab Content
+                if (_activeTab == 'currency')
+                  _buildCurrencyTab(context, utilityProvider)
+                else
+                  _buildTimeTab(context, utilityProvider),
 
-              const SizedBox(height: AppDimensions.spaceXl),
+                const SizedBox(height: AppDimensions.spaceXl),
 
-              // 4. Smart Navigation Links
-              _buildSmartNavigationLinks(context),
-            ],
+                // 4. Smart Navigation Links
+                _buildSmartNavigationLinks(context),
+              ],
+            ),
           ),
         ),
       ),
@@ -306,30 +344,13 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                         children: [
                           Row(
                             children: [
-                              Text(
-                                provider.isUsingCachedRates
-                                    ? 'Kurs terakhir tersimpan'
-                                    : 'Kurs Referensi Frankfurter',
-                                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: provider.isUsingCachedRates
-                                      ? AppColors.secondaryContainer
-                                      : AppColors.primaryContainer.withAlpha(120),
-                                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                                ),
+                              Expanded(
                                 child: Text(
-                                  'Tersimpan (Offline Cache)',
-                                  style: AppTypography.labelSm.copyWith(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: provider.isUsingCachedRates
-                                        ? AppColors.secondary
-                                        : AppColors.primary,
-                                  ),
+                                  provider.isUsingCachedRates
+                                      ? 'Kurs terakhir tersimpan'
+                                      : 'Kurs Referensi Frankfurter',
+                                  style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
                             ],
@@ -683,11 +704,15 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                     );
                   },
                   icon: const Icon(Icons.account_balance_wallet, size: 18),
-                  label: Text(
-                    'Terapkan ke Estimasi Anggaran Trip',
-                    style: AppTypography.labelLg.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onPrimary,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'Terapkan ke Estimasi Anggaran Trip',
+                      style: AppTypography.labelLg.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onPrimary,
+                      ),
+                      maxLines: 1,
                     ),
                   ),
                 ),
@@ -722,8 +747,8 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                 ),
                 child: Column(
                   children: [
-                    Text(c.code, style: AppTypography.labelLg.copyWith(fontWeight: FontWeight.bold)),
-                    Text(c.name, style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 11)),
+                    Text(c.code, style: AppTypography.labelLg.copyWith(fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                    Text(c.name, style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 11), maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
                   ],
                 ),
               ),
@@ -883,6 +908,7 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                             child: DropdownButton<String>(
                               value: provider.selectedTravelerTzId,
                               isDense: true,
+                              isExpanded: true,
                               items: provider.timezones.map((tz) {
                                 return DropdownMenuItem<String>(
                                   value: tz.id,
@@ -900,50 +926,56 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                         ],
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              provider.formattedTravelerTime,
-                              style: AppTypography.headlineSm.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.onSurface,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryContainer.withAlpha(120),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                provider.travelerTimezoneAbbr,
-                                style: AppTypography.labelSm.copyWith(
-                                  fontSize: 10,
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                provider.formattedTravelerTime,
+                                style: AppTypography.headlineSm.copyWith(
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                                  color: AppColors.onSurface,
                                 ),
                               ),
-                            ),
-                          ],
-                        ),
-                        Text(
-                          '${provider.formattedTravelerDate}${provider.dayDifferenceFromMerapi != 0 ? " (${provider.dayDifferenceBadgeText})" : ""}',
-                          style: AppTypography.bodySm.copyWith(
-                            color: provider.dayDifferenceFromMerapi != 0 ? AppColors.secondary : AppColors.onSurfaceVariant,
-                            fontSize: 10,
-                            fontWeight: provider.dayDifferenceFromMerapi != 0 ? FontWeight.bold : FontWeight.normal,
+                              const SizedBox(width: 4),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primaryContainer.withAlpha(120),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  provider.travelerTimezoneAbbr,
+                                  style: AppTypography.labelSm.copyWith(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        Text(
-                          provider.travelerTimeOfDayDescription,
-                          style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                        ),
-                      ],
+                          Text(
+                            '${provider.formattedTravelerDate}${provider.dayDifferenceFromMerapi != 0 ? " (${provider.dayDifferenceBadgeText})" : ""}',
+                            style: AppTypography.bodySm.copyWith(
+                              color: provider.dayDifferenceFromMerapi != 0 ? AppColors.secondary : AppColors.onSurfaceVariant,
+                              fontSize: 10,
+                              fontWeight: provider.dayDifferenceFromMerapi != 0 ? FontWeight.bold : FontWeight.normal,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            provider.travelerTimeOfDayDescription,
+                            style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
@@ -1075,7 +1107,7 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                     physics: const NeverScrollableScrollPhysics(),
                     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
-                      childAspectRatio: 2.5,
+                      childAspectRatio: 2.1,
                       crossAxisSpacing: 8,
                       mainAxisSpacing: 8,
                     ),
@@ -1115,12 +1147,26 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(zone, style: AppTypography.labelSm.copyWith(fontWeight: FontWeight.bold)),
-          Text(
-            time,
-            style: AppTypography.bodySm.copyWith(
-              color: isHighlight ? AppColors.primary : AppColors.onSurfaceVariant,
-              fontWeight: FontWeight.bold,
+          Flexible(
+            child: Text(
+              zone,
+              style: AppTypography.labelSm.copyWith(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                time,
+                style: AppTypography.bodySm.copyWith(
+                  color: isHighlight ? AppColors.primary : AppColors.onSurfaceVariant,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
           ),
         ],

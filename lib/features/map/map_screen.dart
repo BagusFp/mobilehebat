@@ -14,8 +14,10 @@ import '../../data/models/destination_model.dart';
 
 import '../explore/destination_detail_screen.dart';
 import '../explore/destination_provider.dart';
+import '../sensor/sensor_compass_screen.dart';
+import '../sensor/sensor_provider.dart';
+import 'package:flutter/services.dart';
 import 'map_provider.dart';
-import 'offline_map_screen.dart';
 
 class MapScreen extends StatefulWidget {
   final DestinationModel? initialDestination;
@@ -30,6 +32,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   late final MapController _mapController;
   late AnimationController _radarController;
   late Animation<double> _radarAnimation;
+  bool _showCompassHUD = false;
 
   @override
   void initState() {
@@ -110,7 +113,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
           children: const [
             Icon(Icons.location_on_rounded, color: AppColors.primary),
             SizedBox(width: 8),
-            Text('Nyalakan Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            Expanded(child: Text('Nyalakan Lokasi', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18))),
           ],
         ),
         content: Text(
@@ -169,6 +172,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   Widget build(BuildContext context) {
     final mapProvider = context.watch<MapProvider>();
     final destProvider = context.watch<DestinationProvider>();
+    final sensorProvider = context.watch<SensorProvider>();
 
     // Gunakan seluruh daftar destinasi wisata lereng Merapi (16 titik lengkap)
     final allDestList = () {
@@ -216,23 +220,11 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.cloud_download_outlined, color: AppColors.primary),
-            tooltip: 'Manajer Peta Offline',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const OfflineMapScreen()),
-              );
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
+        actions: const [],
       ),
       body: SafeArea(
         child: mapProvider.viewMode == 'map'
-            ? _buildMapModeView(context, mapProvider, destProvider, selectedDest, allDestList)
+            ? _buildMapModeView(context, mapProvider, destProvider, sensorProvider, selectedDest, allDestList)
             : _buildListModeView(context, mapProvider, destProvider, allDestList),
       ),
     );
@@ -258,6 +250,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     BuildContext context,
     MapProvider mapProvider,
     DestinationProvider destProvider,
+    SensorProvider sensorProvider,
     DestinationModel? selectedDest,
     List<DestinationModel> allDestList,
   ) {
@@ -546,19 +539,26 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.directions_car, size: 18, color: AppColors.onPrimaryContainer),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Rute OSRM: ${mapProvider.routeDistanceKm} km • ~${mapProvider.routeDurationMinutes} mnt',
-                              style: AppTypography.labelSm.copyWith(
-                                color: AppColors.onPrimaryContainer,
-                                fontWeight: FontWeight.bold,
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.directions_car, size: 18, color: AppColors.onPrimaryContainer),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Rute OSRM: ${mapProvider.routeDistanceKm} km • ~${mapProvider.routeDurationMinutes} mnt',
+                                  style: AppTypography.labelSm.copyWith(
+                                    color: AppColors.onPrimaryContainer,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 8),
                         InkWell(
                           onTap: () => mapProvider.clearRoute(),
                           child: const Icon(Icons.close, size: 16, color: AppColors.onPrimaryContainer),
@@ -566,6 +566,14 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                       ],
                     ),
                   ),
+                ),
+
+              // 4b. Floating Mini Dial Kompas Overlay (Opsi 1)
+              if (_showCompassHUD)
+                Positioned(
+                  top: mapProvider.routeDistanceKm != null ? 144 : 96,
+                  left: AppDimensions.margin,
+                  child: _buildFloatingMiniCompassHUD(context, sensorProvider, mapProvider),
                 ),
 
               // 5. Atribusi Resmi Penyedia Peta (Wajib OpenStreetMap & OSRM)
@@ -633,18 +641,22 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                     const SizedBox(height: 6),
                     FloatingActionButton.small(
                       heroTag: 'compassBtn',
-                      backgroundColor: AppColors.surfaceContainerLowest.withAlpha(240),
-                      foregroundColor: AppColors.secondary,
+                      backgroundColor: _showCompassHUD
+                          ? AppColors.primary
+                          : AppColors.surfaceContainerLowest.withAlpha(240),
+                      foregroundColor: _showCompassHUD ? Colors.white : AppColors.secondary,
                       elevation: 3,
+                      tooltip: _showCompassHUD ? 'Sembunyikan Mini Kompas' : 'Buka Mini Kompas Peta',
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Orientasi Kompas aktif: Menghadap 18° Utara-Timur Laut.'),
-                            duration: Duration(seconds: 1),
-                          ),
-                        );
+                        setState(() {
+                          _showCompassHUD = !_showCompassHUD;
+                        });
+                        HapticFeedback.selectionClick();
                       },
-                      child: const Icon(Icons.explore, size: 20),
+                      child: Transform.rotate(
+                        angle: -sensorProvider.headingDegrees * (pi / 180),
+                        child: const Icon(Icons.explore, size: 20),
+                      ),
                     ),
                     const SizedBox(height: 6),
                     FloatingActionButton.small(
@@ -1102,6 +1114,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                               color: AppColors.onPrimary,
                               fontWeight: FontWeight.bold,
                             ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -1132,6 +1146,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                           label: Text(
                             'Detail',
                             style: AppTypography.labelMd.copyWith(color: AppColors.primary),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ),
@@ -1461,6 +1477,298 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       ),
     );
   }
+
+  // 4. Floating Mini Dial Kompas Overlay (Opsi 1)
+  Widget _buildFloatingMiniCompassHUD(
+    BuildContext context,
+    SensorProvider sensorProvider,
+    MapProvider mapProvider,
+  ) {
+    final distMerapi = GeoHelper.distanceFromMerapiSummit(mapProvider.userLat, mapProvider.userLng);
+    final bearingMerapi = GeoHelper.bearingToMerapiSummit(mapProvider.userLat, mapProvider.userLng);
+    final relativeAngle = (bearingMerapi - sensorProvider.headingDegrees) * (pi / 180);
+
+    return Material(
+      color: Colors.transparent,
+      elevation: 6,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 196,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest.withAlpha(245),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withAlpha(90), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(35),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Top Bar: Title & Close Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.explore_rounded, size: 15, color: AppColors.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Mini Kompas',
+                      style: AppTypography.labelSm.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.onSurface,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+                InkWell(
+                  onTap: () {
+                    setState(() {
+                      _showCompassHUD = false;
+                    });
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: const Padding(
+                    padding: EdgeInsets.all(2),
+                    child: Icon(Icons.close_rounded, size: 16, color: AppColors.onSurfaceVariant),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Interactive Rotating Compass Dial (~90 px)
+            SizedBox(
+              width: 90,
+              height: 90,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Outer Dial Ring with Cardinal Points (Tetap mengikuti orientasi fisik ponsel)
+                  Container(
+                    width: 90,
+                    height: 90,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.surfaceContainerHigh.withAlpha(180),
+                      border: Border.all(
+                        color: AppColors.outlineVariant.withAlpha(140),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: const Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // U / N (Utara / North - Menghadap depan ponsel)
+                        Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(top: 2),
+                            child: Text(
+                              'U / N',
+                              style: TextStyle(
+                                color: AppColors.error,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 8.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // T / E (Timur / East - Kanan ponsel)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Padding(
+                            padding: EdgeInsets.only(right: 3),
+                            child: Text(
+                              'T / E',
+                              style: TextStyle(
+                                color: AppColors.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // S (Selatan / South - Bawah ponsel)
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(bottom: 2),
+                            child: Text(
+                              'S',
+                              style: TextStyle(
+                                color: AppColors.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 8.5,
+                              ),
+                            ),
+                          ),
+                        ),
+                        // B / W (Barat / West - Kiri ponsel)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: EdgeInsets.only(left: 3),
+                            child: Text(
+                              'B / W',
+                              style: TextStyle(
+                                color: AppColors.onSurfaceVariant,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 8,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Rotating Compass Needle (Jarum berputar ke arah Utara magnetik sebenarnya)
+                  AnimatedRotation(
+                    turns: -sensorProvider.headingDegrees / 360,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    child: CustomPaint(
+                      size: const Size(18, 64),
+                      painter: _MiniCompassNeedlePainter(),
+                    ),
+                  ),
+
+                  // Center Pivot Bezel
+                  Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.primary,
+                      border: Border.all(color: Colors.white, width: 2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withAlpha(50),
+                          blurRadius: 3,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 6),
+
+            // Live Heading Degree & Direction (Contoh: 90° E (Timur) saat menghadap Timur)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer.withAlpha(160),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${sensorProvider.headingDegrees.round()}° ${_formatBilingualCardinal(sensorProvider.headingDegrees)}',
+                style: AppTypography.labelSm.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.onPrimaryContainer,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 6),
+            const Divider(height: 1, thickness: 0.8),
+            const SizedBox(height: 6),
+
+            // Vector to Puncak Merapi (Relative bearing + distance)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Transform.rotate(
+                  angle: relativeAngle,
+                  child: const Icon(
+                    Icons.navigation_rounded,
+                    size: 13,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Puncak: ${distMerapi.toStringAsFixed(1)} km (${bearingMerapi.round()}°)',
+                    style: AppTypography.bodySmall.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 6),
+
+            // Shortcut to Full Compass Screen
+            InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SensorCompassScreen(initialMode: 'compass'),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.outlineVariant.withAlpha(100)),
+                ),
+                alignment: Alignment.center,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.fullscreen_rounded, size: 14, color: AppColors.secondary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Kompas Penuh',
+                      style: AppTypography.labelSm.copyWith(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatBilingualCardinal(double deg) {
+    const list = [
+      'N (Utara)', 'NNE', 'NE (Timur Laut)', 'ENE',
+      'E (Timur)', 'ESE', 'SE (Tenggara)', 'SSE',
+      'S (Selatan)', 'SSW', 'SW (Barat Daya)', 'WSW',
+      'W (Barat)', 'WNW', 'NW (Barat Laut)', 'NNW'
+    ];
+    final index = ((deg + 11.25) % 360 / 22.5).floor();
+    return list[index % 16];
+  }
 }
 
 /// CustomPainter untuk Visualisasi Zona Bahaya Merapi & Rute Polyline
@@ -1540,3 +1848,66 @@ class MerapiMapOverlaysPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
+/// CustomPainter untuk Jarum Kompas Mini 3D Bevel (Utara Merah, Selatan Abu-abu)
+class _MiniCompassNeedlePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    final needleHalfWidth = size.width / 2;
+    final needleLength = size.height / 2;
+
+    // Jarum Utara Sisi Terang (Merah Cerah)
+    final northPath = Path()
+      ..moveTo(centerX, centerY - needleLength)
+      ..lineTo(centerX + needleHalfWidth, centerY)
+      ..lineTo(centerX, centerY - 2)
+      ..close();
+
+    final northPaint = Paint()
+      ..color = AppColors.error
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(northPath, northPaint);
+
+    // Jarum Utara Sisi Bayangan (Merah Tua untuk Efek 3D)
+    final northShadePath = Path()
+      ..moveTo(centerX, centerY - needleLength)
+      ..lineTo(centerX - needleHalfWidth, centerY)
+      ..lineTo(centerX, centerY - 2)
+      ..close();
+
+    final northShadePaint = Paint()
+      ..color = const Color(0xFFB71C1C)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(northShadePath, northShadePaint);
+
+    // Jarum Selatan Sisi Terang (Silver Terang)
+    final southPath = Path()
+      ..moveTo(centerX, centerY + needleLength)
+      ..lineTo(centerX + needleHalfWidth, centerY)
+      ..lineTo(centerX, centerY + 2)
+      ..close();
+
+    final southPaint = Paint()
+      ..color = const Color(0xFFCFD8DC)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(southPath, southPaint);
+
+    // Jarum Selatan Sisi Bayangan (Silver Gelap untuk Efek 3D)
+    final southShadePath = Path()
+      ..moveTo(centerX, centerY + needleLength)
+      ..lineTo(centerX - needleHalfWidth, centerY)
+      ..lineTo(centerX, centerY + 2)
+      ..close();
+
+    final southShadePaint = Paint()
+      ..color = const Color(0xFF90A4AE)
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(southShadePath, southShadePaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+

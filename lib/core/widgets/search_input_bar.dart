@@ -29,11 +29,14 @@ class SearchInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final effectiveHeight = (AppDimensions.inputHeight * textScale).clamp(AppDimensions.inputHeight, 68.0);
+
     return Row(
       children: [
         Expanded(
           child: Container(
-            height: AppDimensions.inputHeight,
+            height: effectiveHeight,
             decoration: BoxDecoration(
               color: AppColors.surfaceContainerHighest,
               borderRadius: AppDimensions.roundedMd,
@@ -80,8 +83,8 @@ class SearchInputBar extends StatelessWidget {
           Stack(
             children: [
               Container(
-                height: AppDimensions.inputHeight,
-                width: AppDimensions.inputHeight,
+                height: effectiveHeight,
+                width: effectiveHeight,
                 decoration: BoxDecoration(
                   color: activeFilterCount > 0 ? AppColors.primary : AppColors.surfaceContainer,
                   borderRadius: AppDimensions.roundedMd,

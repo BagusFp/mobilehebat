@@ -956,18 +956,20 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
 
   // 5. Floating Bottom Input Bar
   Widget _buildFloatingInputBar(BuildContext context, AiAssistantProvider provider) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(AppDimensions.margin, 8, AppDimensions.margin, 16),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withAlpha(240),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(15),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(AppDimensions.margin, 8, AppDimensions.margin, 12),
+        decoration: BoxDecoration(
+          color: AppColors.surface.withAlpha(240),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(15),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
@@ -1038,7 +1040,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 

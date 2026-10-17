@@ -214,9 +214,13 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Catat Pengeluaran Baru',
-                          style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold),
+                        Expanded(
+                          child: Text(
+                            'Catat Pengeluaran Baru',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold),
+                          ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -388,40 +392,42 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           children: const [
             Icon(Icons.flag_rounded, color: AppColors.volcanoStatusWaspada, size: 28),
             SizedBox(width: 8),
-            Text('Akhiri Perjalanan?'),
+            Expanded(child: Text('Akhiri Perjalanan?')),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (unvisitedCount > 0) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.volcanoStatusWaspada.withAlpha(30),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_rounded, color: AppColors.volcanoStatusWaspada),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Perhatian: Masih ada $unvisitedCount destinasi yang belum Anda tandai selesai.',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (unvisitedCount > 0) ...[
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.volcanoStatusWaspada.withAlpha(30),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: AppColors.volcanoStatusWaspada),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Perhatian: Masih ada $unvisitedCount destinasi yang belum Anda tandai selesai.',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(height: 12),
+              ],
+              Text(
+                'Apakah Anda yakin ingin menyelesaikan petualangan rute "${trip.tripName}"? Status trip akan diubah menjadi Selesai dan total pengeluaran aktual akan disimpan.',
+                style: AppTypography.bodyMedium,
               ),
-              const SizedBox(height: 12),
             ],
-            Text(
-              'Apakah Anda yakin ingin menyelesaikan petualangan rute "${trip.tripName}"? Status trip akan diubah menjadi Selesai dan total pengeluaran aktual akan disimpan.',
-              style: AppTypography.bodyMedium,
-            ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
@@ -461,92 +467,94 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Container(
-              width: 64,
-              height: 64,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withAlpha(40),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 36),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Perjalanan Selesai!',
-              style: AppTypography.headlineSmall.copyWith(
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Selamat! Anda telah menyelesaikan penjelajahan rute "${trip.tripName}".',
-              textAlign: TextAlign.center,
-              style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant),
-            ),
-            const SizedBox(height: 20),
-
-            // Kartu Ringkasan
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  _buildSummaryRow(
-                    'Destinasi Dikunjungi',
-                    '$completedCount dari $totalCount Destinasi',
-                    Icons.place_rounded,
-                    AppColors.primary,
-                  ),
-                  const Divider(height: 20),
-                  _buildSummaryRow(
-                    'Target Anggaran Awal',
-                    _currencyFormat.format(targetBudget),
-                    Icons.account_balance_wallet_outlined,
-                    AppColors.onSurfaceVariant,
-                  ),
-                  const Divider(height: 20),
-                  _buildSummaryRow(
-                    'Total Pengeluaran Aktual',
-                    _currencyFormat.format(totalSpent),
-                    Icons.receipt_long_rounded,
-                    AppColors.primary,
-                  ),
-                  const Divider(height: 20),
-                  _buildSummaryRow(
-                    balance >= 0 ? 'Sisa Anggaran Hemat' : 'Defisit Anggaran',
-                    _currencyFormat.format(balance.abs()),
-                    balance >= 0 ? Icons.savings_rounded : Icons.warning_rounded,
-                    balance >= 0 ? AppColors.secondary : AppColors.error,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withAlpha(40),
+                  shape: BoxShape.circle,
                 ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context); // Kembali ke My Trip
-                },
-                child: const Text('Kembali ke My Trip', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Icon(Icons.emoji_events_rounded, color: AppColors.primary, size: 36),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Text(
+                'Perjalanan Selesai!',
+                style: AppTypography.headlineSmall.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Selamat! Anda telah menyelesaikan penjelajahan rute "${trip.tripName}".',
+                textAlign: TextAlign.center,
+                style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              const SizedBox(height: 20),
+
+              // Kartu Ringkasan
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
+                  children: [
+                    _buildSummaryRow(
+                      'Destinasi Dikunjungi',
+                      '$completedCount dari $totalCount Destinasi',
+                      Icons.place_rounded,
+                      AppColors.primary,
+                    ),
+                    const Divider(height: 20),
+                    _buildSummaryRow(
+                      'Target Anggaran Awal',
+                      _currencyFormat.format(targetBudget),
+                      Icons.account_balance_wallet_outlined,
+                      AppColors.onSurfaceVariant,
+                    ),
+                    const Divider(height: 20),
+                    _buildSummaryRow(
+                      'Total Pengeluaran Aktual',
+                      _currencyFormat.format(totalSpent),
+                      Icons.receipt_long_rounded,
+                      AppColors.primary,
+                    ),
+                    const Divider(height: 20),
+                    _buildSummaryRow(
+                      balance >= 0 ? 'Sisa Anggaran Hemat' : 'Defisit Anggaran',
+                      _currencyFormat.format(balance.abs()),
+                      balance >= 0 ? Icons.savings_rounded : Icons.warning_rounded,
+                      balance >= 0 ? AppColors.secondary : AppColors.error,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context); // Kembali ke My Trip
+                  },
+                  child: const Text('Kembali ke My Trip', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -558,9 +566,25 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         Icon(icon, size: 20, color: color),
         const SizedBox(width: 10),
         Expanded(
-          child: Text(label, style: AppTypography.labelMedium.copyWith(color: AppColors.onSurfaceVariant)),
+          flex: 3,
+          child: Text(
+            label,
+            style: AppTypography.labelMedium.copyWith(color: AppColors.onSurfaceVariant),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        Text(value, style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(width: 8),
+        Flexible(
+          flex: 4,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.bold, color: color),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
       ],
     );
   }
@@ -628,10 +652,15 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Rencana Kunjungan Destinasi',
-                    style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Text(
+                      'Rencana Kunjungan Destinasi',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   Text(
                     '$completedCount/$totalCount Selesai',
                     style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
@@ -650,10 +679,15 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Pengeluaran & Anggaran Trip',
-                    style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: Text(
+                      'Pengeluaran & Anggaran Trip',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
                   ),
+                  const SizedBox(width: 8),
                   TextButton.icon(
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Catat Biaya'),
@@ -777,10 +811,15 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Progres Kunjungan Destinasi',
-                style: AppTypography.labelSmall.copyWith(color: AppColors.onSurfaceVariant),
+              Expanded(
+                child: Text(
+                  'Progres Kunjungan Destinasi',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSmall.copyWith(color: AppColors.onSurfaceVariant),
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 '$completedCount dari $totalCount Selesai (${(progress * 100).toInt()}%)',
                 style: AppTypography.labelSmall.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary),
@@ -878,15 +917,27 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             ),
           ],
           const SizedBox(height: 12),
-          Row(
+          Wrap(
+            spacing: 14,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Icon(Icons.schedule_rounded, size: 16, color: AppColors.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Text('${nextItem.durationHours} Jam Kunjungan', style: AppTypography.labelSmall),
-              const SizedBox(width: 14),
-              Icon(Icons.landscape_rounded, size: 16, color: AppColors.onSurfaceVariant),
-              const SizedBox(width: 4),
-              Text('${nextItem.elevationMdpl} mdpl', style: AppTypography.labelSmall),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.schedule_rounded, size: 16, color: AppColors.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Text('${nextItem.durationHours} Jam Kunjungan', style: AppTypography.labelSmall),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.landscape_rounded, size: 16, color: AppColors.onSurfaceVariant),
+                  const SizedBox(width: 4),
+                  Text('${nextItem.elevationMdpl} mdpl', style: AppTypography.labelSmall),
+                ],
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1101,7 +1152,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     const SizedBox(height: 10),
 
                     // Action buttons
-                    Row(
+                    Wrap(
+                      alignment: WrapAlignment.spaceBetween,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 6,
                       children: [
                         if (dest != null)
                           TextButton.icon(
@@ -1121,7 +1176,6 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                               );
                             },
                           ),
-                        const Spacer(),
                         if (!isCompleted)
                           ElevatedButton.icon(
                             style: ElevatedButton.styleFrom(
@@ -1177,42 +1231,44 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           children: const [
             Icon(Icons.account_balance_wallet, color: AppColors.primary),
             SizedBox(width: 8),
-            Text('Ubah Target Anggaran'),
+            Expanded(child: Text('Ubah Target Anggaran')),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Sesuaikan batas pagu anggaran untuk rute perjalanan ini:',
-              style: TextStyle(fontSize: 13),
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: controller,
-              keyboardType: TextInputType.number,
-              autofocus: true,
-              decoration: const InputDecoration(
-                prefixText: 'Rp ',
-                labelText: 'Target Anggaran',
-                border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Sesuaikan batas pagu anggaran untuk rute perjalanan ini:',
+                style: TextStyle(fontSize: 13),
               ),
-            ),
-            if (totalDestTickets > 0) ...[
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: () {
-                  controller.text = totalDestTickets.toInt().toString();
-                },
-                icon: const Icon(Icons.auto_fix_high, size: 16),
-                label: Text(
-                  'Samakan Biaya Destinasi (${_currencyFormat.format(totalDestTickets)})',
-                  style: const TextStyle(fontSize: 11),
+              const SizedBox(height: 14),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  prefixText: 'Rp ',
+                  labelText: 'Target Anggaran',
+                  border: OutlineInputBorder(),
                 ),
               ),
+              if (totalDestTickets > 0) ...[
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    controller.text = totalDestTickets.toInt().toString();
+                  },
+                  icon: const Icon(Icons.auto_fix_high, size: 16),
+                  label: Text(
+                    'Samakan Biaya Destinasi (${_currencyFormat.format(totalDestTickets)})',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
         actions: [
           TextButton(

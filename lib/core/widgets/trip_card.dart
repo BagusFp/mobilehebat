@@ -85,28 +85,35 @@ class TripCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: statusColor.withAlpha(20),
-                        borderRadius: AppDimensions.roundedFull,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(statusIcon, size: 13, color: statusColor),
-                          const SizedBox(width: 4),
-                          Text(
-                            statusLabel,
-                            style: AppTypography.labelSmall.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: statusColor.withAlpha(20),
+                          borderRadius: AppDimensions.roundedFull,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, size: 13, color: statusColor),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                statusLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: statusColor,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                    if (isOfflineSaved)
+                    if (isOfflineSaved) ...[
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                         decoration: BoxDecoration(
@@ -128,6 +135,7 @@ class TripCard extends StatelessWidget {
                           ],
                         ),
                       ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 10),
@@ -135,6 +143,8 @@ class TripCard extends StatelessWidget {
                 // Judul Trip
                 Text(
                   title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: AppTypography.titleLarge.copyWith(
                     fontWeight: FontWeight.w800,
                     color: AppColors.onSurface,
@@ -147,7 +157,14 @@ class TripCard extends StatelessWidget {
                   children: [
                     const Icon(Icons.calendar_today_rounded, size: 13, color: AppColors.onSurfaceVariant),
                     const SizedBox(width: 4),
-                    Text(date, style: AppTypography.bodySmall),
+                    Expanded(
+                      child: Text(
+                        date,
+                        style: AppTypography.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     const Icon(Icons.group_rounded, size: 14, color: AppColors.onSurfaceVariant),
                     const SizedBox(width: 4),
@@ -167,11 +184,15 @@ class TripCard extends StatelessWidget {
                       children: [
                         const Icon(Icons.timer_outlined, size: 14, color: AppColors.primary),
                         const SizedBox(width: 6),
-                        Text(
-                          timeUntilTrip!,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w600,
+                        Expanded(
+                          child: Text(
+                            timeUntilTrip!,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
@@ -187,20 +208,26 @@ class TripCard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Estimasi Biaya', style: AppTypography.bodySmall.copyWith(fontSize: 10)),
-                        Text(
-                          _formatCurrency(totalEstimatedCost),
-                          style: AppTypography.titleMedium.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.w700,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Estimasi Biaya', style: AppTypography.bodySmall.copyWith(fontSize: 10)),
+                          Text(
+                            _formatCurrency(totalEstimatedCost),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleMedium.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           'Lihat Timeline',

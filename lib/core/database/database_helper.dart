@@ -398,6 +398,59 @@ class DatabaseHelper {
       'connecting_time_minutes': 15,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
+    // 3. Trip Selesai: Jelajah Bunker & Lava Tour 2024
+    final trip3Id = await db.insert('trips', {
+      'id': 3,
+      'user_id': 1,
+      'trip_name': 'Jelajah Bunker & Lava Tour 2024',
+      'start_date': '10 Okt 2024',
+      'participant_count': 2,
+      'target_budget': 350000.0,
+      'total_estimated_cost': 60000.0,
+      'total_actual_cost': 320000.0,
+      'status': 'completed',
+      'completed_at': '2024-10-10 16:30:00',
+      'reminder_enabled': 0,
+      'is_saved_offline': 1,
+      'banner_image_url':
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
+      'created_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    batch.insert('trip_items', {
+      'id': 5,
+      'trip_id': trip3Id,
+      'destination_id': 1,
+      'item_name': 'Bunker Kaliadem',
+      'item_subtitle': 'Panorama Puncak & Edukasi Vulkanik',
+      'visit_order': 1,
+      'planned_time': '08:00 - 10:00',
+      'duration_hours': 2.0,
+      'estimated_cost': 20000.0,
+      'is_completed': 1,
+      'completed_at': '2024-10-10 10:00:00',
+      'image_url':
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
+      'elevation_mdpl': 1165,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    batch.insert('trip_items', {
+      'id': 6,
+      'trip_id': trip3Id,
+      'destination_id': 2,
+      'item_name': 'Museum Sisa Hartaku',
+      'item_subtitle': 'Museum Memori Erupsi 2010',
+      'visit_order': 2,
+      'planned_time': '10:30 - 12:00',
+      'duration_hours': 1.5,
+      'estimated_cost': 10000.0,
+      'is_completed': 1,
+      'completed_at': '2024-10-10 12:00:00',
+      'image_url':
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuCrMdOhkFyi5cCCa57K_dji1aobrBXghl3FRpJRzpB6sn7bo6utRDLky6lzoF0DEGs94zbs_xZrmfkoF8iEb9n95_6toNdhXzL8CVAwPhteTB6vigjJXWqqiy5Fh9hGiLTrKhMACm4HgA9nMeFkfmS-cmlkoZwsu2PksDLjTIv8_-PI39q2JV4WAcBrrDXgM-b6Eef1b5md8zQyfrkKkaRGG6yn_9VtBJcqzFWJ2Ro0NmgIxXchwCQ',
+      'elevation_mdpl': 920,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
     await batch.commit(noResult: true);
   }
 
@@ -482,9 +535,13 @@ class DatabaseHelper {
             tripId: trip.id,
             visitOrder: i + 1,
           );
+          final iMap = item.toMap();
+          if (item.id == null) {
+            iMap.remove('id');
+          }
           batch.insert(
             'trip_items',
-            item.toMap(),
+            iMap,
             conflictAlgorithm: ConflictAlgorithm.replace,
           );
         }

@@ -197,8 +197,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Nama Lengkap', style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold)),
-                        Text('Sesuai KTP/Paspor', style: AppTypography.bodySmall.copyWith(fontSize: 10)),
+                        Flexible(
+                          child: Text(
+                            'Nama Lengkap',
+                            style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Sesuai KTP/Paspor',
+                            style: AppTypography.bodySmall.copyWith(fontSize: 10),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
@@ -263,18 +278,30 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  passwordStrength == 3
-                                      ? 'Kekuatan Sandi: Kuat'
-                                      : passwordStrength == 2
-                                          ? 'Kekuatan Sandi: Sedang'
-                                          : 'Kekuatan Sandi: Lemah',
-                                  style: AppTypography.labelSmall.copyWith(
-                                    color: passwordStrength == 3 ? AppColors.primary : AppColors.volcanoStatusWaspada,
-                                    fontWeight: FontWeight.bold,
+                                Flexible(
+                                  child: Text(
+                                    passwordStrength == 3
+                                        ? 'Kekuatan Sandi: Kuat'
+                                        : passwordStrength == 2
+                                            ? 'Kekuatan Sandi: Sedang'
+                                            : 'Kekuatan Sandi: Lemah',
+                                    style: AppTypography.labelSmall.copyWith(
+                                      color: passwordStrength == 3 ? AppColors.primary : AppColors.volcanoStatusWaspada,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
-                                Text('$passwordStrength/3 Kriteria', style: AppTypography.bodySmall.copyWith(fontSize: 10)),
+                                const SizedBox(width: 8),
+                                Flexible(
+                                  child: Text(
+                                    '$passwordStrength/3 Kriteria',
+                                    style: AppTypography.bodySmall.copyWith(fontSize: 10),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ],
                             ),
                             const SizedBox(height: 4),

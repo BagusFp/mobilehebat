@@ -409,11 +409,37 @@ class UtilityProvider extends ChangeNotifier {
 
     try {
       final httpClient = client ?? http.Client();
-      final url = Uri.parse('https://api.frankfurter.dev/v1/latest?base=EUR&symbols=IDR,USD,JPY,SGD');
-      final response = await httpClient.get(
-        url,
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 8));
+      final urls = [
+        Uri.parse('https://api.frankfurter.dev/v1/latest?base=EUR&symbols=IDR,USD,JPY,SGD'),
+        Uri.parse('https://api.frankfurter.app/latest?base=EUR&symbols=IDR,USD,JPY,SGD'),
+      ];
+
+      http.Response? response;
+      dynamic lastError;
+
+      for (final url in urls) {
+        try {
+          final req = httpClient.get(
+            url,
+            headers: {'Accept': 'application/json'},
+          );
+          final res = (Platform.environment.containsKey('FLUTTER_TEST') || client != null)
+              ? await req
+              : await req.timeout(const Duration(seconds: 10));
+          if (res.statusCode == 200) {
+            response = res;
+            break;
+          }
+        } catch (e) {
+          lastError = e;
+          if (client != null) break;
+        }
+      }
+
+      if (response == null) {
+        if (lastError != null) throw lastError;
+        throw const HttpException('Gagal terhubung ke server Frankfurter API.');
+      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

@@ -150,26 +150,33 @@ class _OfflineMapScreenState extends State<OfflineMapScreen> with SingleTickerPr
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: const BoxDecoration(
-                        color: AppColors.primary,
-                        shape: BoxShape.circle,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Mode Offline Siap Digunakan',
-                      style: AppTypography.labelLg.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          'Mode Offline Siap Digunakan',
+                          style: AppTypography.labelLg.copyWith(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -200,24 +207,31 @@ class _OfflineMapScreenState extends State<OfflineMapScreen> with SingleTickerPr
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      '$downloaded MB',
-                      style: AppTypography.headlineSm.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        '$downloaded MB',
+                        style: AppTypography.headlineSm.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '/ 512 MB Dialokasikan',
-                      style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '/ 512 MB Dialokasikan',
+                          style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '$usagePercentStr% Terpakai',
                   style: AppTypography.labelSm.copyWith(
@@ -714,84 +728,98 @@ class _OfflineMapScreenState extends State<OfflineMapScreen> with SingleTickerPr
 
   // 5. Pinned Sticky Bottom Controls
   Widget _buildStickyBottomControls(BuildContext context, MapProvider provider) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(
-        AppDimensions.margin,
-        12,
-        AppDimensions.margin,
-        AppDimensions.spaceMd,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest.withAlpha(245),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(15),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.wifi, color: AppColors.secondary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Hanya Unduh via Wi-Fi',
-                    style: AppTypography.labelLg.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.onSurface,
-                    ),
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(
+          AppDimensions.margin,
+          12,
+          AppDimensions.margin,
+          AppDimensions.spaceMd,
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceContainerLowest.withAlpha(245),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(15),
+              blurRadius: 10,
+              offset: const Offset(0, -3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.wifi, color: AppColors.secondary, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Hanya Unduh via Wi-Fi',
+                          style: AppTypography.labelLg.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.onSurface,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              Switch(
-                value: provider.isWifiOnly,
-                activeThumbColor: AppColors.primary,
-                onChanged: (val) {
-                  provider.setWifiOnly(val);
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
                 ),
-                elevation: 2,
-              ),
-              onPressed: () {
-                provider.downloadAllPacks();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Mengunduh seluruh 4 paket kawasan Merapi (55 MB)...'),
-                    duration: Duration(seconds: 2),
+                const SizedBox(width: 8),
+                Switch(
+                  value: provider.isWifiOnly,
+                  activeThumbColor: AppColors.primary,
+                  onChanged: (val) {
+                    provider.setWifiOnly(val);
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: AppColors.onPrimary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
                   ),
-                );
-              },
-              icon: const Icon(Icons.cloud_download, size: 22),
-              label: Text(
-                'Unduh Semua Data Kawasan Merapi (55 MB)',
-                style: AppTypography.labelLg.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onPrimary,
+                  elevation: 2,
+                ),
+                onPressed: () {
+                  provider.downloadAllPacks();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Mengunduh seluruh 4 paket kawasan Merapi (55 MB)...'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.cloud_download, size: 22),
+                label: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Unduh Semua Data Kawasan Merapi (55 MB)',
+                    style: AppTypography.labelLg.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.onPrimary,
+                    ),
+                    maxLines: 1,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

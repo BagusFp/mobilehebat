@@ -336,8 +336,164 @@ class AuthRepository {
     return UserModel.fromMap(result.first);
   }
 
+  /// Memperbarui nama dan/atau foto profil pengguna ke Supabase & SQLite lokal
+  Future<AuthResult> updateProfile({
+    required int userId,
+    String? name,
+    String? profilePhoto,
+  }) async {
+    try {
+      final db = await _dbHelper.database;
+      final updateData = <String, Object?>{};
+      if (name != null && name.trim().isNotEmpty) {
+        updateData['name'] = name.trim();
+      }
+      if (profilePhoto != null) {
+        updateData['profile_photo'] = profilePhoto;
+      }
+
+      if (updateData.isNotEmpty) {
+        await db.update(
+          'users',
+          updateData,
+          where: 'id = ?',
+          whereArgs: [userId],
+        );
+      }
+
+      final prefs = await PreferencesHelper.instance;
+      if (name != null && name.trim().isNotEmpty) {
+        await prefs.setUserName(name.trim());
+      }
+      if (profilePhoto != null) {
+        await prefs.setUserPhoto(profilePhoto);
+      }
+
+      // Update di Supabase bila ada sesi aktif
+      final supabaseUser = _supabaseService.currentUser;
+      if (supabaseUser != null) {
+        try {
+          await _supabaseService.client.auth.updateUser(
+            UserAttributes(
+              data: {
+                if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+                if (profilePhoto != null && profilePhoto.isNotEmpty) 'avatar_url': profilePhoto,
+              },
+            ),
+          );
+        } catch (e) {
+          debugPrint('Supabase updateUser metadata error: $e');
+        }
+
+        try {
+          await _supabaseService.upsertProfile({
+            'id': supabaseUser.id,
+            'email': supabaseUser.email,
+            if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+            if (profilePhoto != null && profilePhoto.isNotEmpty) 'avatar_url': profilePhoto,
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        } catch (e) {
+          debugPrint('Supabase upsertProfile error: $e');
+        }
+      }
+
+      final updatedUser = await getCurrentUser();
+      return AuthResult(
+        isSuccess: true,
+        message: 'Profil berhasil diperbarui.',
+        user: updatedUser,
+      );
+    } catch (e) {
+      debugPrint('AuthRepository updateProfile error: $e');
+      return AuthResult(
+        isSuccess: false,
+        message: 'Gagal memperbarui profil: $e',
+      );
+    }
+  }
+
+  /// Verifikasi kata sandi akun via Supabase saat biometrik gagal atau dipilih alternatif
+  Future<AuthResult> verifyAccountPassword({
+    required String email,
+    required String password,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty || password.isEmpty) {
+      return const AuthResult(
+        isSuccess: false,
+        message: 'Email atau kata sandi tidak boleh kosong.',
+      );
+    }
+
+    try {
+      final res = await _supabaseService.signIn(
+        email: cleanEmail,
+        password: password,
+      );
+
+      final user = res.user;
+      final session = res.session;
+
+      if (user == null || session == null) {
+        return const AuthResult(
+          isSuccess: false,
+          message: 'Gagal memverifikasi kata sandi. Silakan coba lagi.',
+        );
+      }
+
+      // Perbarui sesi aktif di Preferences tanpa mengubah struktur trip atau data penting lainnya
+      final prefs = await PreferencesHelper.instance;
+      final userId = prefs.getUserId() ?? 1;
+      await prefs.saveUserSession(
+        userId: userId,
+        supabaseId: user.id,
+        email: cleanEmail,
+        name: user.userMetadata?['name'] ?? prefs.getUserName() ?? 'Wisatawan Merapi',
+        token: session.accessToken,
+      );
+
+      final dbUser = await getCurrentUser();
+      return AuthResult(
+        isSuccess: true,
+        message: 'Kata sandi akun berhasil diverifikasi.',
+        user: dbUser ?? UserModel(
+          id: userId,
+          supabaseId: user.id,
+          name: user.userMetadata?['name'] ?? 'Wisatawan Merapi',
+          email: cleanEmail,
+          passwordHash: '',
+          isBiometricEnabled: prefs.isBiometricEnabled(),
+          createdAt: user.createdAt,
+        ),
+      );
+    } on AuthException catch (e) {
+      debugPrint('Supabase verifyAccountPassword AuthException: ${e.message}');
+      if (e.message.toLowerCase().contains('invalid login credentials') ||
+          e.message.toLowerCase().contains('invalid credentials')) {
+        return const AuthResult(
+          isSuccess: false,
+          message: 'Kata sandi akun tidak sesuai. Silakan periksa kembali.',
+        );
+      }
+      return AuthResult(
+        isSuccess: false,
+        message: 'Verifikasi gagal: ${e.message}',
+      );
+    } catch (e) {
+      debugPrint('Supabase verifyAccountPassword network/server error: $e');
+      return const AuthResult(
+        isSuccess: false,
+        message: 'Tidak dapat menghubungi server Supabase. Pastikan koneksi internet aktif.',
+      );
+    }
+  }
+
   /// Mengubah status biometrik user
   Future<bool> setBiometricEnabled(int userId, bool enabled) async {
+    final prefs = await PreferencesHelper.instance;
+    await prefs.setBiometricEnabled(enabled);
+
     try {
       final db = await _dbHelper.database;
       await db.update(
@@ -346,12 +502,10 @@ class AuthRepository {
         where: 'id = ?',
         whereArgs: [userId],
       );
-      final prefs = await PreferencesHelper.instance;
-      await prefs.setBiometricEnabled(enabled);
-      return true;
-    } catch (_) {
-      return false;
+    } catch (e) {
+      debugPrint('AuthRepository setBiometricEnabled SQLite update warning: $e');
     }
+    return true;
   }
 
   /// Logout dan hapus sesi di lokal dan Supabase

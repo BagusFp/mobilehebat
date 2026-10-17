@@ -107,14 +107,18 @@ class NotificationScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: () => notifProvider.markAllAsRead(),
-                    icon: const Icon(Icons.done_all, size: 16, color: AppColors.primary),
-                    label: Text(
-                      'Tandai Dibaca',
-                      style: AppTypography.labelMd.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: () => notifProvider.markAllAsRead(),
+                      icon: const Icon(Icons.done_all, size: 16, color: AppColors.primary),
+                      label: Text(
+                        'Tandai Dibaca',
+                        style: AppTypography.labelMd.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -183,8 +187,8 @@ class NotificationScreen extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _buildChip(
-            label: 'Sistem & Offline',
-            icon: Icons.offline_pin,
+            label: 'Sistem & Notifikasi',
+            icon: Icons.notifications_active_outlined,
             isSelected: active == 'system',
             onTap: () => provider.setFilter('system'),
           ),
@@ -494,21 +498,26 @@ class NotificationScreen extends StatelessWidget {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: stripColor.withAlpha(25),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: Text(
-                                    notif.tag,
-                                    style: AppTypography.labelSm.copyWith(
-                                      color: stripColor,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 10,
+                                Flexible(
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: stripColor.withAlpha(25),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      notif.tag,
+                                      style: AppTypography.labelSm.copyWith(
+                                        color: stripColor,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ),
+                                const SizedBox(width: 8),
                                 Text(
                                   notif.timeAgo,
                                   style: AppTypography.bodySm.copyWith(

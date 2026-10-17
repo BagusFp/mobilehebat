@@ -89,19 +89,24 @@ class QuizScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.monetization_on, color: Color(0xFFC58A32), size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      '+50 Poin Tiap Jawaban',
-                      style: AppTypography.labelMd.copyWith(
-                        color: AppColors.onSurface,
-                        fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.monetization_on, color: Color(0xFFC58A32), size: 16),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '+50 Poin Tiap Jawaban',
+                          style: AppTypography.labelMd.copyWith(
+                            color: AppColors.onSurface,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -242,27 +247,36 @@ class QuizScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Akumulasi Skor',
-                      style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                    ),
-                    Row(
-                      children: [
-                        const Icon(Icons.stars, color: Color(0xFFC58A32), size: 18),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${quiz.userScore} Poin',
-                          style: AppTypography.headlineSm.copyWith(
-                            color: AppColors.primary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Akumulasi Skor',
+                        style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.stars, color: Color(0xFFC58A32), size: 18),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${quiz.userScore} Poin',
+                              style: AppTypography.headlineSm.copyWith(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -272,19 +286,25 @@ class QuizScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    const Icon(Icons.quiz, color: AppColors.primary, size: 16),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Pertanyaan ${quiz.currentQuestionIndex + 1} dari ${quiz.totalQuestions}',
-                      style: AppTypography.labelMd.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.onSurface,
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.quiz, color: AppColors.primary, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          'Pertanyaan ${quiz.currentQuestionIndex + 1} dari ${quiz.totalQuestions}',
+                          style: AppTypography.labelMd.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Text(
                   '${quiz.progressPercent}% Selesai',
                   style: AppTypography.labelSm.copyWith(
@@ -617,42 +637,69 @@ class QuizScreen extends StatelessWidget {
             Text('Kuis Selesai!'),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Hebat! Kamu berhasil menjawab ${quiz.sessionCorrectCount} dari ${quiz.totalQuestions} pertanyaan dengan benar.',
-              style: AppTypography.bodyMd,
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLow,
-                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Hebat! Kamu berhasil menjawab ${quiz.sessionCorrectCount} dari ${quiz.totalQuestions} pertanyaan dengan benar.',
+                style: AppTypography.bodyMd,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Bonus Poin Didapat', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                      Text('+${quiz.sessionEarnedPoints} Poin', style: AppTypography.headlineSm.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text('Total Skor Akhir', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
-                      Text('${quiz.userScore} Poin', style: AppTypography.headlineSm.copyWith(color: const Color(0xFFC58A32), fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ],
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Bonus Poin Didapat',
+                            style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '+${quiz.sessionEarnedPoints} Poin',
+                              style: AppTypography.headlineSm.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Total Skor Akhir',
+                            style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              '${quiz.userScore} Poin',
+                              style: AppTypography.headlineSm.copyWith(color: const Color(0xFFC58A32), fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -681,12 +728,14 @@ class QuizScreen extends StatelessWidget {
   void _showLeaderboardModal(BuildContext context, QuizProvider quiz) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
       ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(AppDimensions.margin),
-        child: Column(
+      builder: (_) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppDimensions.margin),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -758,6 +807,7 @@ class QuizScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

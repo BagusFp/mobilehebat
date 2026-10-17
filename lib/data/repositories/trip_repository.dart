@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+import 'package:sqflite/sqflite.dart';
 import '../../core/database/database_helper.dart';
 import '../../core/services/supabase_service.dart';
 import '../models/trip_expense_model.dart';
@@ -27,6 +29,12 @@ class TripRepository {
       return [];
     }
 
+    // Ambil cache lokal SQLite terlebih dahulu
+    List<TripModel> cachedTrips = [];
+    try {
+      cachedTrips = await _dbHelper.getCachedUserTrips(userId, status: status);
+    } catch (_) {}
+
     // 1. Coba ambil data terverifikasi dari Supabase Cloud jika tidak dipaksa offline
     if (!forceOffline) {
       try {
@@ -35,28 +43,79 @@ class TripRepository {
           status: status,
         );
         if (remoteTrips.isNotEmpty) {
-          // Perbarui cache SQLite lokal dengan data cloud terbaru
+          // Gabungkan data cloud dengan cache lokal agar status 'completed' dan edit lokal tidak tertimpa
+          final mergedTrips = _mergeTripsPreservingLocalStatus(cachedTrips, remoteTrips);
           try {
-            await _dbHelper.saveUserTrips(userId, remoteTrips);
+            await _dbHelper.saveUserTrips(userId, mergedTrips);
           } catch (_) {}
 
           _isUsingCachedData = false;
-          return remoteTrips;
+          return mergedTrips;
         }
       } catch (_) {}
     }
 
     // 2. Fallback ke database lokal SQLite
     _isUsingCachedData = true;
-    try {
-      final cachedTrips = await _dbHelper.getCachedUserTrips(userId, status: status);
-      if (cachedTrips.isNotEmpty) {
-        return cachedTrips;
-      }
-    } catch (_) {}
+    if (cachedTrips.isNotEmpty) {
+      return cachedTrips;
+    }
 
     // 3. Cache kosong dan offline
     return [];
+  }
+
+  /// Menggabungkan trips dari remote cloud dengan cache lokal
+  /// Menjamin bahwa status 'completed' lokal dan penambahan destinasi/jam tidak tertimpa oleh data cloud lama
+  List<TripModel> _mergeTripsPreservingLocalStatus(
+    List<TripModel> cachedTrips,
+    List<TripModel> remoteTrips,
+  ) {
+    if (cachedTrips.isEmpty) return remoteTrips;
+    if (remoteTrips.isEmpty) return cachedTrips;
+
+    final Map<dynamic, TripModel> mergedMap = {};
+
+    for (final cached in cachedTrips) {
+      final key = cached.id ?? cached.tripName;
+      mergedMap[key] = cached;
+    }
+
+    for (final remote in remoteTrips) {
+      final key = remote.id ?? remote.tripName;
+      final cached = mergedMap[key] ??
+          cachedTrips.cast<TripModel?>().firstWhere(
+            (c) => c != null && c.tripName.toLowerCase() == remote.tripName.toLowerCase(),
+            orElse: () => null,
+          );
+
+      if (cached != null) {
+        final bool isLocallyCompleted =
+            cached.status == 'completed' || (cached.completedAt != null && cached.completedAt!.isNotEmpty);
+        final statusToKeep = isLocallyCompleted ? 'completed' : remote.status;
+        final completedAtToKeep =
+            isLocallyCompleted ? (cached.completedAt ?? remote.completedAt) : remote.completedAt;
+
+        // Pertahankan item lokal jika baru diedit atau memiliki jumlah item yang valid
+        final itemsToKeep = (cached.items.length >= remote.items.length && cached.items.isNotEmpty)
+            ? cached.items
+            : (remote.items.isNotEmpty ? remote.items : cached.items);
+
+        mergedMap[key] = remote.copyWith(
+          id: cached.id ?? remote.id,
+          status: statusToKeep,
+          completedAt: completedAtToKeep,
+          totalActualCost: isLocallyCompleted && cached.totalActualCost > 0
+              ? cached.totalActualCost
+              : remote.totalActualCost,
+          items: itemsToKeep,
+        );
+      } else {
+        mergedMap[key] = remote;
+      }
+    }
+
+    return mergedMap.values.toList();
   }
 
   /// Mengambil detail trip dengan item-itemnya
@@ -115,7 +174,7 @@ class TripRepository {
     }
   }
 
-  /// Memperbarui trip
+  /// Memperbarui trip beserta seluruh itemnya (menambah destinasi, merubah jam, dsb)
   Future<void> updateTrip(TripModel trip) async {
     if (trip.id == null) return;
     try {
@@ -140,10 +199,19 @@ class TripRepository {
           tripId: trip.id,
           visitOrder: i + 1,
         );
-        batch.insert('trip_items', item.toMap());
+        final itemMap = item.toMap();
+        if (item.id == null) {
+          itemMap.remove('id');
+        }
+        batch.insert('trip_items', itemMap, conflictAlgorithm: ConflictAlgorithm.replace);
       }
       await batch.commit(noResult: true);
-    } catch (_) {}
+
+      // Sinkronisasi pembaruan ke Supabase Cloud
+      SupabaseService().updateTrip(trip).ignore();
+    } catch (e) {
+      debugPrint('TripRepository.updateTrip error: $e');
+    }
   }
 
   /// Menghapus trip beserta seluruh itemnya
@@ -192,7 +260,13 @@ class TripRepository {
     final now = DateTime.now().toIso8601String();
     try {
       await _dbHelper.updateTripStatus(tripId, 'active', startedAt: now);
-      SupabaseService().updateTripStatus(tripId, 'active', startedAt: now).ignore();
+      final trip = await getTripWithItems(tripId);
+      SupabaseService().updateTripStatus(
+        tripId,
+        'active',
+        tripName: trip?.tripName,
+        startedAt: now,
+      ).ignore();
     } catch (_) {}
   }
 
@@ -206,11 +280,35 @@ class TripRepository {
         completedAt: now,
         totalActualCost: totalActualCost,
       );
+      final trip = await getTripWithItems(tripId);
       SupabaseService().updateTripStatus(
         tripId,
         'completed',
+        tripName: trip?.tripName,
         completedAt: now,
         totalActualCost: totalActualCost,
+      ).ignore();
+    } catch (_) {}
+  }
+
+  /// Mengubah status trip umum (upcoming, draft, completed, active)
+  Future<void> updateTripStatus(int tripId, String status) async {
+    final now = DateTime.now().toIso8601String();
+    try {
+      if (status == 'completed') {
+        await _dbHelper.updateTripStatus(tripId, status, completedAt: now);
+      } else if (status == 'active') {
+        await _dbHelper.updateTripStatus(tripId, status, startedAt: now);
+      } else {
+        await _dbHelper.updateTripStatus(tripId, status);
+      }
+      final trip = await getTripWithItems(tripId);
+      SupabaseService().updateTripStatus(
+        tripId,
+        status,
+        tripName: trip?.tripName,
+        startedAt: status == 'active' ? now : null,
+        completedAt: status == 'completed' ? now : null,
       ).ignore();
     } catch (_) {}
   }
@@ -367,7 +465,59 @@ class TripRepository {
       ],
     );
 
-    final all = [t1, t2];
+    final t3 = TripModel(
+      id: 3,
+      userId: userId,
+      tripName: 'Jelajah Bunker & Lava Tour 2024',
+      startDate: '10 Okt 2024',
+      participantCount: 2,
+      targetBudget: 350000.0,
+      totalEstimatedCost: 60000.0,
+      totalActualCost: 320000.0,
+      status: 'completed',
+      completedAt: '2024-10-10 16:30:00',
+      reminderEnabled: false,
+      isSavedOffline: true,
+      bannerImageUrl:
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
+      createdAt: '2026-10-10',
+      items: [
+        const TripItemModel(
+          id: 5,
+          tripId: 3,
+          destinationId: 1,
+          itemName: 'Bunker Kaliadem',
+          itemSubtitle: 'Panorama Puncak & Edukasi Vulkanik',
+          visitOrder: 1,
+          plannedTime: '08:00 - 10:00',
+          durationHours: 2.0,
+          estimatedCost: 20000.0,
+          isCompleted: true,
+          completedAt: '2024-10-10 10:00:00',
+          imageUrl:
+              'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
+          elevationMdpl: 1165,
+        ),
+        const TripItemModel(
+          id: 6,
+          tripId: 3,
+          destinationId: 2,
+          itemName: 'Museum Sisa Hartaku',
+          itemSubtitle: 'Museum Memori Erupsi 2010',
+          visitOrder: 2,
+          plannedTime: '10:30 - 12:00',
+          durationHours: 1.5,
+          estimatedCost: 10000.0,
+          isCompleted: true,
+          completedAt: '2024-10-10 12:00:00',
+          imageUrl:
+              'https://lh3.googleusercontent.com/aida-public/AB6AXuCrMdOhkFyi5cCCa57K_dji1aobrBXghl3FRpJRzpB6sn7bo6utRDLky6lzoF0DEGs94zbs_xZrmfkoF8iEb9n95_6toNdhXzL8CVAwPhteTB6vigjJXWqqiy5Fh9hGiLTrKhMACm4HgA9nMeFkfmS-cmlkoZwsu2PksDLjTIv8_-PI39q2JV4WAcBrrDXgM-b6Eef1b5md8zQyfrkKkaRGG6yn_9VtBJcqzFWJ2Ro0NmgIxXchwCQ',
+          elevationMdpl: 920,
+        ),
+      ],
+    );
+
+    final all = [t1, t2, t3];
     if (status != null && status.isNotEmpty) {
       return all.where((t) => t.status == status).toList();
     }

@@ -33,15 +33,15 @@ class NotificationProvider extends ChangeNotifier {
     ),
     const NotificationModel(
       id: 3,
-      title: 'Unduhan Data Offline Berhasil',
+      title: 'Pembaruan Data Rute Berhasil',
       body:
-          'Paket rute navigasi Bunker Kaliadem & Plunyon (34 MB) siap diakses penuh di area tanpa koneksi seluler.',
+          'Data rute navigasi Bunker Kaliadem & Plunyon siap diakses dengan lancar di kawasan lereng Merapi.',
       category: 'system',
       timeAgo: 'Kemarin',
-      tag: 'Sistem & Offline',
+      tag: 'Sistem & Notifikasi',
       isRead: true,
       actionText: null,
-      actionRoute: '/offline-map',
+      actionRoute: '/map',
     ),
     const NotificationModel(
       id: 4,

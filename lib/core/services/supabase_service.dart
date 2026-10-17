@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/models/destination_model.dart';
@@ -58,9 +59,10 @@ class SupabaseService {
   // AUTHENTICATION
   // ===========================================================================
 
-  User? get currentUser => client.auth.currentUser;
-  Session? get currentSession => client.auth.currentSession;
-  Stream<AuthState> get onAuthStateChange => client.auth.onAuthStateChange;
+  User? get currentUser => isInitialized ? client.auth.currentUser : null;
+  Session? get currentSession => isInitialized ? client.auth.currentSession : null;
+  Stream<AuthState> get onAuthStateChange =>
+      isInitialized ? client.auth.onAuthStateChange : const Stream.empty();
 
   /// Pendaftaran pengguna baru ke Supabase Auth
   Future<AuthResponse> signUp({
@@ -106,7 +108,11 @@ class SupabaseService {
 
   /// Keluar dari sesi Supabase
   Future<void> signOut() async {
-    await client.auth.signOut();
+    if (isInitialized) {
+      try {
+        await client.auth.signOut();
+      } catch (_) {}
+    }
   }
 
   // ===========================================================================
@@ -140,6 +146,35 @@ class SupabaseService {
     } catch (e) {
       debugPrint('SupabaseService.upsertProfile error: $e');
       return false;
+    }
+  }
+
+  /// Mengunggah foto profil / avatar ke Supabase Storage (bucket 'avatars')
+  Future<String?> uploadAvatar({
+    required String userId,
+    required Uint8List bytes,
+    required String fileExt,
+  }) async {
+    if (!isInitialized) return null;
+    try {
+      final fileName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      await client.storage.from('avatars').uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: FileOptions(
+              upsert: true,
+              contentType: fileExt == 'png'
+                  ? 'image/png'
+                  : fileExt == 'webp'
+                      ? 'image/webp'
+                      : 'image/jpeg',
+            ),
+          );
+      final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
+      return publicUrl;
+    } catch (e) {
+      debugPrint('SupabaseService.uploadAvatar warning: $e');
+      return null;
     }
   }
 
@@ -287,11 +322,20 @@ class SupabaseService {
           participantCount: (map['participant_count'] as num?)?.toInt() ?? 2,
           targetBudget: (map['target_budget'] as num?)?.toDouble() ?? 400000.0,
           totalEstimatedCost: (map['total_estimated_cost'] as num?)?.toDouble() ?? 0.0,
+          totalActualCost: (map['total_actual_cost'] as num?)?.toDouble() ?? 0.0,
           status: map['status'] ?? 'upcoming',
           reminderEnabled: map['reminder_enabled'] == true,
           isSavedOffline: true,
           bannerImageUrl: map['banner_image_url'],
+          startedAt: map['started_at'],
+          completedAt: map['completed_at'],
           createdAt: map['created_at'] ?? DateTime.now().toIso8601String(),
+          originCity: map['origin_city'],
+          originTimezone: map['origin_timezone'],
+          destinationCity: map['destination_city'],
+          destinationTimezone: map['destination_timezone'],
+          currencySource: map['currency_source'] ?? 'IDR',
+          currencyTarget: map['currency_target'] ?? 'USD',
           items: items,
         );
       }).toList();
@@ -346,16 +390,69 @@ class SupabaseService {
     }
   }
 
+  /// Memperbarui seluruh data trip di Supabase (nama, jadwal, destinasi, dsb)
+  Future<bool> updateTrip(TripModel trip) async {
+    if (!isInitialized) return false;
+    try {
+      final user = currentUser;
+      final payload = {
+        if (user != null) 'user_id': user.id,
+        'trip_name': trip.tripName,
+        'start_date': trip.startDate,
+        'participant_count': trip.participantCount,
+        'target_budget': trip.targetBudget,
+        'total_estimated_cost': trip.totalEstimatedCost,
+        'total_actual_cost': trip.totalActualCost,
+        'status': trip.status,
+        'reminder_enabled': trip.reminderEnabled,
+        'is_saved_offline': trip.isSavedOffline,
+        if (trip.bannerImageUrl != null) 'banner_image_url': trip.bannerImageUrl,
+        if (trip.startedAt != null) 'started_at': trip.startedAt,
+        if (trip.completedAt != null) 'completed_at': trip.completedAt,
+        if (trip.originCity != null) 'origin_city': trip.originCity,
+        if (trip.originTimezone != null) 'origin_timezone': trip.originTimezone,
+        if (trip.destinationCity != null) 'destination_city': trip.destinationCity,
+        if (trip.destinationTimezone != null) 'destination_timezone': trip.destinationTimezone,
+        'currency_source': trip.currencySource,
+        'currency_target': trip.currencyTarget,
+        'items': trip.items.map((it) => it.toMap()).toList(),
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (trip.id != null) {
+        await client
+            .from('trips')
+            .update(payload)
+            .eq('id', trip.id!)
+            .timeout(const Duration(seconds: 5));
+      }
+      if (user != null) {
+        await client
+            .from('trips')
+            .update(payload)
+            .eq('user_id', user.id)
+            .eq('trip_name', trip.tripName)
+            .timeout(const Duration(seconds: 5));
+      }
+      return true;
+    } catch (e) {
+      debugPrint('SupabaseService.updateTrip error: $e');
+      return false;
+    }
+  }
+
   /// Memperbarui status trip di Supabase (upcoming, active, completed)
   Future<bool> updateTripStatus(
     int tripId,
     String status, {
+    String? tripName,
     String? startedAt,
     String? completedAt,
     double? totalActualCost,
   }) async {
     if (!isInitialized) return false;
     try {
+      final user = currentUser;
       final Map<String, dynamic> payload = {
         'status': status,
         'updated_at': DateTime.now().toIso8601String(),
@@ -364,11 +461,22 @@ class SupabaseService {
       if (completedAt != null) payload['completed_at'] = completedAt;
       if (totalActualCost != null) payload['total_actual_cost'] = totalActualCost;
 
+      // Coba update berdasarkan ID lokal
       await client
           .from('trips')
           .update(payload)
           .eq('id', tripId)
           .timeout(const Duration(seconds: 5));
+
+      // Jika user login di Supabase, update juga berdasarkan user_id dan trip_name
+      if (user != null && tripName != null) {
+        await client
+            .from('trips')
+            .update(payload)
+            .eq('user_id', user.id)
+            .eq('trip_name', tripName)
+            .timeout(const Duration(seconds: 5));
+      }
       return true;
     } catch (e) {
       debugPrint('SupabaseService.updateTripStatus error: $e');

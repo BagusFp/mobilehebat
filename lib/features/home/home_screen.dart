@@ -8,8 +8,8 @@ import '../../data/models/destination_model.dart';
 import '../ai_assistant/ai_assistant_screen.dart';
 import '../explore/destination_detail_screen.dart';
 import '../explore/destination_provider.dart';
+import '../games/merapi_jeep_game_page.dart';
 import '../map/map_screen.dart';
-import '../map/offline_map_screen.dart';
 import '../sensor/sensor_compass_screen.dart';
 import '../trip/create_trip_screen.dart';
 import '../utility/currency_time_screen.dart';
@@ -158,46 +158,7 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
 
-              // Offline Notification Micro-Banner
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
-                child: InkWell(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const OfflineMapScreen()),
-                    );
-                  },
-                  borderRadius: AppDimensions.roundedLg,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.secondaryContainer.withAlpha(100),
-                      borderRadius: AppDimensions.roundedLg,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.wifi_off,
-                          size: 16,
-                          color: AppColors.secondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Data Offline Tersedia • Mode Hemat Sinyal Gunung',
-                            style: AppTypography.labelSm.copyWith(
-                              color: AppColors.onSecondaryContainer,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+
 
               // 5. Quick Actions Grid (4 round tactile buttons)
               Padding(
@@ -284,8 +245,18 @@ class HomeScreen extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Kompas & Sensor', style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold)),
-                                    Text('Goyang HP & Arah', style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10)),
+                                    Text(
+                                      'Kompas & Sensor',
+                                      style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      'Goyang HP & Arah',
+                                      style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -327,8 +298,18 @@ class HomeScreen extends StatelessWidget {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text('Kurs & Waktu', style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold)),
-                                    Text('Konversi Valuta', style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10)),
+                                    Text(
+                                      'Kurs & Waktu',
+                                      style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    Text(
+                                      'Konversi Valuta',
+                                      style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                                   ],
                                 ),
                               ),
@@ -338,6 +319,132 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ),
+
+              // 5c. Merapi Jeep 2D Run Game Banner (Sensors: Accelerometer & Gyroscope)
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppDimensions.margin,
+                  right: AppDimensions.margin,
+                  bottom: AppDimensions.spaceMd,
+                ),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MerapiJeepGamePage()),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1B5E20).withValues(alpha: 0.25),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Center(
+                              child: Text('🚙', style: TextStyle(fontSize: 24)),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        'Minigame',
+                                        style: AppTypography.titleMedium.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amberAccent,
+                                        borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                                      ),
+                                      child: const Text(
+                                        'SENSOR',
+                                        style: TextStyle(
+                                          color: Colors.black87,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Goyang & miringkan HP untuk kemudikan Jeep Lava Tour',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.play_arrow_rounded, color: Color(0xFF1B5E20), size: 16),
+                                SizedBox(width: 2),
+                                Text(
+                                  'Main',
+                                  style: TextStyle(
+                                    color: Color(0xFF1B5E20),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
 
@@ -416,6 +523,7 @@ class HomeScreen extends StatelessWidget {
                                 borderRadius: AppDimensions.roundedFull,
                               ),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.landscape, size: 14, color: AppColors.primary),
                                   const SizedBox(width: 4),
@@ -440,6 +548,7 @@ class HomeScreen extends StatelessWidget {
                                 borderRadius: AppDimensions.roundedFull,
                               ),
                               child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const Icon(Icons.visibility, size: 14, color: AppColors.onPrimary),
                                   const SizedBox(width: 4),
@@ -801,11 +910,15 @@ class HomeScreen extends StatelessWidget {
             children: [
               Icon(icon, size: 14, color: AppColors.outline),
               const SizedBox(width: 4),
-              Text(
-                label,
-                style: AppTypography.labelSm.copyWith(
-                  color: AppColors.outline,
-                  fontWeight: FontWeight.w600,
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.outline,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],

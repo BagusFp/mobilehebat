@@ -37,8 +37,10 @@ class FilterChipBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    final barHeight = (40.0 * textScale).clamp(40.0, 56.0);
     return SizedBox(
-      height: 38,
+      height: barHeight,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 20.0),

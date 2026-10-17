@@ -622,6 +622,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
+      // Buka kartu zona waktu (defaultnya tertutup)
+      await tester.tap(find.text('Zona Waktu Perjalanan'));
+      await tester.pumpAndSettle();
+
       // Memastikan kondisi lokasi belum dipilih
       expect(find.text('Belum dipilih (Pilih kota asal)'), findsOneWidget);
       expect(find.text('Zona waktu belum ditentukan'), findsOneWidget);
@@ -663,6 +667,10 @@ void main() {
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+
+      // Buka kartu zona waktu (defaultnya tertutup)
+      await tester.tap(find.text('Zona Waktu Perjalanan'));
+      await tester.pumpAndSettle();
 
       // Buka pemilih kota asal
       await tester.tap(find.text('Belum dipilih (Ketuk untuk memilih)'));
@@ -720,20 +728,20 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Awalnya terbuka: terdapat teks KOTA ASAL
-      expect(find.text('KOTA ASAL'), findsOneWidget);
-
-      // Tutup kartu zona waktu dengan mengetuk header
-      await tester.tap(find.text('Zona Waktu Perjalanan'));
-      await tester.pumpAndSettle();
-
-      // Konten detail tertutup
+      // Awalnya tertutup: teks KOTA ASAL belum muncul
       expect(find.text('KOTA ASAL'), findsNothing);
 
-      // Buka kembali
+      // Buka kartu zona waktu dengan mengetuk header
       await tester.tap(find.text('Zona Waktu Perjalanan'));
       await tester.pumpAndSettle();
+
+      // Konten detail terbuka
       expect(find.text('KOTA ASAL'), findsOneWidget);
+
+      // Tutup kembali
+      await tester.tap(find.text('Zona Waktu Perjalanan'));
+      await tester.pumpAndSettle();
+      expect(find.text('KOTA ASAL'), findsNothing);
     });
 
     testWidgets('Destinasi perjalanan terkunci secara konsisten ke kawasan Gunung Merapi (WIB)', (tester) async {
@@ -772,6 +780,10 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
+      // Buka kartu zona waktu (defaultnya tertutup)
+      await tester.tap(find.text('Zona Waktu Perjalanan'));
+      await tester.pumpAndSettle();
+
       // Memastikan indikator terkunci ke Merapi muncul
       expect(find.text('Terkunci ke Merapi'), findsOneWidget);
       expect(find.textContaining('Destinasi perjalanan dikunci ke Kawasan Gunung Merapi'), findsOneWidget);
@@ -785,6 +797,7 @@ void main() {
 
       final authProvider = AuthProvider();
       final tripProvider = TripProvider();
+      tripProvider.initBuilderTrip(empty: false); // Pre-seed destinasi agar dapat berpindah ke Langkah 4
       final utilityProvider = UtilityProvider(autoInit: false);
       utilityProvider.setRatesForTesting(
         rates: {
@@ -814,8 +827,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
+      // Buka kartu konversi mata uang (defaultnya tertutup)
+      await tester.tap(find.text('Konversi Mata Uang'));
+      await tester.pumpAndSettle();
+
       // 1. Verifikasi di Langkah 1: Hanya menampilkan kurs per 1 unit
-      expect(find.textContaining('Kurs API Frankfurt'), findsOneWidget);
+      expect(find.textContaining('Kurs Referensi Frankfurter'), findsOneWidget);
       expect(find.text('NILAI TUKAR ACUAN (PER 1 UNIT)'), findsOneWidget);
       expect(find.text('1 USD = Rp 20.000 IDR'), findsOneWidget);
       expect(find.text('1 IDR = 0.000050 USD'), findsOneWidget);
