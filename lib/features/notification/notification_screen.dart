@@ -6,6 +6,7 @@ import '../../core/constants/app_typography.dart';
 
 import '../map/map_screen.dart';
 import '../trip/my_trip_screen.dart';
+import '../trip/trip_provider.dart';
 import 'notification_model.dart';
 import 'notification_provider.dart';
 
@@ -272,8 +273,29 @@ class NotificationScreen extends StatelessWidget {
     );
   }
 
-  // 2. Active Alarm Banner Card
   Widget _buildAlarmBannerCard(BuildContext context, NotificationProvider provider) {
+    TripProvider? tripProvider;
+    try {
+      tripProvider = Provider.of<TripProvider>(context);
+    } catch (_) {
+      tripProvider = null;
+    }
+    final activeTrip = tripProvider?.activeOrUpcomingTrip ??
+        ((tripProvider?.allTrips.isNotEmpty ?? false) ? tripProvider!.allTrips.first : null);
+
+    final tripTitle = (activeTrip != null && activeTrip.tripName.isNotEmpty)
+        ? activeTrip.tripName
+        : 'Eksplorasi Merapi 1 Hari';
+    final firstItemTime = (activeTrip != null && activeTrip.items.isNotEmpty)
+        ? activeTrip.items.first.plannedTime.split('-').first.trim()
+        : null;
+    final startTimeText = (firstItemTime != null && firstItemTime.isNotEmpty)
+        ? '$firstItemTime WIB '
+        : '06:00 WIB ';
+    final destName = (activeTrip != null && activeTrip.items.isNotEmpty)
+        ? activeTrip.items.first.itemName
+        : 'Plunyon Kalikuning';
+
     return Container(
       padding: const EdgeInsets.all(AppDimensions.spaceMd),
       decoration: BoxDecoration(
@@ -319,7 +341,7 @@ class NotificationScreen extends StatelessWidget {
                             ),
                           ),
                           Text(
-                            'Eksplorasi Merapi 1 Hari',
+                            tripTitle,
                             style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -334,6 +356,18 @@ class NotificationScreen extends StatelessWidget {
                 activeThumbColor: AppColors.primary,
                 onChanged: (val) {
                   provider.toggleAlarm(val);
+                  if (activeTrip?.id != null) {
+                    if (val) {
+                      tripProvider?.scheduleCustomTripReminder(
+                        tripId: activeTrip!.id!,
+                        beforeDays: provider.reminderDays,
+                        beforeHours: provider.reminderHours,
+                        beforeMinutes: provider.reminderMinutes,
+                      );
+                    } else {
+                      tripProvider?.toggleReminder(activeTrip!.id!);
+                    }
+                  }
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(val
@@ -362,15 +396,15 @@ class NotificationScreen extends StatelessWidget {
                   child: Text.rich(
                     TextSpan(
                       style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                      children: const [
-                        TextSpan(text: 'Pukul '),
+                      children: [
+                        const TextSpan(text: 'Pukul '),
                         TextSpan(
-                          text: '06:00 WIB ',
-                          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.onSurface),
+                          text: startTimeText,
+                          style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.onSurface),
                         ),
                         TextSpan(
                           text:
-                              'tujuan Plunyon Kalikuning. Alarm bersuara lembut otomatis terpicu tanpa butuh koneksi internet.',
+                              'tujuan $destName. Alarm bersuara lembut otomatis terpicu tanpa butuh koneksi internet.',
                         ),
                       ],
                     ),
@@ -381,12 +415,35 @@ class NotificationScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
 
-          // Timing Chips
-          Text(
-            'Pilih Waktu Bunyi Alarm:',
-            style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+          // Header Timing & Tombol Atur Sendiri
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Waktu Pengingat Alarm:',
+                style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+              InkWell(
+                onTap: provider.isAlarmEnabled
+                    ? () => _showCustomTimingSheet(context, provider, tripProvider)
+                    : null,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    'Atur Sendiri ⏱️',
+                    style: AppTypography.labelSm.copyWith(
+                      color: provider.isAlarmEnabled ? AppColors.primary : AppColors.outline,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
+
+          // Quick Timing Chips
           Row(
             children: ['H-1 Hari', 'H-2 Jam', 'H-1 Jam'].map((timing) {
               final isSel = provider.alarmTiming == timing;
@@ -395,7 +452,17 @@ class NotificationScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 3),
                   child: InkWell(
                     onTap: provider.isAlarmEnabled
-                        ? () => provider.setAlarmTiming(timing)
+                        ? () {
+                            provider.setAlarmTiming(timing);
+                            if (activeTrip?.id != null) {
+                              tripProvider?.scheduleCustomTripReminder(
+                                tripId: activeTrip!.id!,
+                                beforeDays: provider.reminderDays,
+                                beforeHours: provider.reminderHours,
+                                beforeMinutes: provider.reminderMinutes,
+                              );
+                            }
+                          }
                         : null,
                     borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
                     child: Container(
@@ -417,6 +484,302 @@ class NotificationScreen extends StatelessWidget {
                 ),
               );
             }).toList(),
+          ),
+
+          // Kustom Info Tag jika user setting sendiri
+          if (provider.alarmTiming != 'H-1 Hari' &&
+              provider.alarmTiming != 'H-2 Jam' &&
+              provider.alarmTiming != 'H-1 Jam') ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.secondaryContainer.withAlpha(200),
+                borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 14, color: AppColors.onSecondaryContainer),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Pengingat Kustom Aktif: ${provider.alarmTiming}',
+                    style: AppTypography.labelSm.copyWith(
+                      color: AppColors.onSecondaryContainer,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 12),
+
+          // Tombol Uji Coba Notifikasi Sistem Langsung ke Bilah HP
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () async {
+                await provider.sendTestNotificationToDevice();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Notifikasi uji coba berhasil dikirim ke bilah status HP!'),
+                      backgroundColor: AppColors.secondary,
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.notifications_active_rounded, size: 16),
+              label: const Text(
+                'Kirim Notifikasi Uji Coba ke HP',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Modal Pengaturan Waktu Pengingat Trip Kustom (Bebas Hari, Jam, Menit)
+  void _showCustomTimingSheet(
+    BuildContext context,
+    NotificationProvider notifProvider,
+    TripProvider? tripProvider,
+  ) {
+    int days = notifProvider.reminderDays;
+    int hours = notifProvider.reminderHours;
+    int minutes = notifProvider.reminderMinutes;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
+      ),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (dialogCtx, setSheetState) {
+          return SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(AppDimensions.margin),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: const BoxDecoration(
+                          color: AppColors.secondaryContainer,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.timer_outlined, color: AppColors.primary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Atur Waktu Pengingat Trip',
+                              style: AppTypography.headlineSm.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              'Tentukan berapa hari, jam, atau menit sebelum trip dimulai',
+                              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Steppers 3 Kolom: Hari, Jam, Menit
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildTimeStepper(
+                          label: 'Hari',
+                          value: days,
+                          min: 0,
+                          max: 30,
+                          onChanged: (val) => setSheetState(() => days = val),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTimeStepper(
+                          label: 'Jam',
+                          value: hours,
+                          min: 0,
+                          max: 23,
+                          onChanged: (val) => setSheetState(() => hours = val),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildTimeStepper(
+                          label: 'Menit',
+                          value: minutes,
+                          min: 0,
+                          max: 59,
+                          step: 5,
+                          onChanged: (val) => setSheetState(() => minutes = val),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Kalimat Rangkuman
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                    ),
+                    child: Text(
+                      (days == 0 && hours == 0 && minutes == 0)
+                          ? 'Notifikasi akan berbunyi tepat saat trip dimulai.'
+                          : 'Notifikasi akan muncul di bilah status HP $days hari $hours jam $minutes menit sebelum waktu keberangkatan.',
+                      style: AppTypography.bodySm.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Tombol Simpan
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        notifProvider.setCustomTiming(
+                          days: days,
+                          hours: hours,
+                          minutes: minutes,
+                        );
+
+                        final active = tripProvider?.activeOrUpcomingTrip ??
+                            ((tripProvider?.allTrips.isNotEmpty ?? false) ? tripProvider!.allTrips.first : null);
+                        if (active?.id != null && notifProvider.isAlarmEnabled) {
+                          tripProvider?.scheduleCustomTripReminder(
+                            tripId: active!.id!,
+                            beforeDays: days,
+                            beforeHours: hours,
+                            beforeMinutes: minutes,
+                          );
+                        }
+
+                        Navigator.pop(sheetCtx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Pengingat trip diatur: $days Hari $hours Jam $minutes Menit sebelum keberangkatan.',
+                            ),
+                            backgroundColor: AppColors.secondary,
+                          ),
+                        );
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                        ),
+                      ),
+                      child: const Text('Simpan Pengingat', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTimeStepper({
+    required String label,
+    required int value,
+    required int min,
+    required int max,
+    int step = 1,
+    required ValueChanged<int> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+        border: Border.all(color: AppColors.surfaceContainer),
+      ),
+      child: Column(
+        children: [
+          Text(label, style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant)),
+          const SizedBox(height: 4),
+          Text('$value', style: AppTypography.headlineSm.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InkWell(
+                onTap: value > min ? () => onChanged((value - step).clamp(min, max)) : null,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: value > min ? AppColors.surfaceContainerHigh : AppColors.surfaceContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.remove, size: 16),
+                ),
+              ),
+              const SizedBox(width: 8),
+              InkWell(
+                onTap: value < max ? () => onChanged((value + step).clamp(min, max)) : null,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: value < max ? AppColors.primary : AppColors.surfaceContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, size: 16, color: Colors.white),
+                ),
+              ),
+            ],
           ),
         ],
       ),

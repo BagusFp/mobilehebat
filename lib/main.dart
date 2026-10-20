@@ -22,6 +22,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'core/config/supabase_config.dart';
 import 'core/services/gemini_service.dart';
+import 'core/services/notification_service.dart';
 import 'features/trip/my_trip_screen.dart';
 import 'features/trip/trip_provider.dart';
 import 'features/utility/utility_provider.dart';
@@ -51,6 +52,9 @@ void main() async {
 
   // 2. Muat API Key yang tersimpan dari SharedPreferences saat aplikasi pertama kali dibuka
   await GeminiService().init();
+
+  // 3. Inisialisasi Service Notifikasi Sistem HP (Android / iOS)
+  await NotificationService().init();
 
   runApp(const MeraTripApp());
 }

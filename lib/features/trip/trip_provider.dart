@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../core/services/notification_service.dart';
 import '../../data/models/destination_model.dart';
 import '../../data/models/trip_expense_model.dart';
 import '../../data/models/trip_item_model.dart';
@@ -719,17 +720,98 @@ class TripProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Toggle reminder trip
-  Future<void> toggleReminder(int tripId) async {
+  /// Toggle reminder trip dengan integrasi penjadwalan alarm bilah HP
+  Future<void> toggleReminder(
+    int tripId, {
+    int beforeDays = 0,
+    int beforeHours = 2,
+    int beforeMinutes = 0,
+  }) async {
     final index = _allTrips.indexWhere((t) => t.id == tripId);
     if (index != -1) {
-      final newStatus = !_allTrips[index].reminderEnabled;
-      _allTrips[index] = _allTrips[index].copyWith(reminderEnabled: newStatus);
+      final trip = _allTrips[index];
+      final newStatus = !trip.reminderEnabled;
+      final updatedTrip = trip.copyWith(reminderEnabled: newStatus);
+      _allTrips[index] = updatedTrip;
       if (_selectedTrip?.id == tripId) {
-        _selectedTrip = _selectedTrip!.copyWith(reminderEnabled: newStatus);
+        _selectedTrip = updatedTrip;
       }
       notifyListeners();
       await _repository.toggleReminder(tripId, newStatus);
+
+      if (newStatus) {
+        final itemTime = updatedTrip.items.isNotEmpty
+            ? updatedTrip.items.first.plannedTime.split('-').first.trim()
+            : '07:00';
+        final startDt = _parseTripStartDateTime(updatedTrip.startDate, itemTime);
+        if (startDt != null) {
+          await NotificationService().scheduleTripReminder(
+            tripId: tripId,
+            tripTitle: updatedTrip.tripName,
+            tripStartTime: startDt,
+            beforeDays: beforeDays,
+            beforeHours: beforeHours,
+            beforeMinutes: beforeMinutes,
+            startDestinationName:
+                updatedTrip.items.isNotEmpty ? updatedTrip.items.first.itemName : null,
+          );
+        }
+      } else {
+        await NotificationService().cancelTripReminder(tripId);
+      }
+    }
+  }
+
+  /// Menjadwalkan ulang alarm pengingat trip dengan pengaturan waktu kustom (hari, jam, menit)
+  Future<void> scheduleCustomTripReminder({
+    required int tripId,
+    required int beforeDays,
+    required int beforeHours,
+    required int beforeMinutes,
+  }) async {
+    final trip = _allTrips.firstWhere(
+      (t) => t.id == tripId,
+      orElse: () => _selectedTrip ?? const TripModel(
+        userId: 1,
+        tripName: 'Trip Merapi',
+        startDate: '2026-10-25',
+        createdAt: '2026-10-17T00:00:00Z',
+      ),
+    );
+    if (trip.id == null) return;
+
+    final itemTime = trip.items.isNotEmpty
+        ? trip.items.first.plannedTime.split('-').first.trim()
+        : '07:00';
+    final startDt = _parseTripStartDateTime(trip.startDate, itemTime);
+    if (startDt != null) {
+      await NotificationService().scheduleTripReminder(
+        tripId: trip.id!,
+        tripTitle: trip.tripName,
+        tripStartTime: startDt,
+        beforeDays: beforeDays,
+        beforeHours: beforeHours,
+        beforeMinutes: beforeMinutes,
+        startDestinationName: trip.items.isNotEmpty ? trip.items.first.itemName : null,
+      );
+    }
+  }
+
+  DateTime? _parseTripStartDateTime(String? dateStr, String? timeStr) {
+    if (dateStr == null || dateStr.isEmpty) return null;
+    try {
+      final baseDate = DateTime.parse(dateStr);
+      int hour = 7;
+      int minute = 0;
+      if (timeStr != null && timeStr.isNotEmpty) {
+        final clean = timeStr.replaceAll('WIB', '').trim();
+        final parts = clean.split(':');
+        if (parts.isNotEmpty) hour = int.tryParse(parts[0]) ?? 7;
+        if (parts.length > 1) minute = int.tryParse(parts[1]) ?? 0;
+      }
+      return DateTime(baseDate.year, baseDate.month, baseDate.day, hour, minute);
+    } catch (_) {
+      return null;
     }
   }
 
@@ -837,6 +919,20 @@ class TripProvider extends ChangeNotifier {
       _allTrips[tripIdx] = _selectedTrip!;
     }
 
+    // Picu notifikasi tujuan berikutnya ke bilah status HP
+    final nextDest = _selectedTrip!.items.firstWhere(
+      (it) => !it.isCompleted,
+      orElse: () => const TripItemModel(itemName: '', visitOrder: 0),
+    );
+    if (nextDest.itemName.isNotEmpty) {
+      NotificationService().showNextDestinationNotification(
+        destinationName: nextDest.itemName,
+        visitOrder: nextDest.visitOrder,
+        plannedTime: nextDest.plannedTime,
+        elevationMdpl: nextDest.elevationMdpl,
+      );
+    }
+
     // Auto-akumulasi: jika destinasi memiliki harga tiket dan belum dicatat,
     // otomatis masukkan ke daftar pengeluaran aktual
     if (item.estimatedCost > 0) {
@@ -936,6 +1032,14 @@ class TripProvider extends ChangeNotifier {
     }
     _activeTab = 'completed';
     notifyListeners();
+
+    // Notifikasi perjalanan selesai ke bilah status HP
+    NotificationService().showInstantNotification(
+      id: 7777,
+      title: '🎉 Perjalanan Selesai!',
+      body:
+          'Selamat! Seluruh destinasi trip berhasil dijelajahi. Pengeluaran aktual telah tersimpan.',
+    );
 
     await _repository.completeTrip(tripId, totalActualCost: totalActual);
   }
