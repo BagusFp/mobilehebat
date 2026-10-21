@@ -37,8 +37,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
     int strength = 0;
     if (password.length >= 8) strength++;
     if (RegExp(r'[A-Z]').hasMatch(password) && RegExp(r'[a-z]').hasMatch(password)) strength++;
-    if (RegExp(r'[0-9]').hasMatch(password) || RegExp(r'[!@#\$&*~]').hasMatch(password)) strength++;
+    if (RegExp(r'[0-9]').hasMatch(password) || RegExp(r'[!@#\$%^&*(),.?":{}|<>~_\-]').hasMatch(password)) strength++;
     return strength;
+  }
+
+  Widget _buildPasswordCriterion({required String label, required bool isMet}) {
+    const activeColor = Color(0xFF007A60);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.5),
+      child: Row(
+        children: [
+          Icon(
+            isMet ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            size: 16,
+            color: isMet ? activeColor : AppColors.outlineVariant,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTypography.bodySmall.copyWith(
+                fontSize: 12,
+                color: isMet ? activeColor : AppColors.onSurfaceVariant,
+                fontWeight: isMet ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _handleRegister() async {
@@ -128,9 +155,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
-    final passwordStrength = _calculatePasswordStrength(_passwordController.text);
-    final isPasswordMatch = _passwordController.text.isNotEmpty &&
-        _passwordController.text == _confirmPasswordController.text;
+    final passwordText = _passwordController.text;
+    final passwordStrength = _calculatePasswordStrength(passwordText);
+    final isPasswordMatch = passwordText.isNotEmpty &&
+        passwordText == _confirmPasswordController.text;
+
+    final hasMinLength = passwordText.length >= 8;
+    final hasUpperLower = RegExp(r'[A-Z]').hasMatch(passwordText) && RegExp(r'[a-z]').hasMatch(passwordText);
+    final hasNumberOrSymbol = RegExp(r'[0-9]').hasMatch(passwordText) ||
+        RegExp(r'[!@#\$%^&*(),.?":{}|<>~_\-]').hasMatch(passwordText);
+
+    final String strengthLabel;
+    final Color strengthColor;
+    if (passwordStrength == 3) {
+      strengthLabel = 'Kuat';
+      strengthColor = const Color(0xFF00A878);
+    } else if (passwordStrength == 2) {
+      strengthLabel = 'Sedang';
+      strengthColor = AppColors.volcanoStatusWaspada;
+    } else {
+      strengthLabel = 'Lemah';
+      strengthColor = AppColors.error;
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -221,14 +267,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       controller: _nameController,
                       style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
                       decoration: const InputDecoration(
-                        hintText: 'Misal: Danang Baskoro',
+                        hintText: 'Contoh: Danang Baskoro',
                         prefixIcon: Icon(Icons.person_outline_rounded, color: AppColors.primary, size: 20),
                       ),
                     ),
                     const SizedBox(height: 14),
 
                     // Field Email
-                    Text('Email atau Kontak', style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold)),
+                    Text('Email', style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 6),
                     TextField(
                       controller: _emailController,
@@ -250,7 +296,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       onChanged: (_) => setState(() {}),
                       style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
                       decoration: InputDecoration(
-                        hintText: 'Minimal 8 karakter',
+                        hintText: 'Masukkan kata sandi',
                         prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary, size: 20),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -264,61 +310,70 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 8),
 
-                    // Password Strength Indicator
-                    if (_passwordController.text.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceContainerLow,
-                          borderRadius: AppDimensions.roundedSm,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    passwordStrength == 3
-                                        ? 'Kekuatan Sandi: Kuat'
-                                        : passwordStrength == 2
-                                            ? 'Kekuatan Sandi: Sedang'
-                                            : 'Kekuatan Sandi: Lemah',
-                                    style: AppTypography.labelSmall.copyWith(
-                                      color: passwordStrength == 3 ? AppColors.primary : AppColors.volcanoStatusWaspada,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Flexible(
-                                  child: Text(
-                                    '$passwordStrength/3 Kriteria',
-                                    style: AppTypography.bodySmall.copyWith(fontSize: 10),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
+                    // Password Strength Segmented Bar & Criteria Indicator
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: passwordStrength >= 1 && passwordText.isNotEmpty
+                                  ? strengthColor
+                                  : AppColors.offlineBg,
+                              borderRadius: BorderRadius.circular(4),
                             ),
-                            const SizedBox(height: 4),
-                            ClipRRect(
-                              borderRadius: AppDimensions.roundedFull,
-                              child: LinearProgressIndicator(
-                                value: passwordStrength / 3,
-                                minHeight: 4,
-                                backgroundColor: AppColors.surfaceContainer,
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  passwordStrength == 3 ? AppColors.primary : AppColors.volcanoStatusWaspada,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: passwordStrength >= 2 && passwordText.isNotEmpty
+                                  ? strengthColor
+                                  : AppColors.offlineBg,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Container(
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: passwordStrength >= 3 && passwordText.isNotEmpty
+                                  ? strengthColor
+                                  : AppColors.offlineBg,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        if (passwordText.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          Text(
+                            strengthLabel,
+                            style: AppTypography.labelMedium.copyWith(
+                              color: strengthColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    _buildPasswordCriterion(
+                      label: 'Minimal 8 karakter',
+                      isMet: hasMinLength,
+                    ),
+                    _buildPasswordCriterion(
+                      label: 'Huruf besar & kecil',
+                      isMet: hasUpperLower,
+                    ),
+                    _buildPasswordCriterion(
+                      label: 'Angka atau simbol',
+                      isMet: hasNumberOrSymbol,
+                    ),
                     const SizedBox(height: 14),
 
                     // Field Konfirmasi Kata Sandi
@@ -377,41 +432,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       icon: Icons.terrain_rounded,
                       isLoading: authProvider.isLoading,
                       onPressed: _handleRegister,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Komitmen Hijau MeraTrip Banner
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: AppDimensions.roundedMd,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: const BoxDecoration(
-                        color: AppColors.secondaryContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.forest_rounded, size: 20, color: AppColors.onSecondaryContainer),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Komitmen Hijau MeraTrip', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold)),
-                          Text(
-                            'Setiap pendaftaran mendonasikan 1 bibit pinus untuk restorasi hutan lereng Merapi.',
-                            style: AppTypography.bodySmall.copyWith(fontSize: 11),
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),

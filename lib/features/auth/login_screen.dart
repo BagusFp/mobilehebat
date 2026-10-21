@@ -238,7 +238,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       decoration: const InputDecoration(
                         hintText: 'nama@email.com',
                         prefixIcon: Icon(Icons.alternate_email_rounded, color: AppColors.primary, size: 20),
-                        // suffixIcon: Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 18),
                       ),
                     ),
                     const SizedBox(height: 14),
