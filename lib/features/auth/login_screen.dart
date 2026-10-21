@@ -83,64 +83,6 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Ambient Eco-Portal Badge
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainer,
-                        borderRadius: AppDimensions.roundedFull,
-                        border: Border.all(color: AppColors.secondary.withAlpha(50)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.secondary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Flexible(
-                            child: Text(
-                              'Merapi Eco-Portal • Terverifikasi',
-                              style: AppTypography.labelSmall.copyWith(
-                                color: AppColors.onSurfaceVariant,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                              maxLines: 1,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.eco_rounded, size: 16, color: AppColors.secondary),
-                      const SizedBox(width: 4),
-                      Text(
-                        'ID-YOG',
-                        style: AppTypography.labelSmall.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
               // Mount Merapi Emblem
               Container(
                 width: 72,
@@ -197,7 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                'Jelajahi Pesona Merapi dengan Cerdas',
+                'Jelajahi Pesona Merapi',
                 style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurfaceVariant),
               ),
               const SizedBox(height: 20),
@@ -286,7 +228,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     // Field Email
                     Text(
-                      'Email atau Nomor Ponsel',
+                      'Email',
                       style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 6),
@@ -294,9 +236,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _emailController,
                       style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
                       decoration: const InputDecoration(
-                        hintText: 'nama@email.com / 0812xxxx',
+                        hintText: 'nama@email.com',
                         prefixIcon: Icon(Icons.alternate_email_rounded, color: AppColors.primary, size: 20),
-                        suffixIcon: Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 18),
+                        // suffixIcon: Icon(Icons.check_circle_rounded, color: AppColors.secondary, size: 18),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -348,44 +290,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
-                    // Mountain Trail Safety Reminder
-                    Container(
-                      padding: const EdgeInsets.all(10.0),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceContainerLow,
-                        borderRadius: AppDimensions.roundedMd,
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: const BoxDecoration(
-                              color: AppColors.primaryFixed,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.landscape_rounded, size: 16, color: AppColors.primary),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Jalur Kaliadem & Klangon Terbuka',
-                                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                Text(
-                                  'Suhu puncak 18°C • Cuaca Bersahabat',
-                                  style: AppTypography.bodySmall.copyWith(fontSize: 11),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 18),
 
                     // Tombol Submit Masuk
                     PrimaryButton(
@@ -486,7 +390,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  'Gunakan Sidik Jari / Face ID Perangkat',
+                                  'Gunakan Sidik Jari / Face ID',
                                   style: AppTypography.bodySmall.copyWith(fontSize: 11),
                                 ),
                               ],
@@ -500,35 +404,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-
-              // Trust & Security Notice BPPTKG
-              Container(
-                padding: const EdgeInsets.all(14.0),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: AppDimensions.roundedMd,
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.verified_user_rounded, size: 18, color: AppColors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Keamanan Data Wisatawan Terjamin',
-                          style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'MeraTrip bekerja sama dengan data BPPTKG Yogyakarta untuk keamanan rute, panduan wisata terverifikasi, dan enkripsi data aman 256-bit.',
-                      style: AppTypography.bodySmall.copyWith(fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
