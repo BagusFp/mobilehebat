@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
@@ -308,9 +310,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                   title: Text('Bagikan Rute Perjalanan', style: AppTypography.bodyMd),
                   onTap: () {
                     Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Tautan itinerary "${trip.tripName}" berhasil disalin.')),
-                    );
+                    _showShareRouteSheet(context, trip);
                   },
                 ),
                 ListTile(
@@ -335,6 +335,337 @@ class _MyTripScreenState extends State<MyTripScreen> {
     );
   }
 
+  String _generateTripShareLink(TripModel trip) {
+    final tripId = trip.id != null ? '${trip.id}' : 'shared';
+    final safeName = Uri.encodeComponent(trip.tripName.trim());
+    return 'https://meratrip.id/itinerary/$tripId?name=$safeName';
+  }
+
+  String _generateGoogleMapsRouteUrl(TripModel trip) {
+    if (trip.items.isEmpty) {
+      final query = Uri.encodeComponent(trip.destinationCity ?? 'Kawasan Wisata Merapi, Sleman, Yogyakarta');
+      return 'https://www.google.com/maps/search/?api=1&query=$query';
+    }
+
+    final stopNames = trip.items
+        .map((i) => i.itemName.trim())
+        .where((name) => name.isNotEmpty)
+        .toList();
+
+    if (stopNames.isEmpty) {
+      final query = Uri.encodeComponent(trip.destinationCity ?? 'Kawasan Wisata Merapi, Sleman, Yogyakarta');
+      return 'https://www.google.com/maps/search/?api=1&query=$query';
+    }
+
+    if (stopNames.length == 1) {
+      return 'https://www.google.com/maps/dir/?api=1&destination=${Uri.encodeComponent(stopNames.first)}';
+    }
+
+    final origin = Uri.encodeComponent(stopNames.first);
+    final destination = Uri.encodeComponent(stopNames.last);
+    final waypointsList = stopNames.sublist(1, stopNames.length - 1);
+    final waypointsParam = waypointsList.isNotEmpty
+        ? '&waypoints=${waypointsList.map(Uri.encodeComponent).join('|')}'
+        : '';
+
+    return 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$destination$waypointsParam';
+  }
+
+  String _generateFullShareText(TripModel trip) {
+    final itineraryLink = _generateTripShareLink(trip);
+    final mapsUrl = _generateGoogleMapsRouteUrl(trip);
+
+    final buffer = StringBuffer();
+    buffer.writeln('🧭 *Rencana Perjalanan: ${trip.tripName}*');
+    buffer.writeln('📅 Tanggal: ${trip.startDate}');
+    buffer.writeln('👥 Peserta: ${trip.participantCount} Orang');
+    if (trip.items.isNotEmpty) {
+      buffer.writeln('\n📍 *Rute Destinasi (${trip.items.length}):*');
+      for (int i = 0; i < trip.items.length; i++) {
+        final item = trip.items[i];
+        final time = item.plannedTime.isNotEmpty ? ' (${item.plannedTime})' : '';
+        buffer.writeln('${i + 1}. ${item.itemName}$time');
+      }
+    }
+    buffer.writeln('\n🔗 *Tautan Rencana Perjalanan (Itinerary):*');
+    buffer.writeln(itineraryLink);
+    buffer.writeln('\n🗺️ *Tautan Rute di Google Maps:*');
+    buffer.writeln(mapsUrl);
+    buffer.writeln('\n_Dibuat dengan aplikasi MeraTrip_');
+    return buffer.toString().trim();
+  }
+
+  void _showShareRouteSheet(BuildContext context, TripModel trip) {
+    final itineraryLink = _generateTripShareLink(trip);
+    final mapsUrl = _generateGoogleMapsRouteUrl(trip);
+    final fullShareText = _generateFullShareText(trip);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surfaceContainerLowest,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
+      ),
+      builder: (sheetCtx) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: AppDimensions.margin,
+              right: AppDimensions.margin,
+              top: AppDimensions.spaceMd,
+              bottom: MediaQuery.of(sheetCtx).viewInsets.bottom + AppDimensions.spaceMd,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.spaceMd),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.share_rounded, color: AppColors.onPrimary, size: 22),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Bagikan Rute Perjalanan',
+                              style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                            ),
+                            Text(
+                              '${trip.tripName} • ${trip.startDate}',
+                              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppDimensions.spaceMd),
+
+                  // Ringkasan Urutan Rute Destinasi
+                  if (trip.items.isNotEmpty) ...[
+                    Text(
+                      'Rute Destinasi (${trip.items.length})',
+                      style: AppTypography.titleSm.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.outlineVariant.withAlpha(80)),
+                      ),
+                      child: Column(
+                        children: trip.items.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final item = entry.value;
+                          final isLast = idx == trip.items.length - 1;
+                          return Padding(
+                            padding: EdgeInsets.only(bottom: isLast ? 0 : 8),
+                            child: Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 11,
+                                  backgroundColor: AppColors.primary,
+                                  child: Text(
+                                    '${idx + 1}',
+                                    style: const TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    item.itemName,
+                                    style: AppTypography.bodySm.copyWith(fontWeight: FontWeight.w600),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (item.plannedTime.isNotEmpty)
+                                  Text(
+                                    item.plannedTime,
+                                    style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                                  ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: AppDimensions.spaceMd),
+                  ],
+
+                  // Tautan Rencana Perjalanan (Itinerary)
+                  Text(
+                    'Tautan Rencana Perjalanan (Itinerary)',
+                    style: AppTypography.titleSm.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.outlineVariant.withAlpha(80)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.link, color: AppColors.primary, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            itineraryLink,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.primary,
+                              decoration: TextDecoration.underline,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Salin Tautan',
+                          icon: const Icon(Icons.copy_rounded, color: AppColors.primary, size: 20),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: itineraryLink));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Tautan itinerary berhasil disalin!')),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.spaceMd),
+
+                  // Tautan Rute Google Maps
+                  Text(
+                    'Tautan Rute Navigasi Google Maps',
+                    style: AppTypography.titleSm.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainerLow,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.outlineVariant.withAlpha(80)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.map_outlined, color: AppColors.secondary, size: 20),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            mapsUrl,
+                            style: AppTypography.bodySm.copyWith(
+                              color: AppColors.secondary,
+                              decoration: TextDecoration.underline,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Buka di Google Maps',
+                          icon: const Icon(Icons.open_in_new_rounded, color: AppColors.secondary, size: 20),
+                          onPressed: () async {
+                            final uri = Uri.parse(mapsUrl);
+                            try {
+                              if (await canLaunchUrl(uri)) {
+                                await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              } else {
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Tidak dapat membuka peta.')),
+                                  );
+                                }
+                              }
+                            } catch (_) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Gagal membuka tautan peta.')),
+                                );
+                              }
+                            }
+                          },
+                        ),
+                        IconButton(
+                          tooltip: 'Salin Rute Maps',
+                          icon: const Icon(Icons.copy_rounded, color: AppColors.secondary, size: 20),
+                          onPressed: () {
+                            Clipboard.setData(ClipboardData(text: mapsUrl));
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Tautan rute Google Maps berhasil disalin!')),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.spaceLg),
+
+                  // Tombol Salin Seluruh Ringkasan & Tautan
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.copy_all_rounded, size: 20),
+                      label: const Text(
+                        'Salin Semua Info & Tautan Rute',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: fullShareText));
+                        Navigator.pop(sheetCtx);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Tautan dan rute "${trip.tripName}" berhasil disalin ke papan klip!'),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.spaceSm),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final tripProvider = context.watch<TripProvider>();
@@ -342,18 +673,35 @@ class _MyTripScreenState extends State<MyTripScreen> {
     final user = auth.currentUser;
 
     // Upcoming trip hero: ambil trip aktif atau trip pertama dengan status upcoming/active
-    final upcomingTrips = tripProvider.allTrips.where((t) => t.status == 'upcoming' || t.status == 'active').toList();
-    upcomingTrips.sort((a, b) {
+    final rawUpcomingTrips = tripProvider.allTrips.where((t) => t.status == 'upcoming' || t.status == 'active').toList();
+    rawUpcomingTrips.sort((a, b) {
       if (a.status == 'active' && b.status != 'active') return -1;
       if (a.status != 'active' && b.status == 'active') return 1;
       return 0;
     });
+    // Deduplikasi berdasarkan nama trip untuk mencegah chip ganda di filter bar
+    final seenUpcomingNames = <String>{};
+    final upcomingTrips = <TripModel>[];
+    for (final t in rawUpcomingTrips) {
+      final key = t.tripName.trim().toLowerCase();
+      if (key.isNotEmpty && seenUpcomingNames.contains(key)) continue;
+      if (key.isNotEmpty) seenUpcomingNames.add(key);
+      upcomingTrips.add(t);
+    }
     final activeTrip = tripProvider.selectedTrip != null && upcomingTrips.any((t) => t.id == tripProvider.selectedTrip!.id)
         ? tripProvider.selectedTrip
         : (upcomingTrips.isNotEmpty ? upcomingTrips.first : null);
 
-    // Draft trips
-    final draftTrips = tripProvider.allTrips.where((t) => t.status == 'draft').toList();
+    // Draft trips (pastikan bersih dari duplikasi jika ada data ganda di SQLite)
+    final rawDraftTrips = tripProvider.allTrips.where((t) => t.status == 'draft').toList();
+    final seenDraftNames = <String>{};
+    final draftTrips = <TripModel>[];
+    for (final d in rawDraftTrips) {
+      final key = d.tripName.trim().toLowerCase();
+      if (key.isNotEmpty && seenDraftNames.contains(key)) continue;
+      if (key.isNotEmpty) seenDraftNames.add(key);
+      draftTrips.add(d);
+    }
     // Completed trips
     final completedTrips = tripProvider.allTrips.where((t) => t.status == 'completed').toList();
 
@@ -2293,8 +2641,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
     BuildContext context,
     TripModel draftTrip,
     TripProvider tripProvider,
-    int userId,
-  ) {
+    int userId, {
+    bool showHeader = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimensions.margin,
@@ -2303,33 +2652,35 @@ class _MyTripScreenState extends State<MyTripScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.edit_note, color: AppColors.onSurfaceVariant, size: 20),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Rencana Tersimpan (Draft)',
-                        style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+          if (showHeader) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Row(
+                    children: [
+                      const Icon(Icons.edit_note, color: AppColors.onSurfaceVariant, size: 20),
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          'Rencana Tersimpan (Draft)',
+                          style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                '1 Draft Belum Selesai',
-                style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
+                const SizedBox(width: 8),
+                Text(
+                  '1 Draft Belum Selesai',
+                  style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
           Container(
             padding: const EdgeInsets.all(AppDimensions.spaceMd),
             decoration: BoxDecoration(
@@ -2602,9 +2953,50 @@ class _MyTripScreenState extends State<MyTripScreen> {
     }
 
     return Column(
-      children: drafts.map((draft) {
-        return _buildDraftSection(context, draft, tripProvider, userId);
-      }).toList(),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimensions.margin,
+            vertical: AppDimensions.spaceSm,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.edit_note, color: AppColors.onSurfaceVariant, size: 20),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        'Rencana Tersimpan (Draft)',
+                        style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${drafts.length} Draft Belum Selesai',
+                style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+        ...drafts.map((draft) {
+          return _buildDraftSection(
+            context,
+            draft,
+            tripProvider,
+            userId,
+            showHeader: false,
+          );
+        }),
+      ],
     );
   }
 

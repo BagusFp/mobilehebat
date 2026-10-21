@@ -569,8 +569,19 @@ class DatabaseHelper {
     );
 
     final List<TripModel> result = [];
+    final Set<String> seenTrips = {};
     for (final tMap in tripMaps) {
       final tripId = tMap['id'] as int;
+      final tripName = (tMap['trip_name'] as String? ?? '').trim().toLowerCase();
+      final tripStatus = tMap['status'] as String? ?? '';
+      final dedupKey = '$tripName|$tripStatus';
+      if (tripName.isNotEmpty && seenTrips.contains(dedupKey)) {
+        continue;
+      }
+      if (tripName.isNotEmpty) {
+        seenTrips.add(dedupKey);
+      }
+
       final itemMaps = await db.query(
         'trip_items',
         where: 'trip_id = ?',

@@ -6,6 +6,14 @@ import '../../data/models/trip_item_model.dart';
 import '../../data/models/trip_model.dart';
 import '../../data/repositories/trip_repository.dart';
 
+/// Memformat DateTime ke string hari Indonesia, misal "Rabu, 22 Okt 2026"
+String _formatTodayDate([DateTime? date]) {
+  final d = date ?? DateTime.now();
+  const dayNames = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+  const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return '${dayNames[d.weekday - 1]}, ${d.day} ${monthNames[d.month - 1]} ${d.year}';
+}
+
 class TripProvider extends ChangeNotifier {
   final TripRepository _repository;
 
@@ -384,15 +392,15 @@ class TripProvider extends ChangeNotifier {
       _builderItems = List.from(existingTrip.items);
     } else if (empty) {
       // Inisialisasi trip baru kosong sesuai alur pembuatan
-      _builderTrip = const TripModel(
+      _builderTrip = TripModel(
         userId: 1,
         tripName: 'Rencana Trip Baru',
-        startDate: 'Sabtu, 19 Okt 2024',
+        startDate: _formatTodayDate(),
         participantCount: 2,
         targetBudget: 400000.0,
         totalEstimatedCost: 0.0,
         status: 'upcoming',
-        createdAt: '2026-10-12',
+        createdAt: DateTime.now().toIso8601String().substring(0, 10),
         originCity: null,
         originTimezone: null,
         destinationCity: 'Gunung Merapi (Kaliadem)',
@@ -403,15 +411,15 @@ class TripProvider extends ChangeNotifier {
       _builderItems = [];
     } else {
       // Inisialisasi template default Eksplorasi Merapi 1 Hari
-      _builderTrip = const TripModel(
+      _builderTrip = TripModel(
         userId: 1,
         tripName: 'Eksplorasi Merapi 1 Hari',
-        startDate: 'Sabtu, 19 Okt 2024',
+        startDate: _formatTodayDate(),
         participantCount: 2,
         targetBudget: 400000.0,
         totalEstimatedCost: 64000.0,
         status: 'upcoming',
-        createdAt: '2026-10-12',
+        createdAt: DateTime.now().toIso8601String().substring(0, 10),
         originCity: null,
         originTimezone: null,
         destinationCity: 'Gunung Merapi (Kaliadem)',
@@ -555,7 +563,7 @@ class TripProvider extends ChangeNotifier {
     _builderTrip = TripModel(
       userId: 1,
       tripName: 'Wisata ${dest.name}',
-      startDate: 'Sabtu, 26 Okt 2024',
+      startDate: _formatTodayDate(),
       participantCount: 2,
       targetBudget: 450000.0,
       totalEstimatedCost: ticketCost + 10000.0,
@@ -675,7 +683,7 @@ class TripProvider extends ChangeNotifier {
 
   /// Simpan builder trip ke SQLite (menangani create baru maupun update edit)
   Future<void> saveBuilderTrip(int userId, {String status = 'upcoming'}) async {
-    final targetStatus = _builderTrip?.status ?? status;
+    final targetStatus = status;
     final finalTrip =
         (_builderTrip ??
                 const TripModel(

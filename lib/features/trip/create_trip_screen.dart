@@ -39,6 +39,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   StreamSubscription<AccelerometerEvent>? _shakeSubscription;
   DateTime _lastShakeTime = DateTime.now();
   bool _isGachaOpen = false;
+  bool _isSavingDraft = false;
 
   @override
   void initState() {
@@ -883,23 +884,34 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         ),
         actions: [
           TextButton.icon(
-            onPressed: () async {
-              final authProvider = context.read<AuthProvider>();
-              final tripProvider = context.read<TripProvider>();
-              final userId = authProvider.currentUser?.id ?? 1;
-              await tripProvider.saveBuilderTrip(userId, status: 'draft');
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Rencana perjalanan berhasil disimpan sebagai draft.'),
-                    backgroundColor: AppColors.secondary,
-                    duration: Duration(seconds: 2),
-                  ),
-                );
-                tripProvider.setActiveTab('draft');
-                Navigator.of(context).pop();
-              }
-            },
+            onPressed: _isSavingDraft
+                ? null
+                : () async {
+                    setState(() => _isSavingDraft = true);
+                    try {
+                      final authProvider = context.read<AuthProvider>();
+                      final tripProvider = context.read<TripProvider>();
+                      final userId = authProvider.currentUser?.id ?? 1;
+                      final tripName = _tripNameController.text.trim();
+                      if (tripName.isNotEmpty) {
+                        tripProvider.updateBuilderTripInfo(tripName: tripName);
+                      }
+                      await tripProvider.saveBuilderTrip(userId, status: 'draft');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Rencana perjalanan berhasil disimpan sebagai draft.'),
+                            backgroundColor: AppColors.secondary,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                        tripProvider.setActiveTab('draft');
+                        Navigator.of(context).pop();
+                      }
+                    } finally {
+                      if (mounted) setState(() => _isSavingDraft = false);
+                    }
+                  },
             icon: const Icon(Icons.drafts_outlined, size: 16, color: AppColors.primary),
             label: Text(
               'Simpan Draft',
@@ -2028,6 +2040,13 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     );
   }
 
+  // Helper: format DateTime ke string hari Indonesia, e.g. "Rabu, 22 Okt 2026"
+  String _formatCreateTripDate(DateTime d) {
+    const dayNames = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+    const monthNames = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    return '${dayNames[d.weekday - 1]}, ${d.day} ${monthNames[d.month - 1]} ${d.year}';
+  }
+
   // ===========================================================================
   // STEP 1: INFORMASI & PESERTA
   // ===========================================================================
@@ -2037,7 +2056,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   ) {
     final trip = tripProvider.builderTrip;
     final participantCount = trip?.participantCount ?? 2;
-    final startDate = trip?.startDate ?? 'Sabtu, 19 Okt 2024';
+    final startDate = trip?.startDate.isNotEmpty == true
+        ? trip!.startDate
+        : _formatCreateTripDate(DateTime.now());
 
     return Padding(
       padding: const EdgeInsets.all(AppDimensions.margin),

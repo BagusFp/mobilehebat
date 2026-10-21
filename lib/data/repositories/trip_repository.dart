@@ -90,6 +90,10 @@ class TripRepository {
           );
 
       if (cached != null) {
+        // Hapus entri lama di mergedMap agar tidak terjadi duplikasi saat ID lokal berbeda dari ID cloud
+        if (cached.id != null) mergedMap.remove(cached.id);
+        mergedMap.remove(cached.tripName);
+
         final bool isLocallyCompleted =
             cached.status == 'completed' || (cached.completedAt != null && cached.completedAt!.isNotEmpty);
         final statusToKeep = isLocallyCompleted ? 'completed' : remote.status;
@@ -115,7 +119,17 @@ class TripRepository {
       }
     }
 
-    return mergedMap.values.toList();
+    // Deduplikasi hasil akhir untuk memastikan tidak ada duplikat berdasarkan ID maupun nama & status
+    final List<TripModel> result = [];
+    final Set<String> seen = {};
+    for (final trip in mergedMap.values) {
+      final dedupKey = '${trip.tripName.trim().toLowerCase()}|${trip.status}';
+      if (seen.contains(dedupKey)) continue;
+      seen.add(dedupKey);
+      result.add(trip);
+    }
+
+    return result;
   }
 
   /// Mengambil detail trip dengan item-itemnya
