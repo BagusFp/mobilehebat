@@ -82,6 +82,7 @@ class DestinationCard extends StatelessWidget {
                           ? Image.network(
                               imageUrl!,
                               fit: BoxFit.cover,
+                              cacheWidth: 600,
                               errorBuilder: (_, _, _) => _buildPlaceholder(),
                             )
                           : _buildPlaceholder(),

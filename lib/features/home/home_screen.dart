@@ -484,6 +484,7 @@ class HomeScreen extends StatelessWidget {
                               child: Image.network(
                                 'https://lh3.googleusercontent.com/aida-public/AB6AXuD__JTBQcN2VsrNHKnYZ3FxiZdpsu2-fckBgW-YFTPB2_IwRsWRTY0ZzPK3EY0nOTR9Jaut-9xVIAY7bJ0r5GeR5Bp6WKDYOBF8nqbDwSw2iRpvqT-lu6DRI-DJ3fgMNSdprlLU4CPEld1KWrAocN1GBaG6J3iyYnlEw9_cvpKjcZAeSyY_sWN4k8zIzEvVJH4PvHj12yNDoQ4qetdwZJVqvmwcvyYcl_Kf_2lp-GWVsts1KsPJGgk',
                                 fit: BoxFit.cover,
+                                cacheWidth: 800,
                                 errorBuilder: (_, _, _) => Container(
                                   color: AppColors.primaryContainer,
                                   child: const Center(
@@ -972,6 +973,7 @@ class HomeScreen extends StatelessWidget {
                     ? Image.network(
                         dest.imageUrl!,
                         fit: BoxFit.cover,
+                        cacheWidth: 200,
                         errorBuilder: (_, _, _) => const Icon(
                           Icons.landscape,
                           color: AppColors.onPrimary,

@@ -134,7 +134,10 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => MapScreen(initialDestination: dest),
+                    builder: (_) => MapScreen(
+                      initialDestination: dest,
+                      autoRoute: true,
+                    ),
                   ),
                 );
               },

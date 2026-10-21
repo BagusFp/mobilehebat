@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
+import '../../core/services/weather_service.dart';
+import '../../core/widgets/app_network_image.dart';
 import '../../data/models/destination_model.dart';
 import '../auth/auth_provider.dart';
 import '../map/map_provider.dart';
@@ -28,10 +30,13 @@ class DestinationDetailScreen extends StatefulWidget {
 class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   bool _isTripAdded = false;
+  DestinationWeather? _liveWeather;
+  bool _isLoadingWeather = true;
 
   @override
   void initState() {
     super.initState();
+    _loadLiveWeather();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final tripProvider = context.read<TripProvider>();
       final auth = context.read<AuthProvider>();
@@ -44,6 +49,21 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
         });
       }
     });
+  }
+
+  Future<void> _loadLiveWeather() async {
+    final weather = await WeatherService.getWeatherForDestination(
+      latitude: widget.destination.latitude,
+      longitude: widget.destination.longitude,
+      elevationMdpl: widget.destination.elevationMdpl,
+      fallbackRange: widget.destination.temperatureRange,
+    );
+    if (mounted) {
+      setState(() {
+        _liveWeather = weather;
+        _isLoadingWeather = false;
+      });
+    }
   }
 
   String _formatCurrency(double price) {
@@ -142,12 +162,13 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                               child: SizedBox(
                                 width: 52,
                                 height: 52,
-                                child: dest.imageUrl != null && dest.imageUrl!.startsWith('http')
-                                    ? Image.network(dest.imageUrl!, fit: BoxFit.cover)
-                                    : Container(
-                                        color: AppColors.primaryContainer,
-                                        child: const Icon(Icons.landscape, color: AppColors.onPrimary),
-                                      ),
+                                child: AppNetworkImage(
+                                  imageUrl: dest.imageUrl,
+                                  width: 52,
+                                  height: 52,
+                                  fit: BoxFit.cover,
+                                  cacheWidth: 150,
+                                ),
                               ),
                             ),
                             const SizedBox(width: 12),
@@ -506,14 +527,13 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          if (dest.imageUrl != null && dest.imageUrl!.startsWith('http'))
-                            Image.network(
-                              dest.imageUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => _buildHeroPlaceholder(),
-                            )
-                          else
-                            _buildHeroPlaceholder(),
+                          AppNetworkImage(
+                            imageUrl: dest.imageUrl,
+                            fit: BoxFit.cover,
+                            cacheWidth: 800,
+                            placeholder: _buildHeroPlaceholder(),
+                            errorWidget: _buildHeroPlaceholder(),
+                          ),
 
                           // Gradient Scrim
                           Container(
@@ -718,40 +738,6 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                   ),
                 ),
 
-                // Distance & Trail Notice Banner
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimensions.margin,
-                    vertical: AppDimensions.spaceSm,
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppDimensions.spaceSm),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainer,
-                      borderRadius: AppDimensions.roundedLg,
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.explore,
-                          size: 20,
-                          color: AppColors.secondary,
-                        ),
-                        const SizedBox(width: AppDimensions.spaceSm),
-                        Expanded(
-                          child: Text(
-                            'Sekitar ${dest.distanceKm} km dari jalur pos • Akses jalan aspal & jalur lava',
-                            style: AppTypography.bodySm.copyWith(
-                              color: AppColors.onSurface,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
-
                 // 5. Key Travel Info Cards (Grid 2x2)
                 Padding(
                   padding: const EdgeInsets.only(
@@ -805,13 +791,17 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                             value: dest.estimatedDuration,
                             subValue: 'Ideal foto pagi hari',
                           ),
-                          // Card 4: Suhu
+                          // Card 4: Suhu Real-time / Live Dinamis
                           _buildInfoTile(
                             icon: Icons.thermostat,
                             iconColor: AppColors.secondary,
                             title: 'Suhu Rata-rata',
-                            value: dest.temperatureRange,
-                            subValue: 'Sejuk & berkabut',
+                            value: _liveWeather != null
+                                ? '${_liveWeather!.displayTemp} (${_liveWeather!.rangeString})'
+                                : dest.temperatureRange,
+                            subValue: _liveWeather != null
+                                ? _liveWeather!.subValue
+                                : (_isLoadingWeather ? 'Memuat cuaca...' : 'Sejuk lereng Merapi'),
                           ),
                         ],
                       ),
@@ -960,10 +950,14 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                                     color: AppColors.secondary,
                                   ),
                                   const SizedBox(width: 6),
-                                  Text(
-                                    facility,
-                                    style: AppTypography.bodyMd.copyWith(
-                                      color: AppColors.onSurface,
+                                  Flexible(
+                                    child: Text(
+                                      facility,
+                                      style: AppTypography.bodyMd.copyWith(
+                                        color: AppColors.onSurface,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
                                 ],
@@ -1133,11 +1127,16 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                                 ),
                                 onPressed: () {
                                   // Hubungkan ke Peta Merapi Navigasi dan aktifkan navigasi rute ke destinasi ini
-                                  context.read<MapProvider>().selectDestination(dest);
+                                  final mapProv = context.read<MapProvider>();
+                                  mapProv.selectDestination(dest);
+                                  mapProv.fetchRouteToDestination(dest);
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (_) => MapScreen(initialDestination: dest),
+                                      builder: (_) => MapScreen(
+                                        initialDestination: dest,
+                                        autoRoute: true,
+                                      ),
                                     ),
                                   );
                                 },

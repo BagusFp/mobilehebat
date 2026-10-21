@@ -17,12 +17,18 @@ import '../explore/destination_provider.dart';
 import '../sensor/sensor_compass_screen.dart';
 import '../sensor/sensor_provider.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'map_provider.dart';
 
 class MapScreen extends StatefulWidget {
   final DestinationModel? initialDestination;
+  final bool autoRoute;
 
-  const MapScreen({super.key, this.initialDestination});
+  const MapScreen({
+    super.key,
+    this.initialDestination,
+    this.autoRoute = false,
+  });
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -33,6 +39,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
   late AnimationController _radarController;
   late Animation<double> _radarAnimation;
   bool _showCompassHUD = false;
+  LatLngBounds? _currentVisibleBounds;
+  double _currentZoom = 12.8;
 
   @override
   void initState() {
@@ -46,7 +54,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       CurvedAnimation(parent: _radarController, curve: Curves.easeOut),
     );
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (context.read<DestinationProvider>().allDestinations.isEmpty) {
         context.read<DestinationProvider>().loadDestinations();
       }
@@ -54,7 +62,18 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
         context.read<MapProvider>().selectDestination(widget.initialDestination!);
       }
       // Meminta menyalakan lokasi saat masuk ke layar peta
-      _requestLocationOnEnter();
+      await _requestLocationOnEnter();
+
+      if (widget.initialDestination != null && widget.autoRoute && mounted) {
+        final mapProv = context.read<MapProvider>();
+        await mapProv.fetchRouteToDestination(widget.initialDestination!);
+        if (mounted) {
+          _mapController.move(
+            ll.LatLng(widget.initialDestination!.latitude, widget.initialDestination!.longitude),
+            13.5,
+          );
+        }
+      }
     });
   }
 
@@ -88,7 +107,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       if (mounted && (permission == LocationPermission.always || permission == LocationPermission.whileInUse)) {
         final mapProv = context.read<MapProvider>();
         final success = await mapProv.fetchLiveLocation();
-        if (success && mounted) {
+        if (success && mounted && widget.initialDestination == null) {
           _mapController.move(
             ll.LatLng(mapProv.userLat, mapProv.userLng),
             14.5,
@@ -100,6 +119,21 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
       if (mounted) {
         context.read<MapProvider>().fetchLiveLocation();
       }
+    }
+  }
+
+  /// Membuka petunjuk arah di aplikasi Google Maps eksternal
+  Future<void> _openExternalGoogleMaps(double lat, double lng) async {
+    final googleMapsUri = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
+    final webUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    try {
+      if (await canLaunchUrl(googleMapsUri)) {
+        await launchUrl(googleMapsUri);
+      } else {
+        await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Gagal membuka Google Maps: $e');
     }
   }
 
@@ -254,6 +288,34 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
     DestinationModel? selectedDest,
     List<DestinationModel> allDestList,
   ) {
+    // -------------------------------------------------------------
+    // LAZY LOADING PETA (Viewport Culling per Area / Klaster / Pulau)
+    // Hanya memproses dan me-render marker yang terlihat di layar pengguna
+    // -------------------------------------------------------------
+    final List<DestinationModel> visibleDestList;
+    if (_currentVisibleBounds == null) {
+      // Saat awal buka peta sebelum digeser, batasi 15 destinasi terdekat/utama
+      visibleDestList = allDestList.take(15).toList();
+    } else {
+      final bounds = _currentVisibleBounds!;
+      // Buffer 20% di sekeliling layar agar transisi panning terasa mulus tanpa pop-in kasar
+      final latMargin = (bounds.north - bounds.south).abs() * 0.20;
+      final lngMargin = (bounds.east - bounds.west).abs() * 0.20;
+      final minLat = bounds.south - latMargin;
+      final maxLat = bounds.north + latMargin;
+      final minLng = bounds.west - lngMargin;
+      final maxLng = bounds.east + lngMargin;
+
+      visibleDestList = allDestList.where((dest) {
+        // Destinasi yang sedang aktif dipilih SELALU dirender agar rute & kartunya tidak hilang
+        if (selectedDest?.id == dest.id) return true;
+
+        final inLat = dest.latitude >= minLat && dest.latitude <= maxLat;
+        final inLng = dest.longitude >= minLng && dest.longitude <= maxLng;
+        return inLat && inLng;
+      }).toList();
+    }
+
     return Column(
       children: [
         // Map Canvas Area
@@ -271,11 +333,33 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                   initialZoom: 12.8,
                   minZoom: 6.0,
                   maxZoom: 18.0,
+                  onMapReady: () {
+                    setState(() {
+                      _currentVisibleBounds = _mapController.camera.visibleBounds;
+                      _currentZoom = _mapController.camera.zoom;
+                    });
+                  },
+                  onPositionChanged: (camera, hasGesture) {
+                    final lastCenter = _currentVisibleBounds?.center;
+                    final curCenter = camera.center;
+                    final movedSignificantly = lastCenter == null ||
+                        (lastCenter.latitude - curCenter.latitude).abs() > 0.003 ||
+                        (lastCenter.longitude - curCenter.longitude).abs() > 0.003 ||
+                        (_currentZoom - camera.zoom).abs() > 0.3;
+
+                    if (movedSignificantly) {
+                      setState(() {
+                        _currentVisibleBounds = camera.visibleBounds;
+                        _currentZoom = camera.zoom;
+                      });
+                    }
+                  },
                 ),
                 children: [
                   TileLayer(
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'com.meratrip.app',
+                    panBuffer: 0,
                   ),
                   // KRB III (Radius 3km dari Puncak Kawah Merapi) & KRB II (5km)
                   CircleLayer(
@@ -365,8 +449,8 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                           ),
                         ),
                       ),
-                      // Marker Destinasi Terverifikasi (Hanya Lokasi Database Wisata)
-                      ...allDestList.map((dest) {
+                      // Marker Destinasi Terverifikasi (Lazy Loaded sesuai klaster area layar yang dilihat)
+                      ...visibleDestList.map((dest) {
                         final isSelected = selectedDest?.id == dest.id;
                         return Marker(
                           point: ll.LatLng(dest.latitude, dest.longitude),
@@ -386,15 +470,16 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                           ),
                         );
                       }),
-                      // Marker Lokasi Asli GPS Pengguna
+                      // Marker Lokasi Asli GPS Pengguna (Dengan RepaintBoundary agar animasi tidak memicu repaint seluruh tile)
                       Marker(
                         point: ll.LatLng(mapProvider.userLat, mapProvider.userLng),
                         width: 64,
                         height: 64,
                         alignment: Alignment.center,
-                        child: AnimatedBuilder(
-                          animation: _radarAnimation,
-                          builder: (context, child) {
+                        child: RepaintBoundary(
+                          child: AnimatedBuilder(
+                            animation: _radarAnimation,
+                            builder: (context, child) {
                             final double pulseSize = (28.0 + 16.0 * (_radarAnimation.value - 0.8)).clamp(28.0, 54.0);
                             return Center(
                               child: Stack(
@@ -434,8 +519,9 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                           },
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
+                ),
                 ],
               ),
 
@@ -559,9 +645,29 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                           ),
                         ),
                         const SizedBox(width: 8),
-                        InkWell(
-                          onTap: () => mapProvider.clearRoute(),
-                          child: const Icon(Icons.close, size: 16, color: AppColors.onPrimaryContainer),
+                        if (selectedDest != null)
+                          Tooltip(
+                            message: 'Buka di Google Maps',
+                            child: InkWell(
+                              onTap: () => _openExternalGoogleMaps(selectedDest.latitude, selectedDest.longitude),
+                              borderRadius: BorderRadius.circular(12),
+                              child: const Padding(
+                                padding: EdgeInsets.all(4),
+                                child: Icon(Icons.open_in_new, size: 16, color: AppColors.onPrimaryContainer),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(width: 4),
+                        Tooltip(
+                          message: 'Hapus Rute',
+                          child: InkWell(
+                            onTap: () => mapProvider.clearRoute(),
+                            borderRadius: BorderRadius.circular(12),
+                            child: const Padding(
+                              padding: EdgeInsets.all(4),
+                              child: Icon(Icons.close, size: 16, color: AppColors.onPrimaryContainer),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -979,6 +1085,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                         width: 64,
                         height: 64,
                         fit: BoxFit.cover,
+                        cacheWidth: 150,
                         errorBuilder: (_, _, _) => Container(
                           width: 64,
                           height: 64,
@@ -1280,6 +1387,7 @@ class _MapScreenState extends State<MapScreen> with SingleTickerProviderStateMix
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,
+                        cacheWidth: 200,
                         errorBuilder: (_, _, _) => Container(
                           width: 80,
                           height: 80,
