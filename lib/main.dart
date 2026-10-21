@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -235,10 +236,19 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
               child: CircleAvatar(
                 radius: 16,
                 backgroundColor: AppColors.primaryContainer,
-                child: Text(
-                  user.name.isNotEmpty ? user.name[0].toUpperCase() : 'P',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+                backgroundImage: (user.profilePhoto != null && user.profilePhoto!.isNotEmpty)
+                    ? (user.profilePhoto!.startsWith('http')
+                        ? NetworkImage(user.profilePhoto!) as ImageProvider
+                        : (File(user.profilePhoto!).existsSync()
+                            ? FileImage(File(user.profilePhoto!))
+                            : null))
+                    : null,
+                child: (user.profilePhoto == null || user.profilePhoto!.isEmpty)
+                    ? Text(
+                        user.name.isNotEmpty ? user.name[0].toUpperCase() : 'P',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      )
+                    : null,
               ),
             ),
           ),

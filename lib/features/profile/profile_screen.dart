@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
+import '../../core/utils/image_compress_helper.dart';
 import '../../data/models/user_model.dart';
 import '../auth/auth_provider.dart';
 import '../quiz/quiz_screen.dart';
@@ -211,7 +212,14 @@ class ProfileScreen extends StatelessWidget {
           backgroundColor: AppColors.secondaryContainer,
           backgroundImage: NetworkImage(photo),
           onBackgroundImageError: (exception, stackTrace) {},
-          child: null,
+          child: Text(
+            initial,
+            style: TextStyle(
+              fontSize: radius * 0.9,
+              fontWeight: FontWeight.bold,
+              color: AppColors.primary,
+            ),
+          ),
         );
       } else {
         final localFile = File(photo);
@@ -243,9 +251,9 @@ class ProfileScreen extends StatelessWidget {
   void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
     final user = auth.currentUser;
     final nameController = TextEditingController(text: user?.name ?? 'Bima Sakti');
-    File? selectedImageFile;
     Uint8List? selectedImageBytes;
-    String? selectedImageExt;
+    bool isCompressing = false;
+    String? compressionStats;
     bool isSaving = false;
     String? errorText;
 
@@ -310,11 +318,21 @@ class ProfileScreen extends StatelessWidget {
                           Stack(
                             alignment: Alignment.bottomRight,
                             children: [
-                              if (selectedImageFile != null)
+                              if (isCompressing)
+                                const CircleAvatar(
+                                  radius: 46,
+                                  backgroundColor: AppColors.secondaryContainer,
+                                  child: SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5),
+                                  ),
+                                )
+                              else if (selectedImageBytes != null)
                                 CircleAvatar(
                                   radius: 46,
                                   backgroundColor: AppColors.secondaryContainer,
-                                  backgroundImage: FileImage(selectedImageFile!),
+                                  backgroundImage: MemoryImage(selectedImageBytes!),
                                 )
                               else
                                 _buildUserAvatar(user, radius: 46),
@@ -325,58 +343,82 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                                 child: IconButton(
                                   icon: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
-                                  onPressed: () async {
-                                    try {
-                                      final picker = ImagePicker();
-                                      final picked = await picker.pickImage(
-                                        source: ImageSource.gallery,
-                                        maxWidth: 1024,
-                                        maxHeight: 1024,
-                                        imageQuality: 85,
-                                      );
+                                  onPressed: isCompressing || isSaving
+                                      ? null
+                                      : () async {
+                                          try {
+                                            final picker = ImagePicker();
+                                            final picked = await picker.pickImage(
+                                              source: ImageSource.gallery,
+                                            );
 
-                                      if (picked != null) {
-                                        final ext = picked.name.split('.').last.toLowerCase();
-                                        if (!['jpg', 'jpeg', 'png', 'webp'].contains(ext)) {
-                                          setSheetState(() {
-                                            errorText = 'Format tidak didukung. Gunakan JPG, PNG, atau WebP.';
-                                          });
-                                          return;
-                                        }
+                                            if (picked != null) {
+                                              setSheetState(() {
+                                                isCompressing = true;
+                                                errorText = null;
+                                              });
 
-                                        final bytes = await picked.readAsBytes();
-                                        if (bytes.lengthInBytes > 5 * 1024 * 1024) {
-                                          setSheetState(() {
-                                            errorText = 'Ukuran foto maksimal 5 MB.';
-                                          });
-                                          return;
-                                        }
+                                              final rawBytes = await picked.readAsBytes();
+                                              // Otomatis decode format apapun & kompres ke WebP resolusi tajam 512x512
+                                              final compressResult = await ImageCompressHelper.compressToWebP(
+                                                rawBytes,
+                                                quality: 80,
+                                                maxDimension: 512,
+                                              );
 
-                                        setSheetState(() {
-                                          selectedImageFile = File(picked.path);
-                                          selectedImageBytes = bytes;
-                                          selectedImageExt = ext;
-                                          errorText = null;
-                                        });
-                                      }
-                                    } catch (e) {
-                                      setSheetState(() {
-                                        errorText = 'Gagal mengakses galeri perangkat: $e';
-                                      });
-                                    }
-                                  },
+                                              setSheetState(() {
+                                                isCompressing = false;
+                                                selectedImageBytes = compressResult.bytes;
+                                                compressionStats = compressResult.summaryText;
+                                                errorText = null;
+                                              });
+                                            }
+                                          } catch (e) {
+                                            setSheetState(() {
+                                              isCompressing = false;
+                                              errorText = 'Gagal memproses gambar: $e';
+                                            });
+                                          }
+                                        },
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Ketuk ikon kamera untuk memilih foto dari galeri',
-                            style: AppTypography.bodySm.copyWith(
-                              color: AppColors.onSurfaceVariant,
-                              fontSize: 12,
+                          if (compressionStats != null) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer.withAlpha(60),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.primary.withAlpha(120)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.auto_awesome, color: AppColors.primary, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'WebP: $compressionStats',
+                                    style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
+                          ] else ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Pilih foto (JPG/PNG/dll) otomatis dikompres ke WebP',
+                              style: AppTypography.bodySm.copyWith(
+                                color: AppColors.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -433,6 +475,7 @@ class ProfileScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
                         ),
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(Icons.error_outline, color: AppColors.error, size: 18),
                             const SizedBox(width: 8),
@@ -454,7 +497,7 @@ class ProfileScreen extends StatelessWidget {
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: isSaving
+                        onPressed: (isSaving || isCompressing)
                             ? null
                             : () async {
                                 final newName = nameController.text.trim();
@@ -470,14 +513,22 @@ class ProfileScreen extends StatelessWidget {
 
                                 String? finalPhotoUrl = user?.profilePhoto;
 
-                                // Jika pengguna memilih foto baru: coba upload ke Supabase Storage
-                                if (selectedImageBytes != null && selectedImageExt != null) {
+                                // Jika pengguna memilih foto baru: upload ke Supabase Storage (format WebP)
+                                if (selectedImageBytes != null) {
                                   final uploadedUrl = await auth.uploadAvatarBytes(
                                     selectedImageBytes!,
-                                    selectedImageExt!,
+                                    'webp',
                                   );
-                                  // Gunakan public URL Supabase jika upload berhasil, atau simpan path lokal sebagai fallback
-                                  finalPhotoUrl = uploadedUrl ?? selectedImageFile?.path;
+
+                                  if (uploadedUrl == null) {
+                                    setSheetState(() {
+                                      isSaving = false;
+                                      errorText = auth.errorMessage ??
+                                          "Gagal mengunggah foto ke Supabase Storage. Pastikan bucket 'avatars' sudah dibuat di Supabase.";
+                                    });
+                                    return;
+                                  }
+                                  finalPhotoUrl = uploadedUrl;
                                 }
 
                                 final success = await auth.updateProfile(
@@ -490,7 +541,7 @@ class ProfileScreen extends StatelessWidget {
                                     Navigator.pop(sheetCtx);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Profil berhasil diperbarui.'),
+                                        content: Text('Profil dan foto berhasil diperbarui di Supabase.'),
                                         backgroundColor: AppColors.secondary,
                                       ),
                                     );

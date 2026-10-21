@@ -195,9 +195,11 @@ class AuthRepository {
       );
 
       int localUserId = 1;
+      String? userPhoto;
       if (result.isNotEmpty) {
         final userData = result.first;
         localUserId = userData['id'] as int;
+        userPhoto = userData['profile_photo'] as String?;
         final storedHash = userData['password_hash'] as String;
 
         // Jika offline & Supabase tidak merespons, verifikasi hash lokal
@@ -222,11 +224,26 @@ class AuthRepository {
         });
       }
 
+      // Sinkronkan avatar_url dari Supabase bila ada
+      if (supabaseRes?.user != null) {
+        final remoteAvatar = supabaseRes!.user!.userMetadata?['avatar_url'] as String?;
+        if (remoteAvatar != null && remoteAvatar.isNotEmpty) {
+          userPhoto = remoteAvatar;
+          await db.update(
+            'users',
+            {'profile_photo': userPhoto},
+            where: 'id = ?',
+            whereArgs: [localUserId],
+          );
+        }
+      }
+
       final user = UserModel(
         id: localUserId,
         supabaseId: supabaseUserId,
         name: userName ?? 'Wisatawan Merapi',
         email: cleanEmail,
+        profilePhoto: userPhoto,
         passwordHash: inputPasswordHash,
         isBiometricEnabled: false,
         createdAt: DateTime.now().toIso8601String(),
@@ -240,6 +257,9 @@ class AuthRepository {
         name: user.name,
         token: supabaseRes?.session?.accessToken ?? 'token_$localUserId',
       );
+      if (userPhoto != null && userPhoto.isNotEmpty) {
+        await prefs.setUserPhoto(userPhoto);
+      }
 
       return AuthResult(
         isSuccess: true,

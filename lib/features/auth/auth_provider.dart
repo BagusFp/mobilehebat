@@ -44,15 +44,30 @@ class AuthProvider extends ChangeNotifier {
       // HANYA anggap user logged-in bila ada sesi Supabase aktif yang valid
       if (supabaseSession != null && supabaseUser != null) {
         final localUser = await _repository.getCurrentUser();
-        _currentUser = localUser ?? UserModel(
+        // Cek avatar dari metadata atau tabel profiles Supabase
+        String? remoteAvatar = supabaseUser.userMetadata?['avatar_url'] as String?;
+        if (remoteAvatar == null || remoteAvatar.isEmpty) {
+          final profile = await _supabaseService.getProfile(supabaseUser.id);
+          remoteAvatar = profile?['avatar_url'] as String?;
+        }
+        final effectivePhoto = (remoteAvatar != null && remoteAvatar.isNotEmpty)
+            ? remoteAvatar
+            : (localUser?.profilePhoto ?? prefs.getUserPhoto());
+
+        if (remoteAvatar != null && remoteAvatar.isNotEmpty && remoteAvatar != prefs.getUserPhoto()) {
+          await prefs.setUserPhoto(remoteAvatar);
+        }
+
+        final baseUser = localUser ?? UserModel(
           id: prefs.getUserId() ?? 1,
           supabaseId: supabaseUser.id,
           name: supabaseUser.userMetadata?['name'] ?? prefs.getUserName() ?? 'Wisatawan Merapi',
           email: supabaseUser.email ?? prefs.getUserEmail() ?? '',
-          profilePhoto: prefs.getUserPhoto(),
+          profilePhoto: effectivePhoto,
           passwordHash: '',
           createdAt: supabaseUser.createdAt,
         );
+        _currentUser = baseUser.copyWith(profilePhoto: effectivePhoto);
 
         // Jika user memiliki sesi valid dan mengaktifkan biometrik: kunci aplikasi
         if (_isBiometricEnabled) {
@@ -293,13 +308,20 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// Upload foto avatar ke Supabase Storage (atau null jika offline/gagal)
-  Future<String?> uploadAvatarBytes(Uint8List bytes, String fileExt) async {
-    final userId = _currentUser?.supabaseId ?? 'user_${_currentUser?.id ?? 1}';
-    return await _supabaseService.uploadAvatar(
+  Future<String?> uploadAvatarBytes(Uint8List bytes, [String fileExt = 'webp']) async {
+    final userId = _currentUser?.supabaseId ??
+        _supabaseService.currentUser?.id ??
+        (_currentUser?.id != null ? 'user_${_currentUser!.id}' : 'user_1');
+    final url = await _supabaseService.uploadAvatar(
       userId: userId,
       bytes: bytes,
       fileExt: fileExt,
     );
+    if (url == null) {
+      _errorMessage = _supabaseService.lastAvatarUploadError ?? 'Gagal mengunggah foto ke Supabase Storage.';
+      notifyListeners();
+    }
+    return url;
   }
 
   void clearError() {

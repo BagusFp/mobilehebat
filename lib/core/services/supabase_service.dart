@@ -149,31 +149,60 @@ class SupabaseService {
     }
   }
 
+  String? _lastAvatarUploadError;
+  String? get lastAvatarUploadError => _lastAvatarUploadError;
+
   /// Mengunggah foto profil / avatar ke Supabase Storage (bucket 'avatars')
+  /// Selalu menimpa (upsert) file avatar milik user tersebut ($userId/avatar.$fileExt)
+  /// Mengembalikan public URL dengan timestamp cache buster agar langsung diperbarui di UI.
   Future<String?> uploadAvatar({
     required String userId,
     required Uint8List bytes,
-    required String fileExt,
+    String fileExt = 'webp',
   }) async {
-    if (!isInitialized) return null;
+    _lastAvatarUploadError = null;
+    if (!isInitialized) {
+      _lastAvatarUploadError = 'Supabase belum terhubung atau konfigurasi belum lengkap.';
+      return null;
+    }
     try {
-      final fileName = '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      // Path konsisten per user sehingga file lama selalu ditimpa (overwritten)
+      final fileName = '$userId/avatar.$fileExt';
+      final mimeType = fileExt == 'webp'
+          ? 'image/webp'
+          : fileExt == 'png'
+              ? 'image/png'
+              : 'image/jpeg';
+
       await client.storage.from('avatars').uploadBinary(
             fileName,
             bytes,
             fileOptions: FileOptions(
               upsert: true,
-              contentType: fileExt == 'png'
-                  ? 'image/png'
-                  : fileExt == 'webp'
-                      ? 'image/webp'
-                      : 'image/jpeg',
+              contentType: mimeType,
             ),
           );
+
+      // Dapatkan public URL dengan query cache buster timestamp
       final publicUrl = client.storage.from('avatars').getPublicUrl(fileName);
-      return publicUrl;
+      final cacheBustedUrl = '$publicUrl?v=${DateTime.now().millisecondsSinceEpoch}';
+      debugPrint('SupabaseService.uploadAvatar sukses: $cacheBustedUrl');
+      return cacheBustedUrl;
+    } on StorageException catch (e) {
+      debugPrint('SupabaseService.uploadAvatar StorageException: ${e.message} (status: ${e.statusCode})');
+      if (e.statusCode == '404' || e.message.toLowerCase().contains('bucket not found') || e.message.toLowerCase().contains('not found')) {
+        _lastAvatarUploadError =
+            "Bucket 'avatars' belum dibuat di Supabase Storage. Harap buat bucket 'avatars' (Public: ON) di Dashboard Supabase.";
+      } else if (e.statusCode == '403' || e.message.toLowerCase().contains('row-level security') || e.message.toLowerCase().contains('policy')) {
+        _lastAvatarUploadError =
+            "Izin akses penyimpanan Supabase ditolak (RLS). Pastikan Policy Storage untuk bucket 'avatars' sudah diatur.";
+      } else {
+        _lastAvatarUploadError = 'Supabase Storage error: ${e.message}';
+      }
+      return null;
     } catch (e) {
-      debugPrint('SupabaseService.uploadAvatar warning: $e');
+      debugPrint('SupabaseService.uploadAvatar error: $e');
+      _lastAvatarUploadError = 'Gagal mengunggah foto ke Supabase: $e';
       return null;
     }
   }
