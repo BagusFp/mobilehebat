@@ -32,7 +32,7 @@ class CreateTripScreen extends StatefulWidget {
 }
 
 class _CreateTripScreenState extends State<CreateTripScreen> {
-  int _currentStep = 1; // 1: Budget Awal, 2: Destinasi & Jam, 3: Ringkasan Trip
+  int _currentStep = 1; // 1: Info & Budget, 2: Destinasi & Jadwal, 3: Ringkasan & Notifikasi
   late TextEditingController _tripNameController;
   late TextEditingController _budgetController;
   String _selectedCurrency = 'IDR';
@@ -49,14 +49,39 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   DateTime _lastShakeTime = DateTime.now();
   bool _isGachaOpen = false;
   bool _isSavingDraft = false;
+  bool _isSavingTrip = false;
+  String _savingStatusText = 'Menyimpan trip...';
+
+  String _getCurrencySymbol(String cur) {
+    switch (cur.toUpperCase()) {
+      case 'IDR':
+        return 'Rp ';
+      case 'USD':
+        return r'$ ';
+      case 'SGD':
+        return r'S$ ';
+      case 'EUR':
+        return '€ ';
+      case 'JPY':
+        return '¥ ';
+      case 'MYR':
+        return 'RM ';
+      default:
+        return '$cur ';
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _tripNameController = TextEditingController(
-      text: 'Exploration Offroad Merapi',
+      text: widget.existingTrip?.tripName ?? '',
     );
-    _budgetController = TextEditingController(text: '500000');
+    _budgetController = TextEditingController(
+      text: widget.existingTrip != null && widget.existingTrip!.targetBudget > 0
+          ? widget.existingTrip!.targetBudget.toInt().toString()
+          : '',
+    );
     _initShakeSensor();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final tripProvider = context.read<TripProvider>();
@@ -68,18 +93,17 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       if (widget.existingTrip != null) {
         tripProvider.initBuilderTrip(existingTrip: widget.existingTrip);
         _tripNameController.text = widget.existingTrip!.tripName;
-        _budgetController.text = widget.existingTrip!.targetBudget.toInt().toString();
+        _budgetController.text = widget.existingTrip!.targetBudget > 0
+            ? widget.existingTrip!.targetBudget.toInt().toString()
+            : '';
       } else if (widget.initialDestination != null) {
         tripProvider.initBuilderWithDestination(widget.initialDestination!);
         _tripNameController.text = 'Wisata ${widget.initialDestination!.name}';
       } else {
-        if (tripProvider.builderTrip == null) {
-          tripProvider.initBuilderTrip(empty: false);
-        }
-        if (tripProvider.builderTrip != null) {
-          _tripNameController.text = tripProvider.builderTrip!.tripName;
-          _budgetController.text = tripProvider.builderTrip!.targetBudget.toInt().toString();
-        }
+        // Mode Buat Trip Baru: selalu mulai kosong tanpa destinasi otomatis
+        tripProvider.initBuilderTrip(empty: true);
+        _tripNameController.text = '';
+        _budgetController.text = '';
       }
     });
   }
@@ -166,11 +190,11 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
   String get _stepProgressLabel {
     switch (_currentStep) {
       case 1:
-        return 'LANGKAH 1 DARI 3: BUDGET AWAL';
+        return 'LANGKAH 1 DARI 3: INFO & BUDGET';
       case 2:
-        return 'LANGKAH 2 DARI 3: DESTINASI & JAM';
+        return 'LANGKAH 2 DARI 3: DESTINASI & JADWAL';
       case 3:
-        return 'LANGKAH 3 DARI 3: RINGKASAN & NOTIF';
+        return 'LANGKAH 3 DARI 3: RINGKASAN & NOTIFIKASI';
       default:
         return '';
     }
@@ -181,9 +205,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       case 1:
         return '33%';
       case 2:
-        return '66%';
+        return '67%';
       case 3:
-        return '99%';
+        return '100%';
       default:
         return '100%';
     }
@@ -789,57 +813,115 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     );
   }
 
-  Widget _buildStepTabItem(String title, {required int stepNumber}) {
+  Widget _buildStepNodeItem(int stepNumber, String title, IconData icon) {
     final isCurrent = _currentStep == stepNumber;
     final isDone = _currentStep > stepNumber;
 
-    Color bg;
-    Color textColor;
+    Widget circleWidget;
     if (isCurrent) {
-      bg = const Color(0xFF045E44);
-      textColor = Colors.white;
-    } else if (isDone) {
-      bg = const Color(0xFFD1FAE5);
-      textColor = const Color(0xFF045E44);
-    } else {
-      bg = const Color(0xFFF1F5F9);
-      textColor = const Color(0xFF64748B);
-    }
-
-    return Expanded(
-      child: InkWell(
-        onTap: () {
-          if (stepNumber == 3 && context.read<TripProvider>().builderItems.isEmpty) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Silakan tambah minimal 1 destinasi terlebih dahulu.'),
-                backgroundColor: AppColors.volcanoStatusWaspada,
-                duration: Duration(seconds: 2),
-              ),
-            );
-            return;
-          }
-          setState(() => _currentStep = stepNumber);
-        },
-        borderRadius: BorderRadius.circular(8),
+      // Tahap aktif: Lingkaran hijau tua dengan halo hijau muda lembut di luarnya
+      circleWidget = Container(
+        width: 38,
+        height: 38,
+        decoration: const BoxDecoration(
+          color: Color(0xFFD1FAE5),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(8),
+          width: 30,
+          height: 30,
+          decoration: const BoxDecoration(
+            color: Color(0xFF045E44),
+            shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
-          child: Text(
-            title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: textColor,
-              fontWeight: isCurrent || isDone ? FontWeight.bold : FontWeight.w600,
-              fontSize: 11,
-            ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: Colors.white,
           ),
         ),
+      );
+    } else if (isDone) {
+      // Tahap selesai: Lingkaran hijau tua dengan ikon checkmark putih
+      circleWidget = Container(
+        width: 32,
+        height: 32,
+        decoration: const BoxDecoration(
+          color: Color(0xFF045E44),
+          shape: BoxShape.circle,
+        ),
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.check,
+          size: 16,
+          color: Colors.white,
+        ),
+      );
+    } else {
+      // Tahap belum aktif: Lingkaran abu-abu/hijau pucat dengan ikon abu-abu
+      circleWidget = Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE2EBE5),
+          shape: BoxShape.circle,
+          border: Border.all(color: const Color(0xFFCBD5E1), width: 1),
+        ),
+        alignment: Alignment.center,
+        child: Icon(
+          icon,
+          size: 15,
+          color: const Color(0xFF64748B),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: () {
+        if (stepNumber == 3 && context.read<TripProvider>().builderItems.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Silakan tambah minimal 1 destinasi terlebih dahulu.'),
+              backgroundColor: AppColors.volcanoStatusWaspada,
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        setState(() => _currentStep = stepNumber);
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 38,
+            child: Center(child: circleWidget),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: isCurrent
+                  ? FontWeight.bold
+                  : isDone
+                      ? FontWeight.w600
+                      : FontWeight.w500,
+              color: isCurrent
+                  ? const Color(0xFF045E44)
+                  : isDone
+                      ? const Color(0xFF1E293B)
+                      : const Color(0xFF64748B),
+              height: 1.2,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -944,7 +1026,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: const [
                           Text(
-                            'Buat Perencanaan Trip Baru',
+                            'Trip Baru',
                             style: TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 16,
@@ -953,7 +1035,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                           ),
                           SizedBox(height: 2),
                           Text(
-                            'Atur budget, valuta & jadwal waktu',
+                            'Atur budget & jadwal',
                             style: TextStyle(
                               color: Color(0xFF64748B),
                               fontSize: 12,
@@ -1064,15 +1146,67 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            _buildStepTabItem('1. Budget Awal', stepNumber: 1),
-                            const SizedBox(width: 6),
-                            _buildStepTabItem('2. Destinasi & Jam', stepNumber: 2),
-                            const SizedBox(width: 6),
-                            _buildStepTabItem('3. Ringkasan Trip', stepNumber: 3),
-                          ],
+                        const SizedBox(height: 12),
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final itemWidth = constraints.maxWidth / 3;
+                            final circleCenterOffset = itemWidth / 2;
+                            return Stack(
+                              children: [
+                                Positioned(
+                                  top: 18,
+                                  left: circleCenterOffset,
+                                  right: circleCenterOffset,
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          height: 2.5,
+                                          color: _currentStep > 1
+                                              ? const Color(0xFF045E44)
+                                              : const Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        child: Container(
+                                          height: 2.5,
+                                          color: _currentStep > 2
+                                              ? const Color(0xFF045E44)
+                                              : const Color(0xFFCBD5E1),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _buildStepNodeItem(
+                                        1,
+                                        '1. Info & Budget',
+                                        Icons.tune_rounded,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _buildStepNodeItem(
+                                        2,
+                                        '2. Destinasi & Jadwal',
+                                        Icons.place_outlined,
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: _buildStepNodeItem(
+                                        3,
+                                        '3. Ringkasan & Notifikasi',
+                                        Icons.receipt_long_outlined,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -1186,17 +1320,41 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
-                                  'Belum Ada Destinasi Terpilih',
+                                  'Belum ada destinasi',
                                   style: AppTypography.titleMedium.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
-                                  'Daftar destinasi masih kosong. Silakan tambah destinasi wisata Merapi untuk mulai menyusun itinerary dan rincian waktu kunjungan.',
+                                  'Pilih destinasi untuk memulai perjalanan',
                                   textAlign: TextAlign.center,
                                   style: AppTypography.bodySmall.copyWith(
                                     color: AppColors.onSurfaceVariant,
+                                  ),
+                                ),
+                                const SizedBox(height: 14),
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF045E44),
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 18,
+                                      vertical: 10,
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  onPressed: () => _showAddDestinationModal(context),
+                                  icon: const Icon(Icons.add_location_alt_rounded, size: 18),
+                                  label: const Text(
+                                    'Pilih Destinasi',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1770,13 +1928,25 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
             elevation: 0,
           ),
           onPressed: () {
+            final budgetRaw = _budgetController.text.replaceAll(RegExp(r'[^\d.]'), '');
+            final budgetVal = double.tryParse(budgetRaw);
+            if (budgetVal == null || budgetVal <= 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Silakan masukkan target budget yang valid.'),
+                  backgroundColor: AppColors.volcanoStatusWaspada,
+                  duration: Duration(seconds: 2),
+                ),
+              );
+              return;
+            }
             setState(() => _currentStep = 2);
           },
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               Text(
-                'Lanjut Pilih Destinasi & Jam',
+                'Lanjut ke Destinasi & Jadwal',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
               ),
               SizedBox(width: 8),
@@ -1834,7 +2004,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: const [
                     Text(
-                      'Lanjut ke Ringkasan Trip',
+                      'Lanjut ke Ringkasan',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                     ),
                     SizedBox(width: 8),
@@ -1860,7 +2030,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               side: BorderSide.none,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            onPressed: () => setState(() => _currentStep = 2),
+            onPressed: _isSavingTrip ? null : () => setState(() => _currentStep = 2),
             child: const Text(
               'Kembali',
               style: TextStyle(color: Color(0xFF334155), fontWeight: FontWeight.bold),
@@ -1871,55 +2041,142 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
         Expanded(
           child: SizedBox(
             height: 48,
-            child: ElevatedButton.icon(
+            child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF045E44),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 elevation: 0,
               ),
-              onPressed: () async {
-                final userId = authProvider.currentUser?.id ?? 1;
-                final tripName = _tripNameController.text.trim();
-                if (tripName.isNotEmpty) {
-                  tripProvider.updateBuilderTripInfo(tripName: tripName);
-                }
-                await tripProvider.saveBuilderTrip(userId);
+              onPressed: _isSavingTrip
+                  ? null
+                  : () async {
+                      setState(() {
+                        _isSavingTrip = true;
+                        _savingStatusText = 'Menyimpan info trip...';
+                      });
 
-                if (_isReminderEnabled) {
-                  DateTime tripStart = DateTime.now().add(const Duration(days: 1));
-                  try {
-                    if (tripProvider.builderTrip?.startDate.isNotEmpty == true) {
-                      tripStart = DateTime.parse(tripProvider.builderTrip!.startDate);
-                    }
-                  } catch (_) {}
-                  await NotificationService().scheduleTripReminder(
-                    tripId: DateTime.now().millisecondsSinceEpoch % 100000,
-                    tripTitle: tripName.isNotEmpty ? tripName : 'Eksplorasi Merapi',
-                    tripStartTime: tripStart,
-                    beforeDays: _reminderDays,
-                    beforeHours: _reminderHours,
-                    beforeMinutes: _reminderMinutes,
-                    startDestinationName: items.isNotEmpty ? items.first.itemName : null,
-                  );
-                }
+                      try {
+                        final userId = authProvider.currentUser?.id ?? 1;
+                        final tripName = _tripNameController.text.trim().isNotEmpty
+                            ? _tripNameController.text.trim()
+                            : 'Eksplorasi Merapi';
 
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('🎉 Rencana Perjalanan "$tripName" berhasil disimpan ke My Trip!'),
-                      backgroundColor: const Color(0xFF045E44),
-                      duration: const Duration(seconds: 2),
+                        final budgetRaw = _budgetController.text.replaceAll(RegExp(r'[^\d.]'), '');
+                        final budgetVal = double.tryParse(budgetRaw) ?? 0.0;
+                        tripProvider.updateBuilderTripInfo(
+                          tripName: tripName,
+                          targetBudget: budgetVal > 0 ? budgetVal : null,
+                          originTimezone: _selectedTimezoneDisplay,
+                          currencySource: _selectedCurrency,
+                        );
+
+                        setState(() {
+                          _savingStatusText = 'Menyimpan itinerary...';
+                        });
+
+                        await tripProvider.saveBuilderTrip(userId);
+
+                        if (_isReminderEnabled) {
+                          setState(() {
+                            _savingStatusText = 'Menyiapkan pengingat...';
+                          });
+
+                          DateTime tripStart = _selectedDate;
+                          String firstTime = '07:30';
+                          if (items.isNotEmpty && items.first.plannedTime.isNotEmpty) {
+                            final match = RegExp(r'(\d{1,2}):(\d{2})').firstMatch(items.first.plannedTime);
+                            if (match != null) {
+                              firstTime = '${match.group(1)}:${match.group(2)}';
+                            }
+                          }
+                          final parts = firstTime.split(':');
+                          final hour = int.tryParse(parts[0]) ?? 7;
+                          final minute = int.tryParse(parts.length > 1 ? parts[1] : '30') ?? 30;
+                          tripStart = DateTime(tripStart.year, tripStart.month, tripStart.day, hour, minute);
+
+                          final newTripId = tripProvider.allTrips.isNotEmpty
+                              ? (tripProvider.allTrips.firstWhere(
+                                  (t) => t.tripName == tripName,
+                                  orElse: () => tripProvider.allTrips.first,
+                                ).id ?? DateTime.now().millisecondsSinceEpoch % 100000)
+                              : DateTime.now().millisecondsSinceEpoch % 100000;
+
+                          await NotificationService().scheduleTripReminder(
+                            tripId: newTripId,
+                            tripTitle: tripName,
+                            tripStartTime: tripStart,
+                            beforeDays: _reminderDays,
+                            beforeHours: _reminderHours,
+                            beforeMinutes: _reminderMinutes,
+                            startDestinationName: items.isNotEmpty ? items.first.itemName : null,
+                          );
+                        }
+
+                        // Pilih trip baru sebagai active trip agar langsung tampil di My Trip
+                        if (tripProvider.allTrips.isNotEmpty) {
+                          final savedTrip = tripProvider.allTrips.firstWhere(
+                            (t) => t.tripName == tripName,
+                            orElse: () => tripProvider.allTrips.first,
+                          );
+                          tripProvider.selectTrip(savedTrip);
+                        }
+
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Trip "$tripName" berhasil disimpan!'),
+                              backgroundColor: const Color(0xFF045E44),
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          Navigator.of(context).pop();
+                        }
+                      } catch (err) {
+                        if (context.mounted) {
+                          setState(() {
+                            _isSavingTrip = false;
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Gagal menyimpan trip: $err. Silakan coba lagi.'),
+                              backgroundColor: const Color(0xFFE11D48),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      }
+                    },
+              child: _isSavingTrip
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _savingStatusText,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.check_circle_rounded, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Simpan Trip',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                      ],
                     ),
-                  );
-                  Navigator.of(context).pop();
-                }
-              },
-              icon: const Icon(Icons.check_circle_rounded, size: 18),
-              label: const Text(
-                'Simpan & Buat Trip',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-              ),
             ),
           ),
         ),
@@ -2144,7 +2401,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     Icon(Icons.explore_outlined, color: Color(0xFF1E293B), size: 18),
                     SizedBox(width: 8),
                     Text(
-                      'INFORMASI PERJALANAN',
+                      'INFO TRIP',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
@@ -2156,7 +2413,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Nama Trip / Perjalanan',
+                  'Nama Trip',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -2167,7 +2424,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 TextField(
                   controller: _tripNameController,
                   decoration: InputDecoration(
-                    hintText: 'Exploration Offroad Merapi',
+                    hintText: 'Contoh: Eksplorasi Lereng Merapi',
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -2253,13 +2510,13 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    // Jumlah Peserta
+                    // Peserta
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Jumlah Peserta',
+                            'Peserta',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -2354,7 +2611,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         Icon(Icons.account_balance_wallet_outlined, color: Color(0xFF1E293B), size: 18),
                         SizedBox(width: 8),
                         Text(
-                          'TARGET BUDGET & PERSONALISASI',
+                          'BUDGET TRIP',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
@@ -2383,7 +2640,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Pagu Target Anggaran Utama',
+                  'Target Budget',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -2393,7 +2650,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    // Input TextField
+                    // Input TextField dengan simbol mata uang dinamis
                     Expanded(
                       child: Container(
                         height: 48,
@@ -2405,9 +2662,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Text(
-                              'Rp  ',
-                              style: TextStyle(
+                            Text(
+                              _getCurrencySymbol(_selectedCurrency),
+                              style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                                 color: Color(0xFF0F172A),
@@ -2418,6 +2675,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                                 controller: _budgetController,
                                 keyboardType: TextInputType.number,
                                 decoration: const InputDecoration(
+                                  hintText: '0',
                                   border: InputBorder.none,
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
@@ -2477,9 +2735,9 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  '*Pagu anggaran langsung disimpan dalam IDR Rupiah',
-                  style: TextStyle(
+                Text(
+                  '*Estimasi anggaran dihitung berdasarkan mata uang $_selectedCurrency',
+                  style: const TextStyle(
                     fontSize: 10,
                     color: Color(0xFF059669),
                     fontStyle: FontStyle.italic,
@@ -2487,7 +2745,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Zona Waktu Asal Pengguna',
+                  'Zona Waktu Asal',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -2540,36 +2798,37 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     TripProvider tripProvider,
     List<TripItemModel> items,
   ) {
-    final enteredVal = double.tryParse(_budgetController.text.replaceAll(RegExp(r'[^\d.]'), '')) ?? 500000.0;
+    final enteredVal = double.tryParse(_budgetController.text.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+    final util = Provider.of<UtilityProvider?>(context);
     double rate = 1.0;
-    String symbol = 'Rp ';
-    switch (_selectedCurrency) {
-      case 'USD':
-        rate = 15873.015874;
-        symbol = r'$ ';
-        break;
-      case 'EUR':
-        rate = 17200.0;
-        symbol = '€ ';
-        break;
-      case 'SGD':
-        rate = 11850.0;
-        symbol = r'S$ ';
-        break;
-      case 'JPY':
-        rate = 105.0;
-        symbol = '¥ ';
-        break;
-      case 'MYR':
-        rate = 3580.0;
-        symbol = 'RM ';
-        break;
-      case 'IDR':
-      default:
-        rate = 1.0;
-        symbol = 'Rp ';
-        break;
+    if (_selectedCurrency != 'IDR') {
+      if (util != null && util.hasRates && util.rates.containsKey(_selectedCurrency)) {
+        final convertedRate = util.convert(amount: 1.0, fromCode: _selectedCurrency, toCode: 'IDR');
+        rate = convertedRate > 0 ? convertedRate : rate;
+      } else {
+        switch (_selectedCurrency) {
+          case 'USD':
+            rate = 15873.015874;
+            break;
+          case 'EUR':
+            rate = 17200.0;
+            break;
+          case 'SGD':
+            rate = 11850.0;
+            break;
+          case 'JPY':
+            rate = 105.0;
+            break;
+          case 'MYR':
+            rate = 3580.0;
+            break;
+          default:
+            rate = 1.0;
+            break;
+        }
+      }
     }
+    final symbol = _getCurrencySymbol(_selectedCurrency);
 
     double targetBudgetIDR;
     double convertedTarget;
@@ -2589,13 +2848,207 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
 
     final idrFormatter = NumberFormat.currency(locale: 'id_ID', symbol: 'Rp ', decimalDigits: 0);
     final secondaryCurCode = _selectedCurrency != 'IDR' ? _selectedCurrency : 'USD';
+    final tripName = _tripNameController.text.trim().isNotEmpty
+        ? _tripNameController.text.trim()
+        : 'Trip Merapi';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // CARD 1: RINGKASAN ANGGARAN & VALUTA
+          // CARD 0A: INFO TRIP
+          Container(
+            padding: const EdgeInsets.all(16),
+            margin: const EdgeInsets.only(bottom: 14),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withAlpha(4),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: const [
+                    Icon(Icons.info_outline, color: Color(0xFF1E293B), size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'INFO TRIP',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: Color(0xFF1E293B),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Nama Trip',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            tripName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Tanggal & Peserta',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '${DateFormat('dd MMM yyyy').format(_selectedDate)} • ${tripProvider.builderTrip?.participantCount ?? 2} Orang',
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // CARD 0B: DAFTAR DESTINASI & JADWAL
+          if (items.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(4),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: const [
+                          Icon(Icons.route_outlined, color: Color(0xFF1E293B), size: 18),
+                          SizedBox(width: 8),
+                          Text(
+                            'DESTINASI & JADWAL',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                              color: Color(0xFF1E293B),
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        '${items.length} Tempat',
+                        style: const TextStyle(
+                          color: Color(0xFF059669),
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...List.generate(items.length, (idx) {
+                    final it = items[idx];
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 22,
+                            height: 22,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFDCFCE7),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${idx + 1}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF045E44),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              it.itemName,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF0F172A),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            it.plannedTime.isNotEmpty ? it.plannedTime : 'Belum dijadwalkan',
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+
+          // CARD 1: RINGKASAN BUDGET
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -2621,7 +3074,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         Icon(Icons.receipt_long_outlined, color: Color(0xFF1E293B), size: 18),
                         SizedBox(width: 8),
                         Text(
-                          'RINGKASAN ANGGARAN & VALUTA',
+                          'RINGKASAN BUDGET',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 12,
@@ -2796,7 +3249,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                         Icon(Icons.notifications_active_outlined, color: Color(0xFF059669), size: 18),
                         SizedBox(width: 8),
                         Text(
-                          'ATUR PENGINGAT NOTIFIKASI TRIP',
+                          'PENGINGAT TRIP',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 12,

@@ -422,7 +422,7 @@ void main() {
 
     // Verifikasi Header My Trip
     expect(find.text('My Trip'), findsOneWidget);
-    expect(find.text('DASHBOARD PERJALANAN'), findsOneWidget);
+    expect(find.text('Perjalanan'), findsOneWidget);
     expect(find.text('+ Trip Baru'), findsOneWidget);
 
     // Verifikasi Segmented Tabs
@@ -433,8 +433,8 @@ void main() {
     // Verifikasi Cards
     expect(find.text('PILIH TRIP AKTIF'), findsOneWidget);
     expect(find.text('TERKONFIRMASI'), findsOneWidget);
-    expect(find.text('KONVERSI AKSES CEPAT'), findsOneWidget);
-    expect(find.text('ESTIMASI & BUDGET'), findsOneWidget);
+    expect(find.text('KONVERSI'), findsOneWidget);
+    expect(find.text('BUDGET'), findsOneWidget);
     expect(find.text('TIMELINE RUTE'), findsOneWidget);
   });
 
@@ -455,7 +455,9 @@ void main() {
     );
 
     final destProvider = DestinationProvider();
-    await destProvider.loadDestinations(userId: 1);
+    await tester.runAsync(() async {
+      await destProvider.loadDestinations(userId: 1);
+    });
 
     final tripProvider = TripProvider();
     tripProvider.initBuilderTrip();
@@ -484,19 +486,18 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    // Berpindah ke Langkah 2 (Destinasi & Jam)
-    await tester.tap(find.text('2. Destinasi & Jam'));
+    // Berpindah ke Langkah 2 (Destinasi & Jadwal)
+    await tester.tap(find.text('2. Destinasi & Jadwal'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     // Verifikasi Stepper & Metadata
-    expect(find.text('Buat Perencanaan Trip Baru'), findsOneWidget);
-    expect(find.text('LANGKAH 2 DARI 3: DESTINASI & JAM'), findsOneWidget);
+    expect(find.text('Trip Baru'), findsOneWidget);
+    expect(find.text('LANGKAH 2 DARI 3: DESTINASI & JADWAL'), findsOneWidget);
 
     // Verifikasi Kondisi Default Kosong & Tombol Tambah
-    expect(find.text('Belum Ada Destinasi Terpilih'), findsOneWidget);
-    expect(find.text('Tambah Destinasi di Sekitar Merapi'), findsOneWidget);
-    expect(find.text('Kalkulator Rencana Trip'), findsOneWidget);
+    expect(find.text('Belum ada destinasi'), findsOneWidget);
+    expect(find.text('Pilih Destinasi'), findsOneWidget);
 
     // Tambahkan destinasi ke builder
     final plunyon = destProvider.allDestinations.firstWhere(
@@ -509,7 +510,7 @@ void main() {
 
     // Verifikasi Item Perjalanan setelah ditambahkan
     expect(find.text(plunyon.name), findsOneWidget);
-    expect(find.text('Lanjut ke Ringkasan Trip'), findsOneWidget);
+    expect(find.text('Lanjut ke Ringkasan'), findsOneWidget);
   });
 
   // ==================== TAHAP E: PETA MERAPI & OFFLINE MANAGER TESTS ====================

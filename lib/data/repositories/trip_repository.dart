@@ -228,15 +228,24 @@ class TripRepository {
     }
   }
 
-  /// Menghapus trip beserta seluruh itemnya
-  Future<void> deleteTrip(int tripId) async {
+  /// Menghapus trip beserta seluruh item dan pengeluarannya
+  Future<bool> deleteTrip(int tripId) async {
     try {
       final db = await _dbHelper.database;
-      await db.delete('trips', where: 'id = ?', whereArgs: [tripId]);
+      await db.delete('trip_expenses', where: 'trip_id = ?', whereArgs: [tripId]);
       await db.delete('trip_items', where: 'trip_id = ?', whereArgs: [tripId]);
+      final count = await db.delete('trips', where: 'id = ?', whereArgs: [tripId]);
       // Sinkronisasi penghapusan ke Supabase Cloud
-      SupabaseService().deleteTrip(tripId).ignore();
-    } catch (_) {}
+      try {
+        await SupabaseService().deleteTrip(tripId);
+      } catch (e) {
+        debugPrint('SupabaseService.deleteTrip warning: $e');
+      }
+      return count > 0;
+    } catch (e) {
+      debugPrint('TripRepository.deleteTrip error: $e');
+      return false;
+    }
   }
 
   /// Toggle reminder

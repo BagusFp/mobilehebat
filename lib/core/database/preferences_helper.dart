@@ -155,4 +155,16 @@ class PreferencesHelper {
     await prefs.remove(_keyCurrencyApiDate);
     await prefs.remove(_keyCurrencySyncTime);
   }
+
+  // Initial Trip Seeding Flag
+  static const String _keyTripsSeeded = 'has_seeded_trips_initial';
+
+  bool hasTripsSeeded() {
+    return _preferences?.getBool(_keyTripsSeeded) ?? false;
+  }
+
+  Future<void> setTripsSeeded(bool seeded) async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    await prefs.setBool(_keyTripsSeeded, seeded);
+  }
 }

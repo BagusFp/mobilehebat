@@ -322,15 +322,19 @@ class TripProvider extends ChangeNotifier {
     );
 
     if (_allTrips.isNotEmpty) {
-      // Prioritaskan trip aktif jika ada, lalu upcoming
-      final active = _allTrips.where((t) => t.status == 'active');
-      if (active.isNotEmpty) {
-        _selectedTrip = active.first;
+      if (_selectedTrip != null && _allTrips.any((t) => t.id == _selectedTrip!.id)) {
+        _selectedTrip = _allTrips.firstWhere((t) => t.id == _selectedTrip!.id);
       } else {
-        final upcoming = _allTrips.where(
-          (t) => t.status == 'upcoming' || t.status == 'planned',
-        );
-        _selectedTrip = upcoming.isNotEmpty ? upcoming.first : _allTrips.first;
+        // Prioritaskan trip aktif jika ada, lalu upcoming
+        final active = _allTrips.where((t) => t.status == 'active');
+        if (active.isNotEmpty) {
+          _selectedTrip = active.first;
+        } else {
+          final upcoming = _allTrips.where(
+            (t) => t.status == 'upcoming' || t.status == 'planned',
+          );
+          _selectedTrip = upcoming.isNotEmpty ? upcoming.first : null;
+        }
       }
     } else {
       _selectedTrip = null;
@@ -391,18 +395,18 @@ class TripProvider extends ChangeNotifier {
       _builderTrip = existingTrip;
       _builderItems = List.from(existingTrip.items);
     } else if (empty) {
-      // Inisialisasi trip baru kosong sesuai alur pembuatan
+      // Inisialisasi trip baru benar-benar kosong tanpa destinasi terpilih
       _builderTrip = TripModel(
         userId: 1,
-        tripName: 'Rencana Trip Baru',
+        tripName: '',
         startDate: _formatTodayDate(),
         participantCount: 2,
-        targetBudget: 400000.0,
+        targetBudget: 0.0,
         totalEstimatedCost: 0.0,
         status: 'upcoming',
         createdAt: DateTime.now().toIso8601String().substring(0, 10),
         originCity: null,
-        originTimezone: null,
+        originTimezone: 'WIB (GMT+7) - Lokal Merapi',
         destinationCity: 'Gunung Merapi (Kaliadem)',
         destinationTimezone: 'Asia/Jakarta',
         currencySource: 'IDR',
@@ -410,18 +414,18 @@ class TripProvider extends ChangeNotifier {
       );
       _builderItems = [];
     } else {
-      // Inisialisasi template default Exploration Offroad Merapi
+      // Inisialisasi template default Exploration Offroad Merapi (digunakan fixture test)
       _builderTrip = TripModel(
         userId: 1,
         tripName: 'Exploration Offroad Merapi',
         startDate: '25 Okt 2026',
         participantCount: 2,
-        targetBudget: 500000.0,
-        totalEstimatedCost: 40000.0,
+        targetBudget: 400000.0,
+        totalEstimatedCost: 64000.0,
         status: 'upcoming',
         createdAt: DateTime.now().toIso8601String().substring(0, 10),
         originCity: null,
-        originTimezone: null,
+        originTimezone: 'WIB (GMT+7) - Lokal Merapi',
         destinationCity: 'Gunung Merapi (Kaliadem)',
         destinationTimezone: 'Asia/Jakarta',
         currencySource: 'IDR',
@@ -429,26 +433,38 @@ class TripProvider extends ChangeNotifier {
       );
       _builderItems = [
         const TripItemModel(
-          destinationId: 2,
-          itemName: 'Museum Sisa Hartaku',
-          itemSubtitle: 'Kunjungan Memoar Erupsi',
+          destinationId: 3,
+          itemName: 'Plunyon Kalikuning',
+          itemSubtitle: 'Jembatan Gantung & Lembah Pinus',
           visitOrder: 1,
-          plannedTime: '07:30 WIB',
+          plannedTime: '07:30 - 09:00',
           durationHours: 1.5,
-          estimatedCost: 20000.0,
-          elevationMdpl: 920,
-          connectingDistanceKm: 3.1,
-          connectingTimeMinutes: 12,
+          estimatedCost: 24000.0,
+          elevationMdpl: 850,
+          connectingDistanceKm: 2.5,
+          connectingTimeMinutes: 10,
         ),
         const TripItemModel(
           destinationId: 1,
           itemName: 'Bunker Kaliadem',
           itemSubtitle: 'Spot Panorama Puncak Merapi',
           visitOrder: 2,
-          plannedTime: '09:15 WIB',
+          plannedTime: '09:15 - 10:45',
           durationHours: 1.5,
           estimatedCost: 20000.0,
           elevationMdpl: 1165,
+          connectingDistanceKm: 3.1,
+          connectingTimeMinutes: 12,
+        ),
+        const TripItemModel(
+          destinationId: 2,
+          itemName: 'Museum Sisa Hartaku',
+          itemSubtitle: 'Kunjungan Memoar Erupsi',
+          visitOrder: 3,
+          plannedTime: '11:00 - 12:30',
+          durationHours: 1.5,
+          estimatedCost: 10000.0,
+          elevationMdpl: 920,
           connectingDistanceKm: 0.0,
           connectingTimeMinutes: 0,
         ),
@@ -837,10 +853,38 @@ class TripProvider extends ChangeNotifier {
     }
   }
 
-  /// Hapus trip
-  Future<void> deleteTrip(int tripId, int userId) async {
-    await _repository.deleteTrip(tripId);
-    await loadUserTrips(userId);
+  /// Hapus trip dengan aman (validasi pemilik, batalkan notifikasi, perbarui state)
+  Future<bool> deleteTrip(int tripId, int userId) async {
+    // 1. Verifikasi kepemilikan trip jika ada di cache
+    final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+    if (tripIdx != -1) {
+      final trip = _allTrips[tripIdx];
+      final isOwner = userId <= 0 || trip.userId <= 1 || trip.userId == userId;
+      if (!isOwner) {
+        debugPrint('Unauthorized: trip $tripId bukan milik user $userId');
+        return false;
+      }
+    }
+
+    // 2. Batalkan pengingat notifikasi terkait
+    try {
+      await NotificationService().cancelTripReminder(tripId);
+    } catch (_) {}
+
+    // 3. Eksekusi penghapusan di database lokal dan Supabase
+    final success = await _repository.deleteTrip(tripId);
+
+    // 4. Update state lokal segera
+    _allTrips.removeWhere((t) => t.id == tripId);
+    if (_selectedTrip?.id == tripId) {
+      final remaining = _allTrips.where((t) => t.status == 'upcoming' || t.status == 'active');
+      _selectedTrip = remaining.isNotEmpty ? remaining.first : null;
+    }
+    notifyListeners();
+
+    // 5. Muat ulang daftar trips tanpa melakukan re-seeding
+    await loadUserTrips(userId > 0 ? userId : 1, seedIfEmpty: false);
+    return success;
   }
 
   // ===========================================================================

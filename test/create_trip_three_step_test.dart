@@ -84,55 +84,51 @@ void main() {
           ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
         ],
         child: const MaterialApp(
-          home: CreateTripScreen(),
+          home: CreateTripScreen(existingTrip: sampleTrip),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    // 1. Verify Step 1: Budget Awal
-    expect(find.text('LANGKAH 1 DARI 3: BUDGET AWAL'), findsOneWidget);
+    // 1. Verify Step 1: Info & Budget
+    expect(find.text('LANGKAH 1 DARI 3: INFO & BUDGET'), findsOneWidget);
     expect(find.text('33%'), findsOneWidget);
-    expect(find.text('1. Budget Awal'), findsOneWidget);
-    expect(find.text('2. Destinasi & Jam'), findsOneWidget);
-    expect(find.text('3. Ringkasan Trip'), findsOneWidget);
+    expect(find.text('1. Info & Budget'), findsOneWidget);
+    expect(find.text('2. Destinasi & Jadwal'), findsOneWidget);
+    expect(find.text('3. Ringkasan & Notifikasi'), findsOneWidget);
 
-    expect(find.text('INFORMASI PERJALANAN'), findsOneWidget);
-    expect(find.text('TARGET BUDGET & PERSONALISASI'), findsOneWidget);
-    expect(find.text('Pagu Target Anggaran Utama'), findsOneWidget);
-    expect(find.text('Zona Waktu Asal Pengguna'), findsOneWidget);
+    expect(find.text('INFO TRIP'), findsWidgets);
+    expect(find.text('BUDGET TRIP'), findsOneWidget);
+    expect(find.text('Target Budget'), findsOneWidget);
+    expect(find.text('Zona Waktu Asal'), findsOneWidget);
 
     // 2. Tap button to move to Step 2
-    final step1NextBtn = find.text('Lanjut Pilih Destinasi & Jam');
+    final step1NextBtn = find.text('Lanjut ke Destinasi & Jadwal');
     expect(step1NextBtn, findsOneWidget);
     await tester.tap(step1NextBtn);
     await tester.pumpAndSettle();
 
-    // 3. Verify Step 2: Destinasi & Jam
-    expect(find.text('LANGKAH 2 DARI 3: DESTINASI & JAM'), findsOneWidget);
-    expect(find.text('66%'), findsOneWidget);
-    expect(find.text('Destinasi Terpilih'), findsOneWidget);
-    expect(find.text('Museum Sisa Hartaku'), findsOneWidget);
-    expect(find.text('Bunker Kaliadem'), findsOneWidget);
+    // 3. Verify Step 2: Destinasi & Jadwal
+    expect(find.text('LANGKAH 2 DARI 3: DESTINASI & JADWAL'), findsOneWidget);
+    expect(find.text('67%'), findsOneWidget);
+    expect(find.text('Museum Sisa Hartaku'), findsWidgets);
+    expect(find.text('Bunker Kaliadem'), findsWidgets);
 
-    // 4. Tap button to move to Step 3: Ringkasan Trip
-    final step2NextBtn = find.text('Lanjut ke Ringkasan Trip');
+    // 4. Tap button to move to Step 3: Ringkasan & Notifikasi
+    final step2NextBtn = find.text('Lanjut ke Ringkasan');
     expect(step2NextBtn, findsOneWidget);
     await tester.tap(step2NextBtn);
     await tester.pumpAndSettle();
 
-    // 5. Verify Step 3: Ringkasan Trip & Notifikasi
-    expect(find.text('LANGKAH 3 DARI 3: RINGKASAN & NOTIF'), findsOneWidget);
-    expect(find.text('99%'), findsOneWidget);
-    expect(find.text('RINGKASAN ANGGARAN & VALUTA'), findsOneWidget);
+    // 5. Verify Step 3: Ringkasan & Notifikasi
+    expect(find.text('LANGKAH 3 DARI 3: RINGKASAN & NOTIFIKASI'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.text('RINGKASAN BUDGET'), findsOneWidget);
     expect(find.text('Target Budget Awal:'), findsOneWidget);
     expect(find.text('Total Biaya Tiket:'), findsOneWidget);
     expect(find.text('Sisa Anggaran:'), findsOneWidget);
 
-    expect(find.text('ATUR PENGINGAT NOTIFIKASI TRIP'), findsOneWidget);
-    expect(find.text('Waktu Pengiriman Pengingat:'), findsOneWidget);
-    expect(find.text('H-1 Jam Sebelum Perjalanan (06:30 WIB)'), findsOneWidget);
-
-    expect(find.text('Simpan & Buat Trip'), findsOneWidget);
+    expect(find.text('PENGINGAT TRIP'), findsOneWidget);
+    expect(find.text('Simpan Trip'), findsOneWidget);
   });
 }

@@ -430,9 +430,18 @@ void main() {
       );
 
       final tripProvider = TripProvider();
-      await tester.runAsync(() async {
-        await tripProvider.loadUserTrips(1);
-      });
+      tripProvider.setTripsForTesting([
+        const TripModel(
+          id: 1,
+          userId: 1,
+          tripName: 'Exploration Merapi',
+          startDate: '2026-10-25',
+          createdAt: '2026-10-22',
+          targetBudget: 500000.0,
+          totalEstimatedCost: 40000.0,
+          status: 'upcoming',
+        ),
+      ]);
 
       await tester.pumpWidget(
         MultiProvider(
@@ -450,25 +459,15 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Verifikasi Bagian "Konversi Mata Uang"
-      expect(find.text('Konversi Mata Uang'), findsOneWidget);
-      expect(find.text('USD'), findsWidgets);
-      expect(find.text('EUR'), findsWidgets);
-      expect(find.text('JPY'), findsWidgets);
-      expect(find.text('Anggaran Target'), findsOneWidget);
-      expect(find.text('Pengeluaran/Wajib'), findsOneWidget);
-      expect(find.text('Sisa Anggaran'), findsOneWidget);
+      // Verifikasi Bagian "KONVERSI"
+      expect(find.text('KONVERSI'), findsOneWidget);
+      expect(find.text('Zona Waktu:'), findsOneWidget);
+      expect(find.text('Mata Uang:'), findsOneWidget);
 
-      // Verifikasi Bagian "Waktu Perjalanan"
-      expect(find.text('Waktu Perjalanan'), findsOneWidget);
-      expect(find.text('WIB'), findsWidgets);
-      expect(find.text('WITA'), findsWidgets);
-      expect(find.text('WIT'), findsWidgets);
-      expect(find.text('London'), findsWidgets);
-
-      // Verifikasi Tombol / Akses ke Layar Penuh
-      expect(find.text('Kalkulator'), findsOneWidget);
-      expect(find.text('Konverter'), findsOneWidget);
+      // Verifikasi Bagian "BUDGET"
+      expect(find.text('BUDGET'), findsOneWidget);
+      expect(find.textContaining('Target Budget'), findsOneWidget);
+      expect(find.textContaining('Sisa Anggaran'), findsOneWidget);
     });
 
     testWidgets('CurrencyTimeScreen merender tab Kurs Valuta dan Zona Waktu dengan data API/IANA', (WidgetTester tester) async {
@@ -521,8 +520,8 @@ void main() {
   // ===========================================================================
   // 10. INTEGRASI ZONA WAKTU & KURS PADA HALAMAN BUAT TRIP BARU
   // ===========================================================================
-  group('10. Halaman Buat Trip Baru (CreateTripScreen)', () {
-    testWidgets('Merender kartu Zona Waktu dan Konversi Mata Uang sebelum Tips Perjalanan', (tester) async {
+  group('10. Halaman Buat Trip Baru (CreateTripScreen 3 Langkah)', () {
+    testWidgets('Langkah 1 merender Info Trip, Budget Trip, Target Budget, dan Zona Waktu Asal', (tester) async {
       tester.view.physicalSize = const Size(800, 2200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -568,25 +567,23 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Verifikasi urutan tampilan pada Langkah 1
-      expect(find.text('Nama Perjalanan'), findsOneWidget);
-      expect(find.text('Tanggal Perjalanan'), findsOneWidget);
-      expect(find.text('Jumlah Peserta'), findsOneWidget);
+      // Verifikasi komponen Langkah 1 sesuai Table K
+      expect(find.text('LANGKAH 1 DARI 3: INFO & BUDGET'), findsOneWidget);
+      expect(find.text('33%'), findsOneWidget);
+      expect(find.text('INFO TRIP'), findsOneWidget);
+      expect(find.text('Nama Trip'), findsOneWidget);
+      expect(find.text('Tanggal'), findsOneWidget);
+      expect(find.text('Peserta'), findsOneWidget);
 
-      // Kartu Zona Waktu Perjalanan
-      expect(find.text('Zona Waktu Perjalanan'), findsOneWidget);
+      expect(find.text('BUDGET TRIP'), findsOneWidget);
+      expect(find.text('Target Budget'), findsOneWidget);
+      expect(find.text('Zona Waktu Asal'), findsOneWidget);
 
-      // Kartu Konversi Mata Uang
-      expect(find.text('Konversi Mata Uang'), findsOneWidget);
-
-      // Tips Perjalanan setelahnya
-      expect(find.text('Tips Perjalanan Gunung Merapi'), findsOneWidget);
-
-      // Tombol aksi
-      expect(find.text('Lanjut ke Destinasi'), findsOneWidget);
+      // Tombol lanjut ke langkah 2
+      expect(find.text('Lanjut ke Destinasi & Jadwal'), findsOneWidget);
     });
 
-    testWidgets('Kondisi tanpa lokasi asal tidak mengarang zona waktu', (tester) async {
+    testWidgets('Destinasi terkunci secara konsisten ke kawasan Lereng Merapi (Asia/Jakarta)', (tester) async {
       tester.view.physicalSize = const Size(800, 2200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
@@ -594,17 +591,6 @@ void main() {
       final authProvider = AuthProvider();
       final tripProvider = TripProvider();
       final utilityProvider = UtilityProvider(autoInit: false);
-      utilityProvider.setRatesForTesting(
-        rates: {
-          'EUR': 1.0,
-          'IDR': 20062.67,
-          'USD': 1.1195,
-          'JPY': 177.39,
-        },
-        apiDate: '2026-10-14',
-        lastSyncText: '15 Okt 2026, 20:00 WIB',
-        isCache: false,
-      );
 
       await tester.pumpWidget(
         MultiProvider(
@@ -622,194 +608,18 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Buka kartu zona waktu (defaultnya tertutup)
-      await tester.tap(find.text('Zona Waktu Perjalanan'));
-      await tester.pumpAndSettle();
-
-      // Memastikan kondisi lokasi belum dipilih
-      expect(find.text('Belum dipilih (Pilih kota asal)'), findsOneWidget);
-      expect(find.text('Zona waktu belum ditentukan'), findsOneWidget);
-      expect(find.text('Lokasi asal belum dipilih. Zona waktu belum ditentukan secara otomatis.'), findsOneWidget);
-    });
-
-    testWidgets('Memilih kota asal secara dinamis menetapkan zona waktu IANA dan tersimpan ke itinerary', (tester) async {
-      tester.view.physicalSize = const Size(800, 2200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final authProvider = AuthProvider();
-      final tripProvider = TripProvider();
-      final utilityProvider = UtilityProvider(autoInit: false);
-      utilityProvider.setRatesForTesting(
-        rates: {
-          'EUR': 1.0,
-          'IDR': 20062.67,
-          'USD': 1.1195,
-          'JPY': 177.39,
-        },
-        apiDate: '2026-10-14',
-        lastSyncText: '15 Okt 2026, 20:00 WIB',
-        isCache: false,
-      );
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-            ChangeNotifierProvider<TripProvider>.value(value: tripProvider),
-            ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
-          ],
-          child: const MaterialApp(
-            home: CreateTripScreen(),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Buka kartu zona waktu (defaultnya tertutup)
-      await tester.tap(find.text('Zona Waktu Perjalanan'));
-      await tester.pumpAndSettle();
-
-      // Buka pemilih kota asal
-      await tester.tap(find.text('Belum dipilih (Ketuk untuk memilih)'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Pilih Denpasar (WITA)
-      expect(find.text('Denpasar / Kuta'), findsOneWidget);
-      await tester.tap(find.text('Denpasar / Kuta'));
-      await tester.pumpAndSettle();
-
-      // Verifikasi bahwa pilihan tersimpan ke builderTrip
-      expect(tripProvider.builderTrip?.originCity, 'Denpasar / Kuta');
-      expect(tripProvider.builderTrip?.originTimezone, 'Asia/Makassar');
-      expect(tripProvider.builderTrip?.destinationTimezone, 'Asia/Jakarta');
-
-      // Tampilan kartu terbarui dengan perbandingan waktu
-      expect(find.textContaining('Denpasar / Kuta ➔'), findsOneWidget);
-      expect(find.textContaining('WITA'), findsWidgets);
-    });
-
-    testWidgets('Kartu zona waktu dan konversi mata uang dapat dibuka-tutup (collapsible)', (tester) async {
-      tester.view.physicalSize = const Size(800, 2200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final authProvider = AuthProvider();
-      final tripProvider = TripProvider();
-      final utilityProvider = UtilityProvider(autoInit: false);
-      utilityProvider.setRatesForTesting(
-        rates: {
-          'EUR': 1.0,
-          'IDR': 20062.67,
-          'USD': 1.1195,
-          'JPY': 177.39,
-        },
-        apiDate: '2026-10-14',
-        lastSyncText: '15 Okt 2026, 20:00 WIB',
-        isCache: false,
-      );
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-            ChangeNotifierProvider<TripProvider>.value(value: tripProvider),
-            ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
-          ],
-          child: const MaterialApp(
-            home: CreateTripScreen(),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Awalnya tertutup: teks KOTA ASAL belum muncul
-      expect(find.text('KOTA ASAL'), findsNothing);
-
-      // Buka kartu zona waktu dengan mengetuk header
-      await tester.tap(find.text('Zona Waktu Perjalanan'));
-      await tester.pumpAndSettle();
-
-      // Konten detail terbuka
-      expect(find.text('KOTA ASAL'), findsOneWidget);
-
-      // Tutup kembali
-      await tester.tap(find.text('Zona Waktu Perjalanan'));
-      await tester.pumpAndSettle();
-      expect(find.text('KOTA ASAL'), findsNothing);
-    });
-
-    testWidgets('Destinasi perjalanan terkunci secara konsisten ke kawasan Gunung Merapi (WIB)', (tester) async {
-      tester.view.physicalSize = const Size(800, 2200);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final authProvider = AuthProvider();
-      final tripProvider = TripProvider();
-      final utilityProvider = UtilityProvider(autoInit: false);
-      utilityProvider.setRatesForTesting(
-        rates: {
-          'EUR': 1.0,
-          'IDR': 20000.0,
-          'USD': 1.0,
-          'JPY': 100.0,
-        },
-        apiDate: '2026-10-14',
-        lastSyncText: '15 Okt 2026, 20:00 WIB',
-        isCache: false,
-      );
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-            ChangeNotifierProvider<TripProvider>.value(value: tripProvider),
-            ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
-          ],
-          child: const MaterialApp(
-            home: CreateTripScreen(),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Buka kartu zona waktu (defaultnya tertutup)
-      await tester.tap(find.text('Zona Waktu Perjalanan'));
-      await tester.pumpAndSettle();
-
-      // Memastikan indikator terkunci ke Merapi muncul
-      expect(find.text('Terkunci ke Merapi'), findsOneWidget);
-      expect(find.textContaining('Destinasi perjalanan dikunci ke Kawasan Gunung Merapi'), findsOneWidget);
+      expect(tripProvider.builderTrip?.destinationCity, 'Gunung Merapi (Kaliadem)');
       expect(tripProvider.builderTrip?.destinationTimezone, 'Asia/Jakarta');
     });
 
-    testWidgets('Langkah 1 hanya menampilkan nilai tukar per harga 1 tanpa konversi budget, sedangkan konversi budget ada di Langkah 4', (tester) async {
+    testWidgets('Zona Waktu Asal dapat dipilih dari dropdown dan tersimpan di builderTrip', (tester) async {
       tester.view.physicalSize = const Size(800, 2200);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(tester.view.resetPhysicalSize);
 
       final authProvider = AuthProvider();
       final tripProvider = TripProvider();
-      tripProvider.initBuilderTrip(empty: false); // Pre-seed destinasi agar dapat berpindah ke Langkah 4
       final utilityProvider = UtilityProvider(autoInit: false);
-      utilityProvider.setRatesForTesting(
-        rates: {
-          'EUR': 1.0,
-          'IDR': 20000.0,
-          'USD': 1.0,
-          'JPY': 100.0,
-        },
-        apiDate: '2026-10-14',
-        lastSyncText: '15 Okt 2026, 20:00 WIB',
-        isCache: false,
-      );
 
       await tester.pumpWidget(
         MultiProvider(
@@ -827,42 +637,98 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
 
-      // Buka kartu konversi mata uang (defaultnya tertutup)
-      await tester.tap(find.text('Konversi Mata Uang'));
+      // Buka dropdown Zona Waktu Asal
+      final tzFinder = find.text('WIB (GMT+7) - Lokal Merapi');
+      expect(tzFinder, findsOneWidget);
+      await tester.tap(tzFinder);
       await tester.pumpAndSettle();
 
-      // 1. Verifikasi di Langkah 1: Hanya menampilkan kurs per 1 unit
-      expect(find.textContaining('Kurs Referensi Frankfurter'), findsOneWidget);
-      expect(find.text('NILAI TUKAR ACUAN (PER 1 UNIT)'), findsOneWidget);
-      expect(find.text('1 USD = Rp 20.000 IDR'), findsOneWidget);
-      expect(find.text('1 IDR = 0.000050 USD'), findsOneWidget);
-      expect(find.text('1 EUR = Rp 20.000 IDR'), findsOneWidget);
-      expect(find.text('1 JPY = Rp 200 IDR'), findsOneWidget);
-
-      // Pastikan di Langkah 1 TIDAK melakukan konversi total pagu anggaran
-      expect(find.textContaining('Estimasi Pagu Anggaran:'), findsNothing);
-      expect(
-        find.textContaining('Konversi total target pagu anggaran trip Anda akan dihitung di Bagian 4'),
-        findsOneWidget,
-      );
-
-      // 2. Berpindah ke Langkah 4 (Budget)
-      await tester.tap(find.text('Budget'));
+      // Pilih WITA
+      final witaFinder = find.text('WITA (GMT+8) - Bali/Makassar').last;
+      await tester.tap(witaFinder);
       await tester.pumpAndSettle();
 
-      // 3. Verifikasi di Langkah 4: Terdapat Konversi Valuta Anggaran
-      expect(find.text('Konversi Valuta Anggaran'), findsOneWidget);
-      expect(find.text('IDR ➔ USD'), findsOneWidget);
+      expect(tripProvider.builderTrip?.originTimezone, 'WITA (GMT+8) - Bali/Makassar');
+    });
 
-      // Target budget 400.000 IDR dikonversi ke USD ($ 20.00)
-      expect(find.text(utilityProvider.formatCurrency(20.0, 'USD')), findsOneWidget);
+    testWidgets('Target Budget dengan mata uang dinamis dan awalan simbol dinamis', (tester) async {
+      tester.view.physicalSize = const Size(800, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
 
-      // Anggaran asli tetap disimpan dalam IDR
-      expect(tripProvider.builderTrip?.targetBudget, 400000.0);
-      expect(
-        find.text('*Anggaran utama tetap disimpan dalam Rupiah (IDR). Konversi mata uang disediakan sebagai panduan estimasi pengeluaran bagi wisatawan.', findRichText: true),
-        findsOneWidget,
+      final authProvider = AuthProvider();
+      final tripProvider = TripProvider();
+      final utilityProvider = UtilityProvider(autoInit: false);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+            ChangeNotifierProvider<TripProvider>.value(value: tripProvider),
+            ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
+          ],
+          child: const MaterialApp(
+            home: CreateTripScreen(),
+          ),
+        ),
       );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Awalnya mata uang IDR dengan simbol Rp
+      expect(find.textContaining('Rp'), findsWidgets);
+
+      // Ganti mata uang ke USD
+      final currDropdown = find.text('IDR (Rp)');
+      expect(currDropdown, findsOneWidget);
+      await tester.tap(currDropdown);
+      await tester.pumpAndSettle();
+
+      final usdOption = find.text(r'USD ($)').last;
+      await tester.tap(usdOption);
+      await tester.pumpAndSettle();
+
+      // Simbol otomatis berganti menjadi $
+      expect(find.textContaining(r'$'), findsWidgets);
+      expect(find.text('*Estimasi anggaran dihitung berdasarkan mata uang USD'), findsOneWidget);
+    });
+
+    testWidgets('Navigasi stepper 3 langkah dan empty state destinasi baru', (tester) async {
+      tester.view.physicalSize = const Size(800, 2200);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final authProvider = AuthProvider();
+      final tripProvider = TripProvider();
+      final utilityProvider = UtilityProvider(autoInit: false);
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+            ChangeNotifierProvider<TripProvider>.value(value: tripProvider),
+            ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
+          ],
+          child: const MaterialApp(
+            home: CreateTripScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // Berpindah ke Langkah 2
+      await tester.tap(find.text('2. Destinasi & Jadwal'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('LANGKAH 2 DARI 3: DESTINASI & JADWAL'), findsOneWidget);
+      expect(find.text('67%'), findsOneWidget);
+      expect(find.text('Belum ada destinasi'), findsOneWidget);
+      expect(find.text('Pilih destinasi untuk memulai perjalanan'), findsOneWidget);
+      expect(find.text('Pilih Destinasi'), findsOneWidget);
     });
   });
 }

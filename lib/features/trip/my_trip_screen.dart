@@ -85,16 +85,20 @@ class _MyTripScreenState extends State<MyTripScreen> {
     return '$symbol${converted.toStringAsFixed(2)}';
   }
 
-  String _formatTimeWithTimezone(String plannedTime, int defaultHour, int defaultMinute) {
-    int hour = defaultHour;
-    int minute = defaultMinute;
-    if (plannedTime.isNotEmpty) {
-      final clean = plannedTime.replaceAll(RegExp(r'[^\d:]'), '');
-      final parts = clean.split(':');
-      if (parts.length >= 2) {
-        hour = int.tryParse(parts[0]) ?? defaultHour;
-        minute = int.tryParse(parts[1]) ?? defaultMinute;
-      }
+  String _formatTimeWithTimezone(String? plannedTime) {
+    if (plannedTime == null || plannedTime.trim().isEmpty) {
+      return 'Belum dijadwalkan';
+    }
+
+    final match = RegExp(r'\b(\d{1,2}):(\d{2})\b').firstMatch(plannedTime);
+    if (match == null) {
+      return 'Belum dijadwalkan';
+    }
+
+    final hour = int.tryParse(match.group(1)!);
+    final minute = int.tryParse(match.group(2)!);
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+      return 'Belum dijadwalkan';
     }
 
     int offset = 0;
@@ -319,10 +323,65 @@ class _MyTripScreenState extends State<MyTripScreen> {
     }
   }
 
-  void _showTripMenuSheet(BuildContext context, TripModel trip) {
-    final tripProvider = context.read<TripProvider>();
+  Future<void> _showDeleteTripConfirmationDialog(
+    BuildContext context,
+    TripModel trip,
+    TripProvider tripProvider,
+  ) async {
     final auth = context.read<AuthProvider>();
     final userId = auth.currentUser?.id ?? trip.userId;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Hapus trip "${trip.tripName}"?',
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        content: const Text(
+          'Trip ini akan dihapus. Tindakan ini tidak dapat dibatalkan.',
+          style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Batal', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w600)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE11D48),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && trip.id != null && context.mounted) {
+      final success = await tripProvider.deleteTrip(trip.id!, userId);
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Trip "${trip.tripName}" berhasil dihapus.')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal menghapus trip. Anda mungkin tidak memiliki izin atau trip tidak ditemukan.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _showTripMenuSheet(BuildContext context, TripModel trip) {
+    final tripProvider = context.read<TripProvider>();
 
     showModalBottomSheet(
       context: context,
@@ -411,15 +470,10 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: AppColors.error),
-                  title: Text('Hapus Rencana Trip', style: AppTypography.bodyMd.copyWith(color: AppColors.error)),
+                  title: Text('Hapus Trip', style: AppTypography.bodyMd.copyWith(color: AppColors.error)),
                   onTap: () {
                     Navigator.pop(ctx);
-                    if (trip.id != null) {
-                      tripProvider.deleteTrip(trip.id!, userId);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Rencana trip berhasil dihapus.')),
-                      );
-                    }
+                    _showDeleteTripConfirmationDialog(context, trip, tripProvider);
                   },
                 ),
               ],
@@ -822,7 +876,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'DASHBOARD PERJALANAN',
+                        'Perjalanan',
                         style: TextStyle(
                           color: Color(0xFF059669),
                           fontWeight: FontWeight.w800,
@@ -844,7 +898,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                           ),
                           InkWell(
                             onTap: () {
-                              tripProvider.initBuilderTrip(empty: false);
+                              tripProvider.initBuilderTrip(empty: true);
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (_) => const CreateTripScreen()),
@@ -905,58 +959,16 @@ class _MyTripScreenState extends State<MyTripScreen> {
                       context,
                       activeTrip,
                       tripProvider,
-                      activeTrip.items.isNotEmpty
-                          ? activeTrip.items
-                          : const [
-                              TripItemModel(
-                                tripId: 1,
-                                visitOrder: 1,
-                                itemName: 'Museum Sisa Hartaku',
-                                itemSubtitle: 'Kunjungan Memoar Erupsi',
-                                estimatedCost: 20000,
-                                plannedTime: '07:30',
-                                notes: 'Kunjungan Memoar Erupsi',
-                              ),
-                              TripItemModel(
-                                tripId: 1,
-                                visitOrder: 2,
-                                itemName: 'Bunker Kaliadem',
-                                itemSubtitle: 'Spot Panorama Puncak Merapi',
-                                estimatedCost: 20000,
-                                plannedTime: '09:15',
-                                notes: 'Spot Panorama Puncak Merapi',
-                              ),
-                            ],
+                      activeTrip.items,
                     ),
-                    // Card 3: KONVERSI AKSES CEPAT
+                    // Card 3: KONVERSI
                     _buildQuickConversionCard(context),
                     // Card 4: ESTIMASI & BUDGET
                     _buildEstimasiBudgetCard(activeTrip),
                     // Card 5: TIMELINE RUTE
                     _buildTimelineRuteCard(
                       activeTrip,
-                      activeTrip.items.isNotEmpty
-                          ? activeTrip.items
-                          : const [
-                              TripItemModel(
-                                tripId: 1,
-                                visitOrder: 1,
-                                itemName: 'Museum Sisa Hartaku',
-                                itemSubtitle: 'Kunjungan Memoar Erupsi',
-                                estimatedCost: 20000,
-                                plannedTime: '07:30',
-                                notes: 'Kunjungan Memoar Erupsi',
-                              ),
-                              TripItemModel(
-                                tripId: 1,
-                                visitOrder: 2,
-                                itemName: 'Bunker Kaliadem',
-                                itemSubtitle: 'Spot Panorama Puncak Merapi',
-                                estimatedCost: 20000,
-                                plannedTime: '09:15',
-                                notes: 'Spot Panorama Puncak Merapi',
-                              ),
-                            ],
+                      activeTrip.items,
                     ),
                   ] else ...[
                     _buildEmptyUpcomingState(context),
@@ -1245,7 +1257,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                                       ),
                                     ),
                                   ),
-                                  if (isSelected)
+                                  if (isSelected) ...[
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                       decoration: BoxDecoration(
@@ -1261,6 +1273,18 @@ class _MyTripScreenState extends State<MyTripScreen> {
                                         ),
                                       ),
                                     ),
+                                    const SizedBox(width: 4),
+                                  ],
+                                  IconButton(
+                                    icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                    tooltip: 'Hapus Trip',
+                                    onPressed: () {
+                                      Navigator.pop(ctx);
+                                      _showDeleteTripConfirmationDialog(context, t, tripProvider);
+                                    },
+                                  ),
                                 ],
                               ),
                               const SizedBox(height: 6),
@@ -1424,6 +1448,17 @@ class _MyTripScreenState extends State<MyTripScreen> {
                                   },
                                   child: const Text('Aktifkan & Mulai', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                 ),
+                                const SizedBox(width: 4),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                  tooltip: 'Hapus Draft',
+                                  onPressed: () {
+                                    Navigator.pop(ctx);
+                                    _showDeleteTripConfirmationDialog(context, draft, tripProvider);
+                                  },
+                                ),
                               ],
                             ),
                           );
@@ -1441,12 +1476,12 @@ class _MyTripScreenState extends State<MyTripScreen> {
                         ),
                         icon: const Icon(Icons.add_circle_outline, size: 18),
                         label: const Text(
-                          '+ Buat Rencana Trip Baru',
+                          '+ Trip Baru',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                         onPressed: () {
                           Navigator.pop(ctx);
-                          tripProvider.initBuilderTrip(empty: false);
+                          tripProvider.initBuilderTrip(empty: true);
                           Navigator.push(
                             context,
                             MaterialPageRoute(builder: (_) => const CreateTripScreen()),
@@ -1605,6 +1640,14 @@ class _MyTripScreenState extends State<MyTripScreen> {
               ),
             ),
           ),
+          const SizedBox(width: 2),
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Color(0xFF64748B), size: 18),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            tooltip: 'Opsi Trip',
+            onPressed: () => _showTripMenuSheet(context, activeTrip),
+          ),
         ],
       ),
     );
@@ -1640,7 +1683,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                   Icon(Icons.tune, color: Color(0xFFA7F3D0), size: 16),
                   SizedBox(width: 6),
                   Text(
-                    'KONVERSI AKSES CEPAT',
+                    'KONVERSI',
                     style: TextStyle(
                       color: Color(0xFFA7F3D0),
                       fontSize: 11,
@@ -1784,14 +1827,78 @@ class _MyTripScreenState extends State<MyTripScreen> {
     );
   }
 
-  // Card 4: ESTIMASI & BUDGET
+  Widget _buildBudgetRow(String label, String value, Color valueColor, {bool isBold = false}) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 260) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: const Color(0xFF64748B),
+                    fontSize: 12,
+                    fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: valueColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: const Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: isBold ? FontWeight.bold : FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  value,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: valueColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Card 4: BUDGET
   Widget _buildEstimasiBudgetCard(TripModel trip) {
-    final targetBudget = trip.targetBudget > 0 ? trip.targetBudget : 500000.0;
+    final targetBudget = trip.targetBudget;
     double ticketCost = 0;
     for (final item in trip.items) {
       ticketCost += item.estimatedCost;
     }
-    if (ticketCost == 0) ticketCost = 40000.0;
     final remaining = targetBudget - ticketCost;
 
     final targetConverted = _formatConvertedCurrency(targetBudget, _selectedCurrency);
@@ -1827,7 +1934,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                   Icon(Icons.account_balance_wallet_rounded, color: Color(0xFF1E293B), size: 16),
                   SizedBox(width: 6),
                   Text(
-                    'ESTIMASI & BUDGET',
+                    'BUDGET',
                     style: TextStyle(
                       color: Color(0xFF1E293B),
                       fontWeight: FontWeight.w800,
@@ -1855,65 +1962,26 @@ class _MyTripScreenState extends State<MyTripScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Target Budget:',
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-              Text(
-                '${_formatCurrency(targetBudget)} ($targetConverted)',
-                style: const TextStyle(
-                  color: Color(0xFF1E293B),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+          _buildBudgetRow(
+            'Target Budget:',
+            '${_formatCurrency(targetBudget)} ($targetConverted)',
+            const Color(0xFF1E293B),
           ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Tiket Wajib (${trip.participantCount} Pax):',
-                style: const TextStyle(color: Color(0xFF64748B), fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-              Text(
-                '- ${_formatCurrency(ticketCost)} (-$ticketConverted)',
-                style: const TextStyle(
-                  color: Color(0xFFE11D48),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+          const SizedBox(height: 4),
+          _buildBudgetRow(
+            'Tiket Wajib (${trip.participantCount} Pax):',
+            '- ${_formatCurrency(ticketCost)} (-$ticketConverted)',
+            const Color(0xFFE11D48),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
             child: Divider(height: 1, color: Color(0xFFE2E8F0)),
           ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Sisa Anggaran:',
-                style: TextStyle(
-                  color: Color(0xFF1E293B),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-              Text(
-                '${_formatCurrency(remaining)} ($remainingConverted)',
-                style: const TextStyle(
-                  color: Color(0xFF059669),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 13,
-                ),
-              ),
-            ],
+          _buildBudgetRow(
+            'Sisa Anggaran:',
+            '${_formatCurrency(remaining)} ($remainingConverted)',
+            const Color(0xFF059669),
+            isBold: true,
           ),
         ],
       ),
@@ -1922,6 +1990,85 @@ class _MyTripScreenState extends State<MyTripScreen> {
 
   // Card 5: TIMELINE RUTE
   Widget _buildTimelineRuteCard(TripModel trip, List<TripItemModel> items) {
+    if (items.isEmpty) {
+      return Container(
+        margin: const EdgeInsets.symmetric(
+          horizontal: AppDimensions.margin,
+          vertical: 6,
+        ),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withAlpha(6),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF1F5F9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.place_outlined, color: Color(0xFF94A3B8), size: 26),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Belum ada destinasi',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Pilih destinasi untuk memulai perjalanan',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 14),
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF045E44),
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                ),
+                icon: const Icon(Icons.add_location_alt_outlined, size: 16),
+                label: const Text(
+                  'Pilih Destinasi',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                onPressed: () {
+                  context.read<TripProvider>().initBuilderTrip(existingTrip: trip);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => CreateTripScreen(existingTrip: trip),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final safeSelected = _selectedTimelineIndex.clamp(0, items.length - 1);
 
     return Container(
@@ -1984,14 +2131,10 @@ class _MyTripScreenState extends State<MyTripScreen> {
             final item = items[index];
             final isLast = index == items.length - 1;
             final isSelected = safeSelected == index;
-            final timeDisplay = _formatTimeWithTimezone(
-              item.plannedTime,
-              index == 0 ? 7 : 9,
-              index == 0 ? 30 : 15,
-            );
+            final timeDisplay = _formatTimeWithTimezone(item.plannedTime);
             final noteDisplay = (item.notes != null && item.notes!.isNotEmpty)
                 ? item.notes!
-                : (index == 0 ? 'Kunjungan Memoar Erupsi' : 'Spot Panorama Puncak Merapi');
+                : (item.itemSubtitle.isNotEmpty ? item.itemSubtitle : 'Destinasi Terjadwal');
 
             return InkWell(
               onTap: () {
@@ -2055,7 +2198,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                         children: [
                           Row(
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Text(
                                   item.itemName,
                                   style: TextStyle(
@@ -2135,9 +2278,12 @@ class _MyTripScreenState extends State<MyTripScreen> {
     TripProvider tripProvider,
     List<TripItemModel> timelineItems,
   ) {
-    final safeIndex = _selectedTimelineIndex.clamp(0, timelineItems.length - 1);
-    final currentStop = timelineItems[safeIndex];
-    final heroImageUrl = _getTimelineItemImageUrl(currentStop, trip);
+    final currentStop = timelineItems.isNotEmpty
+        ? timelineItems[_selectedTimelineIndex.clamp(0, timelineItems.length - 1)]
+        : null;
+    final heroImageUrl = currentStop != null
+        ? _getTimelineItemImageUrl(currentStop, trip)
+        : 'https://images.unsplash.com/photo-1544735716-392fe2489ffa?q=80&w=800&auto=format&fit=crop';
 
     return InkWell(
       onTap: () => _handleStartTrip(context, trip, tripProvider),
@@ -2253,7 +2399,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                               ConstrainedBox(
                                 constraints: const BoxConstraints(maxWidth: 130),
                                 child: Text(
-                                  currentStop.itemName,
+                                  currentStop?.itemName ?? (trip.destinationCity != null && trip.destinationCity!.isNotEmpty ? trip.destinationCity! : 'Lereng Merapi'),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
@@ -2289,7 +2435,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                '${trip.participantCount} Peserta Wisatawan • Rute: ${currentStop.itemName}',
+                                currentStop != null
+                                    ? '${trip.participantCount} Peserta Wisatawan • Rute: ${currentStop.itemName}'
+                                    : '${trip.participantCount} Peserta Wisatawan',
                                 style: TextStyle(
                                   color: Colors.white.withAlpha(230),
                                   fontSize: 11,
@@ -2542,14 +2690,10 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFCBD5E1), size: 20),
+                icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFF94A3B8), size: 20),
+                tooltip: 'Hapus Draft',
                 onPressed: () {
-                  if (draft.id != null) {
-                    tripProvider.deleteTrip(draft.id!, userId);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Draft trip berhasil dihapus.')),
-                    );
-                  }
+                  _showDeleteTripConfirmationDialog(context, draft, tripProvider);
                 },
               ),
             ],
@@ -2713,11 +2857,26 @@ class _MyTripScreenState extends State<MyTripScreen> {
                         ],
                       ),
                     ),
-                    Text(
-                      trip.completedAt != null && trip.completedAt!.length >= 10
-                          ? trip.completedAt!.substring(0, 10)
-                          : trip.startDate,
-                      style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          trip.completedAt != null && trip.completedAt!.length >= 10
+                              ? trip.completedAt!.substring(0, 10)
+                              : trip.startDate,
+                          style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
+                        ),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                          tooltip: 'Hapus Trip',
+                          onPressed: () {
+                            _showDeleteTripConfirmationDialog(context, trip, tripProvider);
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),

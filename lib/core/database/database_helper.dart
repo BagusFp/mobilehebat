@@ -7,6 +7,7 @@ import '../../data/models/trip_expense_model.dart';
 import '../../data/models/trip_item_model.dart';
 import '../../data/models/trip_model.dart';
 import '../utils/crypto_helper.dart';
+import 'preferences_helper.dart';
 
 class DatabaseHelper {
   static const String _databaseName = 'meratrip.db';
@@ -277,6 +278,10 @@ class DatabaseHelper {
 
     // Seed Data Rencana Trip Awal (FR-04, FR-05)
     await _seedTrips(db);
+    try {
+      final prefs = await PreferencesHelper.instance;
+      await prefs.setTripsSeeded(true);
+    } catch (_) {}
   }
 
   Future<void> _seedDestinations(Database db) async {
@@ -509,69 +514,21 @@ class DatabaseHelper {
     }
   }
 
-  /// Memastikan tabel trips telah terisi
+  /// Memastikan tabel trips telah terisi hanya saat inisialisasi awal aplikasi
   Future<void> ensureTripsSeeded() async {
+    final prefs = await PreferencesHelper.instance;
+    if (prefs.hasTripsSeeded()) {
+      return;
+    }
+
     final db = await database;
     final count = Sqflite.firstIntValue(
       await db.rawQuery('SELECT COUNT(*) FROM trips'),
     );
     if (count == null || count == 0) {
       await _seedTrips(db);
-    } else {
-      final trip5Count = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM trips WHERE id = 5'),
-      );
-      if (trip5Count == null || trip5Count == 0) {
-        final now = DateTime.now().toIso8601String();
-        await db.insert('trips', {
-          'id': 5,
-          'user_id': 1,
-          'trip_name': 'Lava Tour Sunrise & Jeep Merapi',
-          'start_date': '28 Okt 2026',
-          'origin_city': 'Yogyakarta',
-          'destination_city': 'Bunker Kaliadem',
-          'participant_count': 3,
-          'target_budget': 650000.0,
-          'total_estimated_cost': 45000.0,
-          'status': 'upcoming',
-          'reminder_enabled': 1,
-          'is_saved_offline': 1,
-          'banner_image_url':
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
-          'created_at': now,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-        final batch = db.batch();
-        batch.insert('trip_items', {
-          'id': 7,
-          'trip_id': 5,
-          'destination_id': 1,
-          'item_name': 'Bunker Kaliadem',
-          'item_subtitle': 'Sunrise Panorama Puncak Merapi',
-          'visit_order': 1,
-          'planned_time': '05:30 WIB',
-          'duration_hours': 2.0,
-          'estimated_cost': 25000.0,
-          'notes': 'Spot sunrise terbaik lereng selatan',
-          'elevation_mdpl': 1165,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-        batch.insert('trip_items', {
-          'id': 8,
-          'trip_id': 5,
-          'destination_id': 2,
-          'item_name': 'Museum Sisa Hartaku',
-          'item_subtitle': 'Edukasi Memoar Erupsi',
-          'visit_order': 2,
-          'planned_time': '08:00 WIB',
-          'duration_hours': 1.5,
-          'estimated_cost': 20000.0,
-          'notes': 'Koleksi peninggalan erupsi',
-          'elevation_mdpl': 920,
-        }, conflictAlgorithm: ConflictAlgorithm.replace);
-        await batch.commit(noResult: true);
-      }
     }
+    await prefs.setTripsSeeded(true);
   }
 
   /// Menutup koneksi database

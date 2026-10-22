@@ -91,7 +91,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // 1. Verify Quick Conversion Card exists and has dropdowns
-    expect(find.text('KONVERSI AKSES CEPAT'), findsOneWidget);
+    expect(find.text('KONVERSI'), findsOneWidget);
     expect(find.text('Zona Waktu:'), findsOneWidget);
     expect(find.text('Mata Uang:'), findsOneWidget);
 

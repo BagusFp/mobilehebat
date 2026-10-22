@@ -201,15 +201,28 @@ class NotificationService {
           ? 'Perjalanan menuju $startDestinationName dimulai dalam $timingString. Siapkan ransel & perlengkapan Anda!'
           : 'Trip "$tripTitle" akan dimulai dalam $timingString. Ketuk untuk membuka rute!';
 
-      await _localNotifPlugin.zonedSchedule(
-        id: tripId,
-        title: '🔔 Pengingat Trip: $tripTitle',
-        body: bodyText,
-        scheduledDate: tzTrigger,
-        notificationDetails: _buildNotificationDetails(),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-        payload: '/trip/$tripId',
-      );
+      try {
+        await _localNotifPlugin.zonedSchedule(
+          id: tripId,
+          title: '🔔 Pengingat Trip: $tripTitle',
+          body: bodyText,
+          scheduledDate: tzTrigger,
+          notificationDetails: _buildNotificationDetails(),
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          payload: '/trip/$tripId',
+        );
+      } catch (scheduleErr) {
+        debugPrint('Exact alarm failed, falling back to inexact: $scheduleErr');
+        await _localNotifPlugin.zonedSchedule(
+          id: tripId,
+          title: '🔔 Pengingat Trip: $tripTitle',
+          body: bodyText,
+          scheduledDate: tzTrigger,
+          notificationDetails: _buildNotificationDetails(),
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          payload: '/trip/$tripId',
+        );
+      }
 
       debugPrint(
           'NotificationService: Alarm trip #$tripId dijadwalkan pada $triggerTime ($timingString sebelum start)');
