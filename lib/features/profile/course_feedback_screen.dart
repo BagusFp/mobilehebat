@@ -5,7 +5,8 @@ import '../../core/constants/app_typography.dart';
 import '../../core/database/database_helper.dart';
 
 class CourseFeedbackScreen extends StatefulWidget {
-  const CourseFeedbackScreen({super.key});
+  final bool isTab;
+  const CourseFeedbackScreen({super.key, this.isTab = false});
 
   @override
   State<CourseFeedbackScreen> createState() => _CourseFeedbackScreenState();
@@ -87,7 +88,9 @@ class _CourseFeedbackScreenState extends State<CourseFeedbackScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogCtx);
-              Navigator.of(context).maybePop();
+              if (!widget.isTab) {
+                Navigator.of(context).maybePop();
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -104,21 +107,23 @@ class _CourseFeedbackScreenState extends State<CourseFeedbackScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: AppColors.surfaceContainerLowest.withAlpha(230),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Evaluasi Mata Kuliah PAM',
-          style: AppTypography.titleMd.copyWith(
-            color: AppColors.onSurface,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
+      appBar: widget.isTab
+          ? null
+          : AppBar(
+              backgroundColor: AppColors.surfaceContainerLowest.withAlpha(230),
+              elevation: 0,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+              title: Text(
+                'Evaluasi Mata Kuliah PAM',
+                style: AppTypography.titleMd.copyWith(
+                  color: AppColors.onSurface,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
       body: ListView(
         padding: const EdgeInsets.all(AppDimensions.margin),
         children: [

@@ -410,14 +410,14 @@ class TripProvider extends ChangeNotifier {
       );
       _builderItems = [];
     } else {
-      // Inisialisasi template default Eksplorasi Merapi 1 Hari
+      // Inisialisasi template default Exploration Offroad Merapi
       _builderTrip = TripModel(
         userId: 1,
-        tripName: 'Eksplorasi Merapi 1 Hari',
-        startDate: _formatTodayDate(),
+        tripName: 'Exploration Offroad Merapi',
+        startDate: '25 Okt 2026',
         participantCount: 2,
-        targetBudget: 400000.0,
-        totalEstimatedCost: 64000.0,
+        targetBudget: 500000.0,
+        totalEstimatedCost: 40000.0,
         status: 'upcoming',
         createdAt: DateTime.now().toIso8601String().substring(0, 10),
         originCity: null,
@@ -429,46 +429,28 @@ class TripProvider extends ChangeNotifier {
       );
       _builderItems = [
         const TripItemModel(
-          destinationId: 4,
-          itemName: 'Plunyon Kalikuning',
-          itemSubtitle: 'Spot Pagi & Jembatan Kabut',
+          destinationId: 2,
+          itemName: 'Museum Sisa Hartaku',
+          itemSubtitle: 'Kunjungan Memoar Erupsi',
           visitOrder: 1,
-          plannedTime: '07:30 - 09:00',
+          plannedTime: '07:30 WIB',
           durationHours: 1.5,
-          estimatedCost: 24000.0,
-          elevationMdpl: 850,
-          connectingDistanceKm: 4.2,
-          connectingTimeMinutes: 15,
-          imageUrl:
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuA6HAQwaq7wq_8-eUImi4tjKnM1vOcvJ_hRSUbUz4qWiScVAOeByPmjSysA5H1oEtsz77T4LThBx3IoO2vjKzh9UkywqtgZnQA-kegtLW-VXRTotaUjQY4mslwgaqIKLZddIib6jEl0dPV2yc7jO1LVqhWHzaNMVxTf9uoN_ildf9E3e7ZDAmI0THeQHx_PNJE0fYPIGkL9U5xKrMe-vmrRQuoQFFCeN4liGmmwciXYL7863Q-uKSM',
+          estimatedCost: 20000.0,
+          elevationMdpl: 920,
+          connectingDistanceKm: 3.1,
+          connectingTimeMinutes: 12,
         ),
         const TripItemModel(
           destinationId: 1,
           itemName: 'Bunker Kaliadem',
-          itemSubtitle: 'Panorama Puncak & Edukasi Vulkanik',
+          itemSubtitle: 'Spot Panorama Puncak Merapi',
           visitOrder: 2,
-          plannedTime: '09:30 - 11:00',
+          plannedTime: '09:15 WIB',
           durationHours: 1.5,
           estimatedCost: 20000.0,
           elevationMdpl: 1165,
-          connectingDistanceKm: 3.1,
-          connectingTimeMinutes: 12,
-          imageUrl:
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuDZH75v3H_TMxQjZHfcUBtUAqj_5mxEGn7WAZEI6GQocm2pLjbV0b3DkA-9r_Jv8IrzDaN3a-7Ih5gNXYzgDusrT-ebJp7qz9hTLf06oKyU11JYAHGT0A8XfDW-7tM18Mv0QGbLseC-JfmVvPY---e-pBz24Jsju0rAH3V0gfqG7t4g1as7mFAVI21gOM_2oeue_dzxY-bUIY8JXnCgUP32iAQ9BiSdn45Tg-qiVl53FrbAu-5Sk-s',
-        ),
-        const TripItemModel(
-          destinationId: 2,
-          itemName: 'Museum Sisa Hartaku',
-          itemSubtitle: 'Museum Memori Erupsi 2010',
-          visitOrder: 3,
-          plannedTime: '11:30 - 13:00',
-          durationHours: 1.0,
-          estimatedCost: 10000.0,
-          elevationMdpl: 920,
           connectingDistanceKm: 0.0,
           connectingTimeMinutes: 0,
-          imageUrl:
-              'https://lh3.googleusercontent.com/aida-public/AB6AXuC5LH2AvqiTusX2RgGlXiopRQygq3lbqDOiDkoapnWWdq1mJcZo-6zYBQ8uqVNjoistBtgO7gnwSgQuPA74i7YZnjVdv4ZDg9MhsNCAbsn2zwP2BdnnAn34k2gL8gw0uoE7J5oopEZDt_NMrwj7-IT-HhfyJytQcI9SRMGu3A-wz0ZRsilU8YRG8nn_30BcKeKVSO_6q27cjK4pmm5FtfAgT--4GpGxbfTUHVvzxtqSJeVMw7WUGNQ',
         ),
       ];
     }

@@ -3,8 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_colors.dart';
+import 'core/constants/app_dimensions.dart';
+import 'core/constants/app_typography.dart';
 import 'core/theme/app_theme.dart';
 import 'core/widgets/app_scaffold.dart';
+import 'data/models/user_model.dart';
 import 'features/auth/auth_provider.dart';
 import 'features/auth/biometric_lock_screen.dart';
 import 'features/auth/login_screen.dart';
@@ -12,10 +15,12 @@ import 'features/ai_assistant/ai_assistant_provider.dart';
 import 'features/blockchain/blockchain_provider.dart';
 import 'features/explore/destination_provider.dart';
 import 'features/explore/explore_screen.dart';
+import 'features/trip/my_trip_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/map/map_provider.dart';
 import 'features/notification/notification_provider.dart';
 import 'features/notification/notification_screen.dart';
+import 'features/profile/course_feedback_screen.dart';
 import 'features/profile/profile_screen.dart';
 import 'features/quiz/quiz_provider.dart';
 import 'features/sensor/sensor_provider.dart';
@@ -24,7 +29,6 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'core/config/supabase_config.dart';
 import 'core/services/gemini_service.dart';
 import 'core/services/notification_service.dart';
-import 'features/trip/my_trip_screen.dart';
 import 'features/trip/trip_provider.dart';
 import 'features/utility/utility_provider.dart';
 
@@ -192,13 +196,139 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
     switch (index) {
       case 1:
         return 'Explore Merapi';
-      case 2:
-        return 'My Trip';
       case 3:
+        return 'Evaluasi PAM';
+      case 4:
         return 'Profil Wisatawan';
       default:
-        return null; // Menampilkan logo & nama MeraTrip
+        return null; // Menampilkan logo & nama MeraTrip di Top AppBar untuk Home (0) dan MyTrip (2)
     }
+  }
+
+  /// Menampilkan ikon avatar profil (dengan gambar jika ada) di navigasi bar
+  Widget _buildNavAvatar(UserModel? user, {required bool isSelected}) {
+    final photo = user?.profilePhoto;
+    final initial = (user?.name.isNotEmpty == true) ? user!.name[0].toUpperCase() : 'P';
+    ImageProvider? imageProvider;
+    if (photo != null && photo.isNotEmpty) {
+      if (photo.startsWith('http')) {
+        imageProvider = NetworkImage(photo);
+      } else {
+        final f = File(photo);
+        if (f.existsSync()) {
+          imageProvider = FileImage(f);
+        }
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(1.5),
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          width: 2,
+        ),
+      ),
+      child: CircleAvatar(
+        radius: 11,
+        backgroundColor: isSelected ? AppColors.primary : AppColors.secondaryContainer,
+        backgroundImage: imageProvider,
+        onBackgroundImageError: imageProvider != null ? (exception, stackTrace) {} : null,
+        child: imageProvider == null
+            ? Text(
+                initial,
+                style: TextStyle(
+                  color: isSelected ? Colors.white : AppColors.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 10,
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+
+  /// Dialog konfirmasi logout akun langsung dari navigasi bar
+  void _showLogoutConfirmation(BuildContext context, AuthProvider auth) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppDimensions.margin),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.outlineVariant,
+                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: AppColors.errorContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout, color: AppColors.error, size: 28),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Akhiri Sesi Penjelajahan?',
+                style: AppTypography.headlineSm.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Sesi akun akan diakhiri dan aplikasi kembali ke layar login.',
+                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Navigator.pop(sheetCtx);
+                    context.read<TripProvider>().clearSession();
+                    await auth.logout();
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.error,
+                    foregroundColor: AppColors.onError,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                    ),
+                  ),
+                  child: const Text(
+                    'Ya, Keluar Akun',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(sheetCtx),
+                  child: const Text('Tetap di Sini'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -209,7 +339,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
 
     return AppScaffold(
       title: _getTabTitle(_currentTabIndex),
-      showVolcanoStatusBar: _currentTabIndex != 0,
+      showVolcanoStatusBar: _currentTabIndex != 0 && _currentTabIndex != 2,
       actions: [
         IconButton(
           icon: Badge(
@@ -231,7 +361,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  _currentTabIndex = 3;
+                  _currentTabIndex = 4;
                 });
               },
               child: CircleAvatar(
@@ -244,6 +374,9 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
                             ? FileImage(File(user.profilePhoto!))
                             : null))
                     : null,
+                onBackgroundImageError: (user.profilePhoto != null && user.profilePhoto!.isNotEmpty)
+                    ? (exception, stackTrace) {}
+                    : null,
                 child: (user.profilePhoto == null || user.profilePhoto!.isEmpty)
                     ? Text(
                         user.name.isNotEmpty ? user.name[0].toUpperCase() : 'P',
@@ -255,7 +388,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
           ),
       ],
       body: IndexedStack(
-        index: _currentTabIndex,
+        index: _currentTabIndex.clamp(0, 4),
         children: [
           HomeScreen(
             onNavigateTab: (idx) {
@@ -266,6 +399,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
           ),
           const ExploreScreen(),
           const MyTripScreen(),
+          const CourseFeedbackScreen(isTab: true),
           ProfileScreen(
             onNavigateTab: (idx) {
               setState(() {
@@ -277,31 +411,50 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentTabIndex,
+        type: BottomNavigationBarType.fixed,
+        selectedFontSize: 11,
+        unselectedFontSize: 10,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.onSurfaceVariant,
         onTap: (index) {
+          if (index == 5) {
+            _showLogoutConfirmation(context, authProvider);
+            return;
+          }
           setState(() {
             _currentTabIndex = index;
           });
         },
-        items: const [
-          BottomNavigationBarItem(
+        items: [
+          const BottomNavigationBarItem(
             icon: Icon(Icons.home_outlined),
             activeIcon: Icon(Icons.home_rounded),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
+          const BottomNavigationBarItem(
             icon: Icon(Icons.explore_outlined),
             activeIcon: Icon(Icons.explore_rounded),
             label: 'Explore',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.route_outlined),
-            activeIcon: Icon(Icons.route_rounded),
-            label: 'My Trip',
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.map_outlined),
+            activeIcon: Icon(Icons.map_rounded),
+            label: 'MyTrip',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.school_outlined),
+            activeIcon: Icon(Icons.school_rounded),
+            label: 'PAM',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline_rounded),
-            activeIcon: Icon(Icons.person_rounded),
-            label: 'Profile',
+            icon: _buildNavAvatar(user, isSelected: false),
+            activeIcon: _buildNavAvatar(user, isSelected: true),
+            label: 'Profil',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.logout_rounded, color: AppColors.error),
+            activeIcon: Icon(Icons.logout_rounded, color: AppColors.error),
+            label: 'Logout',
           ),
         ],
       ),

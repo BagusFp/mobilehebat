@@ -293,15 +293,15 @@ class DatabaseHelper {
 
   Future<void> _seedTrips(Database db) async {
     final now = DateTime.now().toIso8601String();
-    // 1. Trip Mendatang: Eksplorasi Merapi 1 Hari
+    // 1. Trip Mendatang: Exploration Offroad Merapi (25 Okt)
     final trip1Id = await db.insert('trips', {
       'id': 1,
       'user_id': 1,
-      'trip_name': 'Eksplorasi Merapi 1 Hari',
-      'start_date': 'Sabtu, 19 Okt 2024',
+      'trip_name': 'Exploration Offroad Merapi',
+      'start_date': '25 Okt 2026',
       'participant_count': 2,
-      'target_budget': 400000.0,
-      'total_estimated_cost': 64000.0,
+      'target_budget': 500000.0,
+      'total_estimated_cost': 40000.0,
       'status': 'upcoming',
       'reminder_enabled': 1,
       'is_saved_offline': 1,
@@ -315,19 +315,19 @@ class DatabaseHelper {
     batch.insert('trip_items', {
       'id': 1,
       'trip_id': trip1Id,
-      'destination_id': 4,
-      'item_name': 'Plunyon Kalikuning',
-      'item_subtitle': 'Spot Pagi & Jembatan Kabut',
+      'destination_id': 2,
+      'item_name': 'Museum Sisa Hartaku',
+      'item_subtitle': 'Kunjungan Memoar Erupsi',
       'visit_order': 1,
-      'planned_time': '07:30 - 09:00',
+      'planned_time': '07:30 WIB',
       'duration_hours': 1.5,
-      'estimated_cost': 24000.0,
-      'notes': 'Bawa kamera untuk foto jembatan gantung',
+      'estimated_cost': 20000.0,
+      'notes': 'Saksi bisu erupsi Merapi 2010',
       'image_url':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuDAX_XQHvcKR5gw0LBQYQmt-y9oQ0OHfiJ_CZ-5p5AKqNMAp5bKs2W2Jlt4o2oitrUq_VCelmuqVG7WTqmT7ASyRmOe1OHt9940R7ufin-tb3gNQoj6F0KxgeDrHHr5lg9v7Kv2GLOUKfy_-Cz5yaTztUc1JlWpB-M_Yl4d2vzYtCAOQBShTgDbVzEnFSR7qqmqYpBMeZk4ZCa6pHJC19uSnJfp55jNzI0aFceiOp71n9NRm-3kyB0',
-      'elevation_mdpl': 850,
-      'connecting_distance_km': 4.2,
-      'connecting_time_minutes': 15,
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuCrMdOhkFyi5cCCa57K_dji1aobrBXghl3FRpJRzpB6sn7bo6utRDLky6lzoF0DEGs94zbs_xZrmfkoF8iEb9n95_6toNdhXzL8CVAwPhteTB6vigjJXWqqiy5Fh9hGiLTrKhMACm4HgA9nMeFkfmS-cmlkoZwsu2PksDLjTIv8_-PI39q2JV4WAcBrrDXgM-b6Eef1b5md8zQyfrkKkaRGG6yn_9VtBJcqzFWJ2Ro0NmgIxXchwCQ',
+      'elevation_mdpl': 920,
+      'connecting_distance_km': 3.1,
+      'connecting_time_minutes': 12,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     batch.insert('trip_items', {
@@ -335,52 +335,96 @@ class DatabaseHelper {
       'trip_id': trip1Id,
       'destination_id': 1,
       'item_name': 'Bunker Kaliadem',
-      'item_subtitle': 'Panorama Puncak & Edukasi Vulkanik',
+      'item_subtitle': 'Spot Panorama Puncak Merapi',
       'visit_order': 2,
-      'planned_time': '09:30 - 11:00',
+      'planned_time': '09:15 WIB',
       'duration_hours': 1.5,
       'estimated_cost': 20000.0,
-      'notes': 'Spot utama pemandangan kerucut Merapi',
+      'notes': 'Spot panorama kerucut puncak Merapi',
       'image_url':
           'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
       'elevation_mdpl': 1165,
-      'connecting_distance_km': 3.1,
-      'connecting_time_minutes': 12,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
-
-    batch.insert('trip_items', {
-      'id': 3,
-      'trip_id': trip1Id,
-      'destination_id': 2,
-      'item_name': 'Museum Sisa Hartaku',
-      'item_subtitle': 'Museum Memori Erupsi 2010',
-      'visit_order': 3,
-      'planned_time': '11:30 - 13:00',
-      'duration_hours': 1.0,
-      'estimated_cost': 10000.0,
-      'notes': 'Donasi sukarela & saksi bisu awan panas',
-      'image_url':
-          'https://lh3.googleusercontent.com/aida-public/AB6AXuCrMdOhkFyi5cCCa57K_dji1aobrBXghl3FRpJRzpB6sn7bo6utRDLky6lzoF0DEGs94zbs_xZrmfkoF8iEb9n95_6toNdhXzL8CVAwPhteTB6vigjJXWqqiy5Fh9hGiLTrKhMACm4HgA9nMeFkfmS-cmlkoZwsu2PksDLjTIv8_-PI39q2JV4WAcBrrDXgM-b6Eef1b5md8zQyfrkKkaRGG6yn_9VtBJcqzFWJ2Ro0NmgIxXchwCQ',
-      'elevation_mdpl': 920,
       'connecting_distance_km': 0.0,
       'connecting_time_minutes': 0,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-    // 2. Trip Draft: Sunset Kaliurang & Kopi Merapi
+    // 2. Trip Draft: Trip Kopi & Santai Merapi
     final trip2Id = await db.insert('trips', {
       'id': 2,
       'user_id': 1,
-      'trip_name': 'Sunset Kaliurang & Kopi Merapi',
-      'start_date': 'Minggu, 20 Okt 2024',
+      'trip_name': 'Trip Kopi & Santai Merapi',
+      'start_date': 'Kemarin',
       'participant_count': 2,
-      'target_budget': 250000.0,
-      'total_estimated_cost': 45000.0,
+      'target_budget': 300000.0,
+      'total_estimated_cost': 35000.0,
       'status': 'draft',
       'reminder_enabled': 1,
       'is_saved_offline': 1,
       'banner_image_url':
           'https://lh3.googleusercontent.com/aida-public/AB6AXuAPCRJJgh8Rcxr67OUIBH0lTkBEjznYjV4dRG5FgHsyOkFAhrLdHE1wBAIXN3blB_0TSNHKVyKtZtLIFFJt8277BtD0ks8ED9PzBx9SXFgFt3jBWChmkm8uOCyZEr-Za1g-7k0Kf6oBpQhN5yO0mPcFO0P9mfeYovAYB9NngDAPmbdPG16QZGbdrhjEWVp_0C0G-8ZWCS0S3UFjvckAn-KVl5TQqS7Yl3ZlBbS98WpVL3OHNQ2Px1Q',
       'created_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // Draft 2: Sunset Kaliurang & Lava Tour
+    await db.insert('trips', {
+      'id': 4,
+      'user_id': 1,
+      'trip_name': 'Sunset Kaliurang & Lava Tour',
+      'start_date': '2 hari lalu',
+      'participant_count': 2,
+      'target_budget': 250000.0,
+      'total_estimated_cost': 45000.0,
+      'status': 'draft',
+      'reminder_enabled': 1,
+      'is_saved_offline': 1,
+      'created_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // Trip Upcoming 2: Lava Tour Sunrise & Jeep Merapi
+    final trip5Id = await db.insert('trips', {
+      'id': 5,
+      'user_id': 1,
+      'trip_name': 'Lava Tour Sunrise & Jeep Merapi',
+      'start_date': '28 Okt 2026',
+      'origin_city': 'Yogyakarta',
+      'destination_city': 'Bunker Kaliadem',
+      'participant_count': 3,
+      'target_budget': 650000.0,
+      'total_estimated_cost': 45000.0,
+      'status': 'upcoming',
+      'reminder_enabled': 1,
+      'is_saved_offline': 1,
+      'banner_image_url':
+          'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
+      'created_at': now,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    batch.insert('trip_items', {
+      'id': 7,
+      'trip_id': trip5Id,
+      'destination_id': 1,
+      'item_name': 'Bunker Kaliadem',
+      'item_subtitle': 'Sunrise Panorama Puncak Merapi',
+      'visit_order': 1,
+      'planned_time': '05:30 WIB',
+      'duration_hours': 2.0,
+      'estimated_cost': 25000.0,
+      'notes': 'Spot sunrise terbaik lereng selatan',
+      'elevation_mdpl': 1165,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+    batch.insert('trip_items', {
+      'id': 8,
+      'trip_id': trip5Id,
+      'destination_id': 2,
+      'item_name': 'Museum Sisa Hartaku',
+      'item_subtitle': 'Edukasi Memoar Erupsi',
+      'visit_order': 2,
+      'planned_time': '08:00 WIB',
+      'duration_hours': 1.5,
+      'estimated_cost': 20000.0,
+      'notes': 'Koleksi peninggalan erupsi',
+      'elevation_mdpl': 920,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
 
     batch.insert('trip_items', {
@@ -473,6 +517,60 @@ class DatabaseHelper {
     );
     if (count == null || count == 0) {
       await _seedTrips(db);
+    } else {
+      final trip5Count = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM trips WHERE id = 5'),
+      );
+      if (trip5Count == null || trip5Count == 0) {
+        final now = DateTime.now().toIso8601String();
+        await db.insert('trips', {
+          'id': 5,
+          'user_id': 1,
+          'trip_name': 'Lava Tour Sunrise & Jeep Merapi',
+          'start_date': '28 Okt 2026',
+          'origin_city': 'Yogyakarta',
+          'destination_city': 'Bunker Kaliadem',
+          'participant_count': 3,
+          'target_budget': 650000.0,
+          'total_estimated_cost': 45000.0,
+          'status': 'upcoming',
+          'reminder_enabled': 1,
+          'is_saved_offline': 1,
+          'banner_image_url':
+              'https://lh3.googleusercontent.com/aida-public/AB6AXuCs1bn5sWA_op5eceHeIsQLwaMQVuENkD15MF0xyIocreuPE9u07fCpt91lh4BSXqO7UTrLroxjGGUi7TWMJA_NkuGRx_nxKy-R_sNvzvyYwgMdMvPHcRC2j2O9urQWq2JvofgEte9U1hM-yqiDtfgZiNPV7rcaRuqrjx8b8kbddJv_SWnxMQAJjz12EUhpa3RTVDSZ3o3d0y-XOArN3jcZOGB12ek7JcpeH5X7fGtSM24JM2TObM4',
+          'created_at': now,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+        final batch = db.batch();
+        batch.insert('trip_items', {
+          'id': 7,
+          'trip_id': 5,
+          'destination_id': 1,
+          'item_name': 'Bunker Kaliadem',
+          'item_subtitle': 'Sunrise Panorama Puncak Merapi',
+          'visit_order': 1,
+          'planned_time': '05:30 WIB',
+          'duration_hours': 2.0,
+          'estimated_cost': 25000.0,
+          'notes': 'Spot sunrise terbaik lereng selatan',
+          'elevation_mdpl': 1165,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+        batch.insert('trip_items', {
+          'id': 8,
+          'trip_id': 5,
+          'destination_id': 2,
+          'item_name': 'Museum Sisa Hartaku',
+          'item_subtitle': 'Edukasi Memoar Erupsi',
+          'visit_order': 2,
+          'planned_time': '08:00 WIB',
+          'duration_hours': 1.5,
+          'estimated_cost': 20000.0,
+          'notes': 'Koleksi peninggalan erupsi',
+          'elevation_mdpl': 920,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+        await batch.commit(noResult: true);
+      }
     }
   }
 
