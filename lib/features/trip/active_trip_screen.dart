@@ -13,6 +13,7 @@ import '../../data/models/trip_model.dart';
 import '../explore/destination_detail_screen.dart';
 import '../explore/destination_provider.dart';
 import '../map/map_screen.dart';
+import '../blockchain/blockchain_screen.dart';
 import 'trip_provider.dart';
 
 class ActiveTripScreen extends StatefulWidget {
@@ -543,7 +544,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               SizedBox(
                 width: double.infinity,
                 height: 48,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -552,8 +553,35 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                   onPressed: () {
                     Navigator.pop(ctx);
                     Navigator.pop(context); // Kembali ke My Trip
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => BlockchainScreen(initialTripId: trip.id),
+                      ),
+                    );
                   },
-                  child: const Text('Kembali ke My Trip', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.verified_outlined, size: 20),
+                  label: const Text(
+                    'Buat Bukti Perjalanan (Blockchain)',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.onSurfaceVariant,
+                    side: const BorderSide(color: AppColors.surfaceContainerHighest),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.pop(context); // Kembali ke My Trip
+                  },
+                  child: const Text('Kembali ke My Trip'),
                 ),
               ),
             ],

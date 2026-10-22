@@ -14,6 +14,7 @@ import '../utility/utility_provider.dart';
 import 'active_trip_screen.dart';
 import 'create_trip_screen.dart';
 import 'trip_provider.dart';
+import '../blockchain/blockchain_screen.dart';
 
 class MyTripScreen extends StatefulWidget {
   const MyTripScreen({super.key});
@@ -2975,6 +2976,36 @@ class _MyTripScreenState extends State<MyTripScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  height: 38,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: AppColors.onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    ),
+                    onPressed: () {
+                      if (trip.id == null) return;
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => BlockchainScreen(initialTripId: trip.id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.verified_outlined, size: 16),
+                    label: Text(
+                      'Catatan Bukti Blockchain',
+                      style: AppTypography.labelSm.copyWith(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),

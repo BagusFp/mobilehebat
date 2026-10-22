@@ -11,6 +11,7 @@ import '../../data/models/user_model.dart';
 import '../auth/auth_provider.dart';
 import '../quiz/quiz_screen.dart';
 import '../trip/trip_provider.dart';
+import '../blockchain/blockchain_screen.dart';
 import 'course_feedback_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -146,7 +147,21 @@ class ProfileScreen extends StatelessWidget {
           },
         ),
 
-        // Menu 2: Refleksi Kuliah & Evaluasi PAM
+        // Menu 2: Catatan Bukti Blockchain
+        _buildMenuItem(
+          context,
+          icon: Icons.shield_outlined,
+          title: 'Catatan Bukti Blockchain',
+          subtitle: 'Bukti perjalanan digital terdesentralisasi (Sepolia Testnet)',
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BlockchainScreen()),
+            );
+          },
+        ),
+
+        // Menu 3: Refleksi Kuliah & Evaluasi PAM
         _buildMenuItem(
           context,
           icon: Icons.school_rounded,
@@ -160,7 +175,7 @@ class ProfileScreen extends StatelessWidget {
           },
         ),
 
-        // Menu 3: Kunci Biometrik Aplikasi
+        // Menu 4: Kunci Biometrik Aplikasi
         _buildBiometricSettingTile(context, auth),
 
         const SizedBox(height: AppDimensions.spaceXl),

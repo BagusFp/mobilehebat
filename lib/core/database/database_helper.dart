@@ -98,6 +98,26 @@ class DatabaseHelper {
             )
           ''');
         } catch (_) {}
+        try {
+          await db.execute('''
+            CREATE TABLE IF NOT EXISTS trip_proofs (
+              id INTEGER PRIMARY KEY AUTOINCREMENT,
+              user_id INTEGER NOT NULL,
+              trip_id INTEGER NOT NULL,
+              proof_id TEXT UNIQUE NOT NULL,
+              proof_hash TEXT NOT NULL,
+              payload_version TEXT DEFAULT '1.0.0',
+              snapshot_json TEXT NOT NULL,
+              salt TEXT NOT NULL,
+              chain_id INTEGER DEFAULT 11155111,
+              contract_address TEXT NOT NULL,
+              tx_hash TEXT,
+              status TEXT DEFAULT 'pending',
+              confirmed_at TEXT,
+              created_at TEXT NOT NULL
+            )
+          ''');
+        } catch (_) {}
       },
     );
   }
@@ -256,6 +276,26 @@ class DatabaseHelper {
         spent_at TEXT NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY (trip_id) REFERENCES trips (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // 10. Tabel Trip Proofs (Proof of Visit Blockchain)
+    await db.execute('''
+      CREATE TABLE trip_proofs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        trip_id INTEGER NOT NULL,
+        proof_id TEXT UNIQUE NOT NULL,
+        proof_hash TEXT NOT NULL,
+        payload_version TEXT DEFAULT '1.0.0',
+        snapshot_json TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        chain_id INTEGER DEFAULT 11155111,
+        contract_address TEXT NOT NULL,
+        tx_hash TEXT,
+        status TEXT DEFAULT 'pending',
+        confirmed_at TEXT,
+        created_at TEXT NOT NULL
       )
     ''');
 
@@ -788,4 +828,84 @@ class DatabaseHelper {
     );
     return total;
   }
+
+  // ===========================================================================
+  // 10. METODE TRIP PROOFS (PROOF OF VISIT BLOCKCHAIN)
+  // ===========================================================================
+
+  /// Mengambil bukti blockchain untuk trip tertentu
+  Future<Map<String, dynamic>?> getTripProofByTripId(int tripId) async {
+    final db = await database;
+    final results = await db.query(
+      'trip_proofs',
+      where: 'trip_id = ?',
+      whereArgs: [tripId],
+      limit: 1,
+    );
+    if (results.isEmpty) return null;
+    return results.first;
+  }
+
+  /// Mengambil bukti blockchain berdasarkan proof_id
+  Future<Map<String, dynamic>?> getTripProofByProofId(String proofId) async {
+    final db = await database;
+    final results = await db.query(
+      'trip_proofs',
+      where: 'proof_id = ?',
+      whereArgs: [proofId],
+      limit: 1,
+    );
+    if (results.isEmpty) return null;
+    return results.first;
+  }
+
+  /// Menyimpan atau memperbarui bukti blockchain
+  Future<int> insertOrUpdateTripProof(Map<String, dynamic> proofMap) async {
+    final db = await database;
+    final existing = await getTripProofByProofId(proofMap['proof_id'] as String);
+    if (existing != null) {
+      return await db.update(
+        'trip_proofs',
+        proofMap,
+        where: 'proof_id = ?',
+        whereArgs: [proofMap['proof_id']],
+      );
+    } else {
+      return await db.insert('trip_proofs', proofMap);
+    }
+  }
+
+  /// Memperbarui status dan txHash bukti blockchain
+  Future<int> updateTripProofStatus(
+    String proofId,
+    String status, {
+    String? txHash,
+    String? confirmedAt,
+  }) async {
+    final db = await database;
+    final updates = <String, dynamic>{
+      'status': status,
+    };
+    if (txHash != null) updates['tx_hash'] = txHash;
+    if (confirmedAt != null) updates['confirmed_at'] = confirmedAt;
+
+    return await db.update(
+      'trip_proofs',
+      updates,
+      where: 'proof_id = ?',
+      whereArgs: [proofId],
+    );
+  }
+
+  /// Mengambil seluruh riwayat bukti perjalanan milik user tertentu
+  Future<List<Map<String, dynamic>>> getTripProofsByUserId(int userId) async {
+    final db = await database;
+    return await db.query(
+      'trip_proofs',
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'created_at DESC',
+    );
+  }
 }
+

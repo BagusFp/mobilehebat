@@ -1,0 +1,31 @@
+{
+  "name": "project",
+  "version": "1.0.0",
+  "description": "A new Flutter project.",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
+  },
+  "scripts": {
+    "compile": "node contracts/compile.js",
+    "deploy:sepolia": "node contracts/deploy_sepolia.js",
+    "test:contracts": "node test/contracts/test_smart_contract.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BagusFp/mobilehebat.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/BagusFp/mobilehebat/issues"
+  },
+  "homepage": "https://github.com/BagusFp/mobilehebat#readme",
+  "devDependencies": {
+    "ethers": "^6.17.0",
+    "solc": "^0.8.20"
+  }
+}

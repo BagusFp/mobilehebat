@@ -49,6 +49,15 @@ backend/.env.*
 backend/vendor/
 backend/storage/*.key
 
+# Node Dependencies & Local Blockchain Secrets
+node_modules/
+.env
+.env.*
+*.secret
+*.pem
+*.key
+private_key*
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
