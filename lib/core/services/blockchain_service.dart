@@ -6,6 +6,7 @@ import '../../data/models/trip_proof_model.dart';
 import '../config/supabase_config.dart';
 import '../database/database_helper.dart';
 import '../utils/blockchain_proof_helper.dart';
+import 'supabase_service.dart';
 
 /// Service untuk berinteraksi dengan smart contract MeraTripProof pada Ethereum Sepolia Testnet.
 ///
@@ -184,7 +185,7 @@ class BlockchainService {
           final resData = jsonDecode(response.body);
           if (resData['proof'] != null) {
             proofModel = TripProofModel.fromMap(resData['proof'] as Map<String, dynamic>);
-            proofModel = proofModel.copyWith(id: localId);
+            proofModel = proofModel.copyWith(id: localId, userId: userId);
             // Safeguard: Jika backend merespons mode dry_run / broadcast disabled, pastikan status lokal adalah simulated
             if ((resData['mode'] == 'dry_run' || resData['broadcast_enabled'] == false) && proofModel.isPending) {
               proofModel = proofModel.copyWith(status: 'simulated');
@@ -395,11 +396,41 @@ class BlockchainService {
     };
   }
 
-  /// Mengambil semua bukti untuk user ID dari cache lokal
+  /// Mengambil semua bukti untuk user ID dari cache lokal dan sinkronisasi ke Supabase Cloud
   Future<List<TripProofModel>> getUserTripProofs(int userId) async {
     try {
+      // 1. Ambil dari database lokal terlebih dahulu (cepat)
       final list = await _dbHelper.getTripProofsByUserId(userId);
-      return list.map((m) => TripProofModel.fromMap(m)).toList();
+      var proofs = list.map((m) => TripProofModel.fromMap(m)).toList();
+
+      // 2. Sinkronkan dengan Supabase Cloud jika terhubung dan user login
+      final supabaseService = SupabaseService();
+      if (supabaseService.isInitialized) {
+        final user = supabaseService.currentUser;
+        if (user != null) {
+          try {
+            final cloudRows = await supabaseService.client
+                .from('trip_proofs')
+                .select('*')
+                .eq('user_id', user.id)
+                .order('created_at', ascending: false);
+
+            for (final row in cloudRows) {
+              final cloudMap = Map<String, dynamic>.from(row as Map);
+              final cloudProof = TripProofModel.fromMap(cloudMap).copyWith(userId: userId);
+              await _dbHelper.insertOrUpdateTripProof(cloudProof.toMap());
+            }
+
+            // Muat ulang setelah sinkronisasi
+            final refreshedList = await _dbHelper.getTripProofsByUserId(userId);
+            proofs = refreshedList.map((m) => TripProofModel.fromMap(m)).toList();
+          } catch (syncErr) {
+            debugPrint('Sinkronisasi cloud trip_proofs opsional: $syncErr');
+          }
+        }
+      }
+
+      return proofs;
     } catch (e) {
       debugPrint('Catatan local db cache: $e');
       return [];

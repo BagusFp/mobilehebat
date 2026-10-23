@@ -266,13 +266,17 @@ class _BlockchainScreenState extends State<BlockchainScreen>
           const Divider(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                'Smart Contract:',
-                style: AppTypography.bodySm.copyWith(
-                  color: AppColors.onSurfaceVariant,
+              Expanded(
+                child: Text(
+                  'Smart Contract:',
+                  style: AppTypography.bodySm.copyWith(
+                    color: AppColors.onSurfaceVariant,
+                  ),
                 ),
               ),
+              const SizedBox(width: 8),
               InkWell(
                 onTap: () {
                   Clipboard.setData(
@@ -495,32 +499,44 @@ class _BlockchainScreenState extends State<BlockchainScreen>
           const SizedBox(height: 8),
 
           // Ringkasan Destinasi & Tanggal
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 12,
+            runSpacing: 4,
             children: [
-              const Icon(
-                Icons.place_outlined,
-                size: 14,
-                color: AppColors.onSurfaceVariant,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.place_outlined,
+                    size: 14,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$visitedCount/${trip.items.length} Destinasi Tercatat',
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 4),
-              Text(
-                '$visitedCount/${trip.items.length} Destinasi Tercatat',
-                style: AppTypography.bodySm.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Icon(
-                Icons.calendar_today_outlined,
-                size: 14,
-                color: AppColors.onSurfaceVariant,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                trip.startDate,
-                style: AppTypography.bodySm.copyWith(
-                  color: AppColors.onSurfaceVariant,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 14,
+                    color: AppColors.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    trip.startDate,
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -530,14 +546,18 @@ class _BlockchainScreenState extends State<BlockchainScreen>
             // Proof Hash
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  'Hash Bukti (SHA-256):',
-                  style: AppTypography.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    'Hash Bukti (SHA-256):',
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 InkWell(
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: proof.proofHash));
@@ -546,6 +566,7 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     );
                   },
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         BlockchainProofHelper.formatShortHash(proof.proofHash),
@@ -571,14 +592,18 @@ class _BlockchainScreenState extends State<BlockchainScreen>
             // TX Hash
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  'TX Hash:',
-                  style: AppTypography.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                    fontSize: 12,
+                Expanded(
+                  child: Text(
+                    'TX Hash:',
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 if (proof.txHash != null && proof.txHash!.isNotEmpty)
                   InkWell(
                     onTap: () {
@@ -588,6 +613,7 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                       );
                     },
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           BlockchainProofHelper.formatShortHash(proof.txHash),
@@ -608,22 +634,28 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     ),
                   )
                 else if (proof.isSimulated)
-                  Text(
-                    'Simulasi off-chain (Mode Dry-Run)',
-                    style: AppTypography.bodySm.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: const Color(0xFF00695C),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
+                  Flexible(
+                    child: Text(
+                      'Simulasi off-chain (Mode Dry-Run)',
+                      style: AppTypography.bodySm.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: const Color(0xFF00695C),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
+                      textAlign: TextAlign.end,
                     ),
                   )
                 else
-                  Text(
-                    'Menunggu penambangan blok',
-                    style: AppTypography.bodySm.copyWith(
-                      fontStyle: FontStyle.italic,
-                      color: AppColors.onSurfaceVariant,
-                      fontSize: 11,
+                  Flexible(
+                    child: Text(
+                      'Menunggu penambangan blok',
+                      style: AppTypography.bodySm.copyWith(
+                        fontStyle: FontStyle.italic,
+                        color: AppColors.onSurfaceVariant,
+                        fontSize: 11,
+                      ),
+                      textAlign: TextAlign.end,
                     ),
                   ),
               ],
@@ -700,19 +732,36 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                       child: OutlinedButton.icon(
                         onPressed: proof.blockExplorerUrl != null
                             ? () async {
-                                final uri = Uri.parse(proof.blockExplorerUrl!);
-                                if (await canLaunchUrl(uri)) {
-                                  await launchUrl(
+                                final urlString = proof.blockExplorerUrl!;
+                                final uri = Uri.parse(urlString);
+                                bool launched = false;
+                                try {
+                                  launched = await launchUrl(
                                     uri,
                                     mode: LaunchMode.externalApplication,
                                   );
-                                } else {
+                                } catch (_) {}
+
+                                if (!launched) {
+                                  try {
+                                    launched = await launchUrl(
+                                      uri,
+                                      mode: LaunchMode.platformDefault,
+                                    );
+                                  } catch (_) {}
+                                }
+
+                                if (!launched) {
+                                  await Clipboard.setData(
+                                    ClipboardData(text: urlString),
+                                  );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
+                                      SnackBar(
                                         content: Text(
-                                          'Gagal membuka Block Explorer.',
+                                          'Tautan Etherscan disalin ke clipboard:\n$urlString',
                                         ),
+                                        duration: const Duration(seconds: 4),
                                       ),
                                     );
                                   }

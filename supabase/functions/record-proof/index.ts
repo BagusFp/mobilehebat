@@ -39,12 +39,10 @@ const SEPOLIA_RPC_FALLBACKS = [
   "https://gateway.tenderly.co/public/sepolia",
 ];
 
-function createResilientSepoliaProvider(primaryUrl: string, expectedChainId: number): ethers.FallbackProvider | ethers.JsonRpcProvider {
+function createResilientSepoliaProvider(primaryUrl: string, expectedChainId: number): any {
   const cleanPrimary = (primaryUrl || "").replace(/["']/g, "").trim();
-  const endpoints = [
-    cleanPrimary,
-    ...SEPOLIA_RPC_FALLBACKS,
-  ].filter((url, idx, arr) => Boolean(url) && arr.indexOf(url) === idx);
+  const rawList: string[] = [cleanPrimary, ...SEPOLIA_RPC_FALLBACKS];
+  const endpoints: string[] = rawList.filter((url: string, idx: number, arr: string[]) => Boolean(url) && arr.indexOf(url) === idx);
 
   if (endpoints.length <= 1) {
     const fetchReq = new ethers.FetchRequest(endpoints[0] || SEPOLIA_RPC_FALLBACKS[0]);

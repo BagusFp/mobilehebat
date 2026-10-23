@@ -892,6 +892,14 @@ class DatabaseHelper {
     // dengan id remote PostgreSQL (yang menyebabkan SQLITE_CONSTRAINT_PRIMARYKEY).
     cleanMap.remove('id');
 
+    // Hindari menimpa user_id lokal yang sah dengan 0 jika map baru tidak memiliki integer user_id
+    if ((cleanMap['user_id'] == null || cleanMap['user_id'] == 0) &&
+        existing.isNotEmpty &&
+        existing.first['user_id'] != null &&
+        existing.first['user_id'] != 0) {
+      cleanMap['user_id'] = existing.first['user_id'];
+    }
+
     if (existing.isNotEmpty) {
       final localId = existing.first['id'] as int;
       await db.update(
@@ -933,7 +941,7 @@ class DatabaseHelper {
     final db = await database;
     return await db.query(
       'trip_proofs',
-      where: 'user_id = ?',
+      where: 'user_id = ? OR user_id = 0',
       whereArgs: [userId],
       orderBy: 'created_at DESC',
     );
