@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import '../../core/utils/geo_helper.dart';
 import '../../data/mock/mock_destinations.dart';
 import '../../data/models/destination_model.dart';
 
@@ -41,6 +43,14 @@ class SensorProvider extends ChangeNotifier {
   bool _isCalibrating = false;
   String _accuracyText = 'Akurasi Sensor: Tinggi (Terkalibrasi)';
   StreamSubscription<MagnetometerEvent>? _magnetoSubscription;
+
+  // 3. User Location & Qibla-style Merapi Direction State
+  double _userLat = -7.7956; // Default Gamping, Sleman (sesuai Gambar 1)
+  double _userLng = 110.3283;
+  String _userLocationName = 'Gamping, Kab. Sleman';
+  String _userRegionName = 'INDONESIA';
+  bool _isLocatingGps = false;
+  String? _gpsErrorMessage;
 
   // Daftar Target Orientasi Kompas Sesuai Stitch Screen 10
   final List<CompassTarget> _targets = const [
@@ -109,6 +119,155 @@ class SensorProvider extends ChangeNotifier {
   bool get isCalibrating => _isCalibrating;
   String get accuracyText => _accuracyText;
   List<CompassTarget> get targets => _targets;
+
+  // Getters - Qibla-style Merapi Compass
+  double get userLat => _userLat;
+  double get userLng => _userLng;
+  String get userLocationName => _userLocationName;
+  String get userRegionName => _userRegionName;
+  bool get isLocatingGps => _isLocatingGps;
+  String? get gpsErrorMessage => _gpsErrorMessage;
+
+  /// Sudut Azimuth ke Puncak Merapi dari lokasi pengguna saat ini (0° - 360°)
+  double get merapiBearing => GeoHelper.bearingToMerapiSummit(_userLat, _userLng);
+
+  /// Jarak lurus ke Puncak Gunung Merapi dalam KM
+  double get merapiDistanceKm => GeoHelper.distanceFromMerapiSummit(_userLat, _userLng);
+
+  /// Selisih sudut antara arah hadap ponsel dan posisi Puncak Merapi (-180° s.d. +180°)
+  double get angleDiffToMerapi {
+    double diff = (merapiBearing - _headingDegrees) % 360;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    return diff;
+  }
+
+  /// Apakah ponsel sedang menghadap langsung ke arah Gunung Merapi (toleransi ±5 derajat)
+  bool get isFacingMerapi => angleDiffToMerapi.abs() <= 5.0;
+
+  /// Saran putaran arah untuk menghadapkan ponsel ke kawah Merapi
+  String get turnSuggestion {
+    final diff = angleDiffToMerapi;
+    if (diff.abs() <= 5.0) {
+      return 'Tepat Menghadap Puncak Merapi';
+    } else if (diff > 0) {
+      return 'Putar ke kanan ${diff.round()}°';
+    } else {
+      return 'Putar ke kiri ${diff.abs().round()}°';
+    }
+  }
+
+  /// Daftar lokasi preset di sekitar Gunung Merapi untuk pengujian & simulasi kompas
+  static const List<Map<String, dynamic>> presetLocations = [
+    {
+      'name': 'Gamping, Kab. Sleman',
+      'region': 'INDONESIA',
+      'lat': -7.7956,
+      'lng': 110.3283,
+      'description': 'Arah Barat Daya dari Merapi (Arah ~25° NNE)',
+    },
+    {
+      'name': 'Kaliurang, Kab. Sleman',
+      'region': 'INDONESIA',
+      'lat': -7.5950,
+      'lng': 110.4280,
+      'description': 'Arah Selatan Lereng Merapi (Arah ~18° NNE)',
+    },
+    {
+      'name': 'Kota Yogyakarta (Malioboro)',
+      'region': 'INDONESIA',
+      'lat': -7.7926,
+      'lng': 110.3658,
+      'description': 'Arah Selatan Jauh dari Merapi (Arah ~16° NNE)',
+    },
+    {
+      'name': 'Selo, Kab. Boyolali',
+      'region': 'INDONESIA',
+      'lat': -7.5020,
+      'lng': 110.4630,
+      'description': 'Arah Utara Lereng Merapi (Arah ~202° SSW)',
+    },
+    {
+      'name': 'Ketep Pass, Kab. Magelang',
+      'region': 'INDONESIA',
+      'lat': -7.4950,
+      'lng': 110.3800,
+      'description': 'Arah Barat dari Merapi (Arah ~128° SE)',
+    },
+    {
+      'name': 'Candi Prambanan, Klaten',
+      'region': 'INDONESIA',
+      'lat': -7.7520,
+      'lng': 110.4914,
+      'description': 'Arah Tenggara dari Merapi (Arah ~347° NNW)',
+    },
+  ];
+
+  /// Mengubah lokasi secara manual dari daftar preset
+  void setManualLocation({
+    required double lat,
+    required double lng,
+    required String locationName,
+    String regionName = 'INDONESIA',
+  }) {
+    _userLat = lat;
+    _userLng = lng;
+    _userLocationName = locationName;
+    _userRegionName = regionName;
+    notifyListeners();
+  }
+
+  /// Memperbarui lokasi pengguna menggunakan GPS perangkat (Real-time)
+  Future<bool> updateGpsLocation() async {
+    _isLocatingGps = true;
+    _gpsErrorMessage = null;
+    notifyListeners();
+
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _gpsErrorMessage = 'Layanan GPS tidak aktif pada perangkat.';
+        _isLocatingGps = false;
+        notifyListeners();
+        return false;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _gpsErrorMessage = 'Izin akses lokasi ditolak.';
+          _isLocatingGps = false;
+          notifyListeners();
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _gpsErrorMessage = 'Izin lokasi ditolak permanen. Buka Pengaturan.';
+        _isLocatingGps = false;
+        notifyListeners();
+        return false;
+      }
+
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
+      );
+
+      _userLat = pos.latitude;
+      _userLng = pos.longitude;
+      _userLocationName = 'Lokasi GPS (${pos.latitude.toStringAsFixed(3)}, ${pos.longitude.toStringAsFixed(3)})';
+      _userRegionName = 'INDONESIA';
+      _isLocatingGps = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _gpsErrorMessage = 'Gagal membaca GPS: $e';
+      _isLocatingGps = false;
+      notifyListeners();
+      return false;
+    }
+  }
 
   CompassTarget get currentTarget {
     return _targets.firstWhere(

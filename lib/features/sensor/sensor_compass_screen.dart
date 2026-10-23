@@ -1,1209 +1,671 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' hide TextDirection;
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
-
-import '../explore/destination_detail_screen.dart';
-import '../games/merapi_jeep_game_page.dart';
-import '../map/map_screen.dart';
 import 'sensor_provider.dart';
 
+/// Halaman Kompas Arah Puncak Gunung Merapi
+/// Mengusung konsep kompas arah kiblat (Qibla Compass):
+/// Menunjukkan posisi dan arah persis Gunung Merapi dari lokasi keberadaan pengguna saat ini.
 class SensorCompassScreen extends StatefulWidget {
-  final String initialMode; // 'shake' atau 'compass'
+  final String initialMode; // Kompatibilitas rute ('compass' / 'shake')
 
-  const SensorCompassScreen({super.key, this.initialMode = 'shake'});
+  const SensorCompassScreen({super.key, this.initialMode = 'compass'});
 
   @override
   State<SensorCompassScreen> createState() => _SensorCompassScreenState();
 }
 
 class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTickerProviderStateMixin {
-  late String _activeMode;
-  late AnimationController _shakeAnimController;
-
-  @override
-  void initState() {
-    super.initState();
-    _activeMode = widget.initialMode;
-    _shakeAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 400),
-    );
-  }
-
-  @override
-  void dispose() {
-    _shakeAnimController.dispose();
-    super.dispose();
-  }
-
-  void _triggerShakeAnimation() {
-    _shakeAnimController.forward(from: 0.0);
-  }
-
-  String _formatCurrency(double price) {
-    if (price <= 0) return 'Gratis';
-    final formatter = NumberFormat.currency(
-      locale: 'id_ID',
-      symbol: 'Rp ',
-      decimalDigits: 0,
-    );
-    return formatter.format(price);
-  }
+  bool _hasTriggeredHaptic = false;
 
   @override
   Widget build(BuildContext context) {
     final sensorProvider = context.watch<SensorProvider>();
 
-
+    // Haptic feedback saat ponsel tepat sejajar menghadap Gunung Merapi
+    if (sensorProvider.isFacingMerapi) {
+      if (!_hasTriggeredHaptic) {
+        _hasTriggeredHaptic = true;
+        HapticFeedback.selectionClick();
+      }
+    } else {
+      _hasTriggeredHaptic = false;
+    }
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: const Color(0xFF121619), // Dark Charcoal Slate sesuai Gambar 1
       appBar: AppBar(
-        backgroundColor: AppColors.surfaceContainerLowest.withAlpha(230),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.onSurface),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+          tooltip: 'Kembali',
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Eksplorasi Sensor & Kompas',
+          'Kompas',
           style: AppTypography.titleMd.copyWith(
-            color: AppColors.onSurface,
+            color: Colors.white,
             fontWeight: FontWeight.bold,
           ),
         ),
-        actions: const [],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimensions.margin,
-            AppDimensions.spaceSm,
-            AppDimensions.margin,
-            AppDimensions.spaceXl,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Volcanic Seismic Alert & Sensor Status Banner
-              _buildSensorStatusBanner(),
-              const SizedBox(height: AppDimensions.spaceMd),
-
-              // 2. Segmented Mode Switcher (Goyang Ponsel vs Kompas Lapangan)
-              _buildModeSwitcher(),
-              const SizedBox(height: AppDimensions.spaceLg),
-
-              // 3. Dynamic Section Content
-              if (_activeMode == 'shake')
-                _buildShakeSection(context, sensorProvider)
-              else
-                _buildCompassSection(context, sensorProvider),
-
-              const SizedBox(height: AppDimensions.spaceLg),
-
-              // 4. Game Sensor Merapi Jeep 2D Run Card
-              _buildJeepGameCard(context),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Card Mini Game Jeep 2D Run (Live Sensor Demo)
-  Widget _buildJeepGameCard(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const MerapiJeepGamePage()),
-          );
-        },
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-            border: Border.all(color: AppColors.surfaceContainer),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.onSurface.withValues(alpha: 0.05),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondaryContainer,
-                  shape: BoxShape.circle,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.tune_rounded, color: Colors.white70),
+            tooltip: 'Kalibrasi Kompas',
+            onPressed: () {
+              sensorProvider.calibrateCompass();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sensor kompas berhasil dikalibrasi ulang.'),
+                  duration: Duration(seconds: 1),
+                  backgroundColor: Color(0xFF04432F),
                 ),
-                child: const Center(
-                  child: Text('🚙', style: TextStyle(fontSize: 22)),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Mini Game: Merapi Jeep 2D',
-                          style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                          ),
-                          child: const Text(
-                            'LIVE SENSOR',
-                            style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Uji sensor gerak & akselerometer Anda di game lari 2D Lava Tour!',
-                      style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: AppColors.primary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // 1. Status Banner: Seismik & Sensor Aktif
-  Widget _buildSensorStatusBanner() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(6),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'STATUS SENSOR PERANGKAT',
-                        style: AppTypography.labelSm.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        'Akselerometer & Kompas: Siap Digunakan',
-                        style: AppTypography.bodySm.copyWith(
-                          color: AppColors.onSurfaceVariant,
-                          fontSize: 11,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.sensors, size: 14, color: AppColors.primary),
-                const SizedBox(width: 4),
-                Text(
-                  '2 Sensor Aktif',
-                  style: AppTypography.labelSm.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 2. Mode Switcher (Pill Segmented)
-  Widget _buildModeSwitcher() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _activeMode = 'shake'),
-              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: _activeMode == 'shake' ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                  boxShadow: _activeMode == 'shake'
-                      ? [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 4)]
-                      : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.screen_rotation_alt,
-                      size: 18,
-                      color: _activeMode == 'shake'
-                          ? AppColors.onPrimary
-                          : AppColors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Goyang Ponsel',
-                        style: AppTypography.labelLg.copyWith(
-                          color: _activeMode == 'shake'
-                              ? AppColors.onPrimary
-                              : AppColors.onSurfaceVariant,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: InkWell(
-              onTap: () => setState(() => _activeMode = 'compass'),
-              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: _activeMode == 'compass' ? AppColors.primary : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                  boxShadow: _activeMode == 'compass'
-                      ? [BoxShadow(color: Colors.black.withAlpha(20), blurRadius: 4)]
-                      : null,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.explore,
-                      size: 18,
-                      color: _activeMode == 'compass'
-                          ? AppColors.onPrimary
-                          : AppColors.onSurfaceVariant,
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: Text(
-                        'Kompas Lapangan',
-                        style: AppTypography.labelLg.copyWith(
-                          color: _activeMode == 'compass'
-                              ? AppColors.onPrimary
-                              : AppColors.onSurfaceVariant,
-                          fontWeight: FontWeight.bold,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // SECTION 1: GOYANG PONSEL (SHAKE TO DISCOVER)
-  // --------------------------------------------------------------------------
-  Widget _buildShakeSection(BuildContext context, SensorProvider provider) {
-    final dest = provider.randomDestination;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Educational & Sensor Guide Card
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceMd),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(8),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: const BoxDecoration(
-                          color: AppColors.secondaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.smartphone,
-                          size: 20,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Eksplorasi Goyang Ponsel',
-                            style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            'Accelerometer Lapangan Siaga',
-                            style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Switch(
-                    value: provider.isShakeEnabled,
-                    activeThumbColor: AppColors.primary,
-                    onChanged: (val) => provider.toggleShake(val),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Goyang ponselmu untuk memilih destinasi petualangan Merapi secara acak dan temukan spot hidden gem hari ini!',
-                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  const Icon(Icons.touch_app, size: 16, color: AppColors.primary),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      provider.sensorStatusLabel,
-                      style: AppTypography.labelSm.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppDimensions.spaceMd),
-
-        // Result Card: Destinasi Terpilih
-        if (dest != null)
-          AnimatedBuilder(
-            animation: _shakeAnimController,
-            builder: (context, child) {
-              final offset = sin(_shakeAnimController.value * pi * 4) * 6;
-              return Transform.translate(
-                offset: Offset(offset, 0),
-                child: child,
               );
             },
-            child: Container(
-              padding: const EdgeInsets.all(AppDimensions.spaceMd),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceContainerLowest,
-                borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Hero Image
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                    child: Stack(
-                      children: [
-                        SizedBox(
-                          height: 180,
-                          width: double.infinity,
-                          child: Image.network(
-                            dest.imageUrl ?? '',
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Container(
-                              color: AppColors.surfaceContainer,
-                              child: const Center(
-                                child: Icon(Icons.landscape, size: 50, color: AppColors.outline),
-                              ),
-                            ),
-                          ),
-                        ),
-                        // Badge Pilihan Acak Hari Ini
-                        Positioned(
-                          top: 10,
-                          left: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withAlpha(220),
-                              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                            ),
-                            child: Row(
+          ),
+          IconButton(
+            icon: const Icon(Icons.location_on_outlined, color: Color(0xFF10B981)),
+            tooltip: 'Ganti / Deteksi Lokasi',
+            onPressed: () => _showLocationSelector(context, sensorProvider),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 8),
+
+                      // 1. Location Header (Sesuai Gambar 1: Lokasi & Negara)
+                      GestureDetector(
+                        onTap: () => _showLocationSelector(context, sensorProvider),
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.auto_awesome, size: 14, color: AppColors.onPrimary),
-                                const SizedBox(width: 4),
                                 Text(
-                                  'Pilihan Acak Hari Ini',
-                                  style: AppTypography.labelSm.copyWith(
-                                    color: AppColors.onPrimary,
-                                    fontWeight: FontWeight.bold,
+                                  sensorProvider.userLocationName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: -0.2,
                                   ),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(width: 6),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: Color(0xFFD1A768),
+                                  size: 20,
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                        // Badge mdpl
-                        Positioned(
-                          bottom: 10,
-                          right: 10,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: AppColors.surfaceContainerLowest.withAlpha(230),
-                              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                            ),
-                            child: Text(
-                              '${dest.elevationMdpl} mdpl',
-                              style: AppTypography.labelSm.copyWith(
-                                color: AppColors.onSurface,
+                            const SizedBox(height: 2),
+                            Text(
+                              sensorProvider.userRegionName,
+                              style: const TextStyle(
+                                color: Color(0xFFD1A768), // Champagne Gold
+                                fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Kategori & Tiket
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 4,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.secondaryContainer,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          dest.categoryName,
-                          style: AppTypography.labelSm.copyWith(
-                            color: AppColors.onSecondaryContainer,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        '• Tiket: ${_formatCurrency(dest.ticketPrice)}',
-                        style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Title & Description
-                  Text(
-                    dest.name,
-                    style: AppTypography.headlineSm.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dest.description,
-                    style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppDimensions.spaceMd),
-
-                  // Action Buttons
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: AppColors.onPrimary,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                        ),
-                        elevation: 1,
-                      ),
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DestinationDetailScreen(destination: dest),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.arrow_forward, size: 18),
-                      label: Text(
-                        'Lihat Detail Destinasi',
-                        style: AppTypography.labelLg.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onPrimary,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: AppColors.secondaryContainer,
-                        foregroundColor: AppColors.onSecondaryContainer,
-                        side: BorderSide.none,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                        ),
-                      ),
-                      onPressed: () {
-                        _triggerShakeAnimation();
-                        provider.triggerRandomDestination();
-                      },
-                      icon: const Icon(Icons.shuffle, size: 20),
-                      label: Text(
-                        'Goyang Lagi (Acak Ulang)',
-                        style: AppTypography.labelLg.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.onSecondaryContainer,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        const SizedBox(height: AppDimensions.spaceMd),
-
-        // Fallback Card
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceSm),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Row(
-                  children: [
-                    const Icon(Icons.device_unknown, color: AppColors.primary, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Perangkat tanpa sensor getar?',
-                        style: AppTypography.bodySm.copyWith(color: AppColors.onSurface),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: () {
-                  _triggerShakeAnimation();
-                  provider.triggerRandomDestination();
-                },
-                child: Text(
-                  'Cari Destinasi Manual',
-                  style: AppTypography.labelMd.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.bold,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --------------------------------------------------------------------------
-  // SECTION 2: KOMPAS LAPANGAN (GYROSCOPE & MAGNETOMETER)
-  // --------------------------------------------------------------------------
-  Widget _buildCompassSection(BuildContext context, SensorProvider provider) {
-    final target = provider.currentTarget;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Header Info
-        Text(
-          'Kompas Arah Menuju Puncak & Destinasi',
-          style: AppTypography.headlineSm.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.onSurface,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          'Arahkan bagian atas ponselmu ke lanskap Merapi untuk mengetahui posisi kawah utama dan titik wisata.',
-          style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-        ),
-        const SizedBox(height: AppDimensions.spaceMd),
-
-        // Target Selector Dropdown
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(6),
-                blurRadius: 4,
-                offset: const Offset(0, 1),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.location_on, size: 16, color: AppColors.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Pilih Titik Target Orientasi:',
-                    style: AppTypography.labelSm.copyWith(
-                      color: AppColors.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLowest,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: provider.selectedTargetId,
-                    isExpanded: true,
-                    icon: const Icon(Icons.expand_more, color: AppColors.onSurfaceVariant),
-                    items: provider.targets.map((t) {
-                      return DropdownMenuItem<String>(
-                        value: t.id,
-                        child: Text(
-                          t.subtitle,
-                          style: AppTypography.labelLg.copyWith(
-                            color: AppColors.onSurface,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        provider.setCompassTarget(val);
-                      }
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppDimensions.spaceLg),
-
-        // Digital Compass Dial Card
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceLg),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusXl),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(12),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              // Bearing & Elevation Header
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Azimuth Puncak',
-                        style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                      ),
-                      Text(
-                        provider.headingDirection,
-                        style: AppTypography.headlineLg.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: -0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        'Elevasi Estimasi',
-                        style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                      ),
-                      Text(
-                        '+${target.elevationMdpl} mdpl',
-                        style: AppTypography.titleMd.copyWith(
-                          color: AppColors.secondary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppDimensions.spaceLg),
-
-              // Visual Compass Dial (Rotating Needle)
-              SizedBox(
-                width: 240,
-                height: 240,
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Outer Degree Marks & Cardinal Dial
-                    CustomPaint(
-                      size: const Size(240, 240),
-                      painter: CompassDialPainter(),
-                    ),
-
-                    // Rotating Inner Needle
-                    AnimatedRotation(
-                      turns: -provider.headingDegrees / 360,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOutCubic,
-                      child: SizedBox(
-                        width: 200,
-                        height: 200,
-                        child: Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // North Needle (Red Volcano)
-                            Positioned(
-                              top: 15,
-                              child: Column(
-                                children: [
-                                  CustomPaint(
-                                    size: const Size(16, 65),
-                                    painter: NeedleTrianglePainter(color: AppColors.error, pointingUp: true),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'MERAPI',
-                                    style: AppTypography.labelSm.copyWith(
-                                      color: AppColors.error,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 9,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // South Needle (Green Pine)
-                            Positioned(
-                              bottom: 15,
-                              child: CustomPaint(
-                                size: const Size(16, 65),
-                                painter: NeedleTrianglePainter(color: AppColors.primary, pointingUp: false),
-                              ),
-                            ),
-
-                            // Center Pivot Circle
-                            Container(
-                              width: 32,
-                              height: 32,
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerLowest,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withAlpha(30),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 14,
-                                  height: 14,
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Center(
-                                    child: Container(
-                                      width: 4,
-                                      height: 4,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.white,
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                                letterSpacing: 3.0,
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppDimensions.spaceLg),
 
-              // Live Target Indicator Bar
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Row(
+                      const Spacer(),
+
+                      // 2. Central Compass Dial (Model Kompas Kiblat Merapi)
+                      _buildCompassDial(sensorProvider),
+
+                      const Spacer(),
+
+                      // 3. Merapi Bearing & Distance Info (Sesuai Gambar 1)
+                      Column(
                         children: [
-                          const Icon(Icons.landscape, size: 22, color: AppColors.primary),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  target.name,
-                                  style: AppTypography.labelLg.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.onSurface,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'Jarak Garis Lurus: ${target.distanceKm.toStringAsFixed(1)} km',
-                                  style: AppTypography.bodySm.copyWith(
-                                    color: AppColors.onSurfaceVariant,
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
+                          Text(
+                            'Arah Merapi ${sensorProvider.merapiBearing.toStringAsFixed(2).replaceAll('.', ',')}° dari Utara',
+                            style: const TextStyle(
+                              color: Color(0xFFD1A768), // Champagne Gold sesuai Gambar 1
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.2,
                             ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Jarak ke Puncak Merapi ± ${sensorProvider.merapiDistanceKm.toStringAsFixed(1)} KM',
+                            style: TextStyle(
+                              color: Colors.white.withAlpha(220),
+                              fontSize: 15,
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 20, color: AppColors.primary),
-                      tooltip: 'Kalibrasi Sensor Kompas',
-                      onPressed: () {
-                        provider.calibrateCompass();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Sensor kompas berhasil dikalibrasi ulang.'),
-                            duration: Duration(seconds: 1),
+
+                      const SizedBox(height: 16),
+
+                      // 4. Status Alignment Pill / Panduan Putar Ponsel
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: sensorProvider.isFacingMerapi
+                              ? const Color(0xFF04432F)
+                              : Colors.white.withAlpha(15),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: sensorProvider.isFacingMerapi
+                                ? const Color(0xFF10B981)
+                                : Colors.white12,
+                            width: 1.2,
                           ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppDimensions.spaceMd),
-
-        // Sensor Accuracy Card
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 32,
-                height: 32,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.verified, size: 18, color: AppColors.primary),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      provider.accuracyText,
-                      style: AppTypography.labelMd.copyWith(
-                        color: AppColors.onSurface,
-                        fontWeight: FontWeight.bold,
+                          boxShadow: sensorProvider.isFacingMerapi
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(0xFF10B981).withAlpha(80),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              sensorProvider.isFacingMerapi
+                                  ? Icons.check_circle_rounded
+                                  : Icons.navigation_rounded,
+                              size: 16,
+                              color: sensorProvider.isFacingMerapi
+                                  ? const Color(0xFF10B981)
+                                  : const Color(0xFFD1A768),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                sensorProvider.isFacingMerapi
+                                    ? 'Menghadap Langsung ke Puncak Merapi (2.930 mdpl)'
+                                    : '${sensorProvider.turnSuggestion} • Arah Hadap: ${sensorProvider.headingDirection}',
+                                style: TextStyle(
+                                  color: sensorProvider.isFacingMerapi
+                                      ? Colors.white
+                                      : Colors.white70,
+                                  fontSize: 12,
+                                  fontWeight: sensorProvider.isFacingMerapi
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      'Menggabungkan data Gyroscope 3-Axis & Magnetometer',
-                      style: AppTypography.bodySm.copyWith(
-                        color: AppColors.onSurfaceVariant,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: AppDimensions.spaceSm),
 
-        // Safe Guidance Disclaimer
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.info_outline, size: 18, color: AppColors.tertiary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Peringatan Aman: Gunakan kompas sebagai panduan umum arah pandang visual kawah Merapi. Jangan gunakan sebagai satu-satunya alat evakuasi pada jalur berkabut tebal.',
-                  style: AppTypography.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                    fontSize: 12,
+                      const Spacer(),
+
+                      // 5. Bottom Calibration Advice (Teks persis Gambar 1)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        child: Text(
+                          'Jauhkan perangkat dari objek yang berbahan besi atau logam, agar lebih akurat.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withAlpha(90),
+                            fontSize: 11.5,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
+            );
+          },
         ),
-        const SizedBox(height: AppDimensions.spaceLg),
+      ),
+    );
+  }
 
-        // Buka di Peta Navigasi Lengkap Button
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+  /// Piringan Dial Kompas Interaktif yang berputar mengikuti sensor ponsel
+  Widget _buildCompassDial(SensorProvider provider) {
+    const double dialSize = 270.0;
+
+    return Center(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        width: dialSize + 16,
+        height: dialSize + 16,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          boxShadow: [
+            if (provider.isFacingMerapi)
+              BoxShadow(
+                color: const Color(0xFF10B981).withAlpha(100),
+                blurRadius: 36,
+                spreadRadius: 6,
+              )
+            else
+              BoxShadow(
+                color: Colors.black.withAlpha(80),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
               ),
-              elevation: 2,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MapScreen()),
-              );
-            },
-            icon: const Icon(Icons.map, size: 20),
-            label: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                'Buka di Peta Navigasi Lengkap',
-                style: AppTypography.labelLg.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.onPrimary,
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Cincin Luar Berwarna Teal/Emerald Khas Gambar 1
+            Container(
+              width: dialSize + 12,
+              height: dialSize + 12,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF222B2F),
+                border: Border.all(
+                  color: provider.isFacingMerapi
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFF00897B), // Teal Ring persis Gambar 1
+                  width: 6,
                 ),
               ),
             ),
+
+            // Piringan Dial Putih yang Berputar Mengikuti Heading Ponsel
+            AnimatedRotation(
+              turns: -provider.headingDegrees / 360,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              child: SizedBox(
+                width: dialSize,
+                height: dialSize,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    // Dial Background Plate (Bintang Mata Angin, Ticks, Cardinal N, E, S, W)
+                    CustomPaint(
+                      size: const Size(dialSize, dialSize),
+                      painter: QiblaStyleDialPainter(
+                        merapiBearing: provider.merapiBearing,
+                        isAligned: provider.isFacingMerapi,
+                      ),
+                    ),
+
+                    // Jarum Penunjuk Merah yang Mengarah Langsung ke Gunung Merapi
+                    CustomPaint(
+                      size: const Size(dialSize, dialSize),
+                      painter: MerapiNeedlePainter(
+                        bearingDegrees: provider.merapiBearing,
+                        isAligned: provider.isFacingMerapi,
+                      ),
+                    ),
+
+                    // Marker Ikon Gunung Merapi pada Pinggiran Dial Sesuai Sudut Bearing
+                    _buildMerapiSummitMarker(dialSize, provider.merapiBearing, provider.isFacingMerapi),
+
+                    // Pusat Poros Tengah (Pusat Dial)
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: const Color(0xFF04432F),
+                        border: Border.all(color: Colors.white, width: 2),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withAlpha(60),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: provider.isFacingMerapi
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFD1A768),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Marker Ikon Gunung Merapi yang diletakkan persis pada keliling dial di sudut bearing Merapi
+  Widget _buildMerapiSummitMarker(double dialSize, double bearingDegrees, bool isAligned) {
+    final double radius = dialSize / 2;
+    // Offset sudut dari North (-90° pada sistem koordinat layar Flutter)
+    final double rad = (bearingDegrees - 90) * pi / 180;
+    final double markerDist = radius - 24;
+    final double x = radius + markerDist * cos(rad);
+    final double y = radius + markerDist * sin(rad);
+
+    return Positioned(
+      left: x - 15,
+      top: y - 15,
+      child: Transform.rotate(
+        angle: (bearingDegrees) * pi / 180,
+        child: Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+            color: isAligned ? const Color(0xFF10B981) : const Color(0xFF1A2226),
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: isAligned ? Colors.white : const Color(0xFFD1A768),
+              width: 1.5,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(50),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.landscape_rounded, // Ikon Puncak Gunung Merapi
+              size: 16,
+              color: Colors.white,
+            ),
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  /// Modal Bottom Sheet untuk Pemilihan Titik Lokasi Pengguna atau Deteksi GPS
+  void _showLocationSelector(BuildContext context, SensorProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1A2126),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Pilih Lokasi Keberadaanmu',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.white60, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Arah panah dan sudut jarum kompas akan otomatis menyesuaikan posisi Gunung Merapi dari titik ini.',
+                  style: TextStyle(color: Colors.white.withAlpha(160), fontSize: 12),
+                ),
+                const SizedBox(height: 16),
+
+                // Tombol Ambil GPS Otomatis
+                ListTile(
+                  tileColor: const Color(0xFF04432F),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  leading: provider.isLocatingGps
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Icon(Icons.my_location_rounded, color: Color(0xFF10B981)),
+                  title: const Text(
+                    'Deteksi GPS Otomatis (Live)',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Gunakan sensor GPS ponsel saat ini',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                  onTap: () async {
+                    final messenger = ScaffoldMessenger.of(context);
+                    Navigator.pop(ctx);
+                    final success = await provider.updateGpsLocation();
+                    if (!mounted) return;
+                    if (success) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text('Lokasi GPS berhasil diperbarui: ${provider.userLocationName}'),
+                          backgroundColor: const Color(0xFF04432F),
+                        ),
+                      );
+                    } else if (provider.gpsErrorMessage != null) {
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(provider.gpsErrorMessage!),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                const Text(
+                  'Preset Titik Sekitar Merapi:',
+                  style: TextStyle(color: Color(0xFFD1A768), fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+
+                // Daftar Lokasi Preset
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: SensorProvider.presetLocations.length,
+                    separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
+                    itemBuilder: (c, idx) {
+                      final item = SensorProvider.presetLocations[idx];
+                      final isSelected = provider.userLocationName == item['name'];
+
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                        leading: Icon(
+                          isSelected ? Icons.check_circle_rounded : Icons.place_outlined,
+                          color: isSelected ? const Color(0xFF10B981) : Colors.white60,
+                          size: 20,
+                        ),
+                        title: Text(
+                          item['name'] as String,
+                          style: TextStyle(
+                            color: isSelected ? Colors.white : Colors.white70,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontSize: 13,
+                          ),
+                        ),
+                        subtitle: Text(
+                          item['description'] as String,
+                          style: TextStyle(color: Colors.white.withAlpha(120), fontSize: 11),
+                        ),
+                        onTap: () {
+                          provider.setManualLocation(
+                            lat: item['lat'] as double,
+                            lng: item['lng'] as double,
+                            locationName: item['name'] as String,
+                            regionName: item['region'] as String,
+                          );
+                          Navigator.pop(ctx);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-// CustomPainter untuk Dial Kompas Lapangan
-class CompassDialPainter extends CustomPainter {
+/// CustomPainter untuk Piringan Putih Dial Kompas (Qibla Style)
+/// Menggambar piringan bulat putih, bintang 8 mata angin abu-abu muda, ticks derajat, dan teks kardinal
+class QiblaStyleDialPainter extends CustomPainter {
+  final double merapiBearing;
+  final bool isAligned;
+
+  QiblaStyleDialPainter({required this.merapiBearing, required this.isAligned});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // Background circle fill
+    // 1. Lingkaran Dasar Putih Piringan Kompas (Sesuai Gambar 1)
     final bgPaint = Paint()
-      ..color = AppColors.surfaceContainer
+      ..color = const Color(0xFFF7FAF8)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, bgPaint);
 
-    // Outer border
-    final borderPaint = Paint()
-      ..color = AppColors.outlineVariant
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawCircle(center, radius - 2, borderPaint);
-
-    // Degree Ticks
-    final tickPaint = Paint()
-      ..color = AppColors.outline
+    // Border Halus Dalam
+    final innerBorder = Paint()
+      ..color = const Color(0xFFE2E8E4)
+      ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
+    canvas.drawCircle(center, radius - 2, innerBorder);
 
-    for (int i = 0; i < 360; i += 15) {
+    // 2. Gambar Bintang 8 Arah Mata Angin (Faint Navigational Rose Star)
+    _drawCompassRoseStar(canvas, center, radius);
+
+    // 3. Garis Ticks Derajat di Sepanjang Keliling Dial
+    final tickPaint = Paint()..strokeCap = StrokeCap.round;
+
+    for (int i = 0; i < 360; i += 5) {
       final isMajor = i % 90 == 0;
-      final tickLength = isMajor ? 12.0 : (i % 45 == 0 ? 8.0 : 5.0);
-      final angle = i * pi / 180;
+      final isMedium = i % 45 == 0;
+      final tickLength = isMajor ? 10.0 : (isMedium ? 7.0 : 3.5);
 
+      final rad = (i - 90) * pi / 180;
       final start = Offset(
-        center.dx + (radius - 4) * cos(angle),
-        center.dy + (radius - 4) * sin(angle),
+        center.dx + (radius - 4) * cos(rad),
+        center.dy + (radius - 4) * sin(rad),
       );
       final end = Offset(
-        center.dx + (radius - 4 - tickLength) * cos(angle),
-        center.dy + (radius - 4 - tickLength) * sin(angle),
+        center.dx + (radius - 4 - tickLength) * cos(rad),
+        center.dy + (radius - 4 - tickLength) * sin(rad),
       );
 
-      tickPaint.strokeWidth = isMajor ? 2.0 : 1.0;
-      tickPaint.color = isMajor ? AppColors.primary : AppColors.outline;
+      tickPaint.strokeWidth = isMajor ? 2.0 : (isMedium ? 1.5 : 0.9);
+      tickPaint.color = isMajor
+          ? const Color(0xFF00897B)
+          : (isMedium ? const Color(0xFF334155) : const Color(0xFF94A3B8));
+
       canvas.drawLine(start, end, tickPaint);
     }
 
-    // Cardinal Markers Text (U / N, T / E, S, B / W)
-    _drawCardinalText(canvas, 'U (N)', center.dx, 20, isNorth: true);
-    _drawCardinalText(canvas, 'T (E)', size.width - 24, center.dy);
-    _drawCardinalText(canvas, 'S', center.dx, size.height - 20);
-    _drawCardinalText(canvas, 'B (W)', 24, center.dy);
+    // 4. Label Mata Angin: N (Hijau), NE, E, SE, S, SW, W, NW
+    _drawCardinalMarker(canvas, 'N', center.dx, 22, isNorth: true);
+    _drawCardinalMarker(canvas, 'E', size.width - 22, center.dy);
+    _drawCardinalMarker(canvas, 'S', center.dx, size.height - 22);
+    _drawCardinalMarker(canvas, 'W', 22, center.dy);
+
+    // Intercardinal (NE, SE, SW, NW)
+    final interDist = radius - 30;
+    _drawIntercardinalMarker(canvas, 'NE', center, 45, interDist);
+    _drawIntercardinalMarker(canvas, 'SE', center, 135, interDist);
+    _drawIntercardinalMarker(canvas, 'MS', center, 225, interDist); // MS / SW
+    _drawIntercardinalMarker(canvas, 'NW', center, 315, interDist);
   }
 
-  void _drawCardinalText(Canvas canvas, String text, double x, double y, {bool isNorth = false}) {
+  /// Menggambar Bintang 8 Mata Angin Faint (Klasik Gambar 1)
+  void _drawCompassRoseStar(Canvas canvas, Offset center, double radius) {
+    final lightPaint = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.fill;
+
+    final shadowPaint = Paint()
+      ..color = const Color(0xFFE4ECE7)
+      ..style = PaintingStyle.fill;
+
+    final double outerR = radius * 0.76;
+    final double innerR = radius * 0.22;
+
+    for (int i = 0; i < 8; i++) {
+      final double mainAngle = (i * 45 - 90) * pi / 180;
+      final double prevAngle = (i * 45 - 22.5 - 90) * pi / 180;
+      final double nextAngle = (i * 45 + 22.5 - 90) * pi / 180;
+
+      final tip = Offset(center.dx + outerR * cos(mainAngle), center.dy + outerR * sin(mainAngle));
+      final leftInner = Offset(center.dx + innerR * cos(prevAngle), center.dy + innerR * sin(prevAngle));
+      final rightInner = Offset(center.dx + innerR * cos(nextAngle), center.dy + innerR * sin(nextAngle));
+
+      // Sisi Kiri
+      final pathLeft = Path()
+        ..moveTo(center.dx, center.dy)
+        ..lineTo(tip.dx, tip.dy)
+        ..lineTo(leftInner.dx, leftInner.dy)
+        ..close();
+      canvas.drawPath(pathLeft, shadowPaint);
+
+      // Sisi Kanan
+      final pathRight = Path()
+        ..moveTo(center.dx, center.dy)
+        ..lineTo(tip.dx, tip.dy)
+        ..lineTo(rightInner.dx, rightInner.dy)
+        ..close();
+      canvas.drawPath(pathRight, lightPaint);
+    }
+  }
+
+  void _drawCardinalMarker(Canvas canvas, String text, double x, double y, {bool isNorth = false}) {
     final textSpan = TextSpan(
       text: text,
       style: TextStyle(
-        color: isNorth ? AppColors.error : AppColors.onSurfaceVariant,
-        fontSize: isNorth ? 14 : 11,
+        color: isNorth ? const Color(0xFF00897B) : const Color(0xFF1E293B),
+        fontSize: isNorth ? 16 : 13,
         fontWeight: FontWeight.bold,
       ),
     );
@@ -1213,44 +675,122 @@ class CompassDialPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(x - textPainter.width / 2, y - textPainter.height / 2),
+    textPainter.paint(canvas, Offset(x - textPainter.width / 2, y - textPainter.height / 2));
+  }
+
+  void _drawIntercardinalMarker(Canvas canvas, String text, Offset center, double deg, double dist) {
+    final rad = (deg - 90) * pi / 180;
+    final x = center.dx + dist * cos(rad);
+    final y = center.dy + dist * sin(rad);
+
+    final textSpan = TextSpan(
+      text: text,
+      style: const TextStyle(
+        color: Color(0xFF64748B),
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+      ),
     );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
+    textPainter.layout();
+    textPainter.paint(canvas, Offset(x - textPainter.width / 2, y - textPainter.height / 2));
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant QiblaStyleDialPainter oldDelegate) {
+    return oldDelegate.merapiBearing != merapiBearing || oldDelegate.isAligned != isAligned;
+  }
 }
 
-// CustomPainter untuk Jarum Segitiga Kompas (North Red / South Green)
-class NeedleTrianglePainter extends CustomPainter {
-  final Color color;
-  final bool pointingUp;
+/// CustomPainter untuk Jarum Kompas Merah 3D Tapered
+/// Mengarah persis dari poros tengah menuju Gunung Merapi
+class MerapiNeedlePainter extends CustomPainter {
+  final double bearingDegrees;
+  final bool isAligned;
 
-  NeedleTrianglePainter({required this.color, required this.pointingUp});
+  MerapiNeedlePainter({required this.bearingDegrees, required this.isAligned});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    // Sudut Jarum ke arah Merapi
+    final double rad = (bearingDegrees - 90) * pi / 180;
+    final double perpRad = rad + (pi / 2);
+
+    final double needleLength = radius - 38;
+    final double needleBaseWidth = 6.5;
+
+    // Ujung Jarum (Tip)
+    final tip = Offset(
+      center.dx + needleLength * cos(rad),
+      center.dy + needleLength * sin(rad),
+    );
+
+    // Titik Sayap Kiri Poros
+    final leftBase = Offset(
+      center.dx + needleBaseWidth * cos(perpRad),
+      center.dy + needleBaseWidth * sin(perpRad),
+    );
+
+    // Titik Sayap Kanan Poros
+    final rightBase = Offset(
+      center.dx - needleBaseWidth * cos(perpRad),
+      center.dy - needleBaseWidth * sin(perpRad),
+    );
+
+    // Ekor Belakang Jarum (Tail)
+    final tail = Offset(
+      center.dx - 18 * cos(rad),
+      center.dy - 18 * sin(rad),
+    );
+
+    // Efek 3D Bevel (Separuh terang, separuh bayangan)
+    final brightRed = Paint()
+      ..color = isAligned ? const Color(0xFFFF3333) : const Color(0xFFE53935)
       ..style = PaintingStyle.fill;
 
-    final path = Path();
-    if (pointingUp) {
-      path.moveTo(size.width / 2, 0); // Tip
-      path.lineTo(size.width, size.height); // Bottom Right
-      path.lineTo(0, size.height); // Bottom Left
-    } else {
-      path.moveTo(0, 0); // Top Left
-      path.lineTo(size.width, 0); // Top Right
-      path.lineTo(size.width / 2, size.height); // Bottom Tip
-    }
-    path.close();
+    final darkRed = Paint()
+      ..color = isAligned ? const Color(0xFFD32F2F) : const Color(0xFFB71C1C)
+      ..style = PaintingStyle.fill;
 
-    canvas.drawPath(path, paint);
+    // 1. Sisi Kiri Jarum Depan
+    final leftHalf = Path()
+      ..moveTo(center.dx, center.dy)
+      ..lineTo(leftBase.dx, leftBase.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..close();
+    canvas.drawPath(leftHalf, brightRed);
+
+    // 2. Sisi Kanan Jarum Depan
+    final rightHalf = Path()
+      ..moveTo(center.dx, center.dy)
+      ..lineTo(rightBase.dx, rightBase.dy)
+      ..lineTo(tip.dx, tip.dy)
+      ..close();
+    canvas.drawPath(rightHalf, darkRed);
+
+    // 3. Ekor Belakang Jarum
+    final tailPaint = Paint()
+      ..color = const Color(0xFF334155)
+      ..style = PaintingStyle.fill;
+
+    final tailPath = Path()
+      ..moveTo(center.dx, center.dy)
+      ..lineTo(leftBase.dx, leftBase.dy)
+      ..lineTo(tail.dx, tail.dy)
+      ..lineTo(rightBase.dx, rightBase.dy)
+      ..close();
+    canvas.drawPath(tailPath, tailPaint);
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant MerapiNeedlePainter oldDelegate) {
+    return oldDelegate.bearingDegrees != bearingDegrees || oldDelegate.isAligned != isAligned;
+  }
 }
