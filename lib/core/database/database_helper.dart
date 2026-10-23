@@ -840,6 +840,7 @@ class DatabaseHelper {
       'trip_proofs',
       where: 'trip_id = ?',
       whereArgs: [tripId],
+      orderBy: 'id DESC',
       limit: 1,
     );
     if (results.isEmpty) return null;
@@ -862,16 +863,46 @@ class DatabaseHelper {
   /// Menyimpan atau memperbarui bukti blockchain
   Future<int> insertOrUpdateTripProof(Map<String, dynamic> proofMap) async {
     final db = await database;
-    final existing = await getTripProofByProofId(proofMap['proof_id'] as String);
-    if (existing != null) {
-      return await db.update(
+    final cleanMap = Map<String, dynamic>.from(proofMap);
+    final tripId = cleanMap['trip_id'];
+    List<Map<String, dynamic>> existing = [];
+
+    if (tripId != null) {
+      existing = await db.query(
         'trip_proofs',
-        proofMap,
-        where: 'proof_id = ?',
-        whereArgs: [proofMap['proof_id']],
+        where: 'trip_id = ?',
+        whereArgs: [tripId],
+        orderBy: 'id DESC',
+        limit: 1,
       );
+    }
+
+    if (existing.isEmpty && cleanMap['proof_id'] != null) {
+      existing = await db.query(
+        'trip_proofs',
+        where: 'proof_id = ?',
+        whereArgs: [cleanMap['proof_id']],
+        limit: 1,
+      );
+    }
+
+    // PERLINDUNGAN PRIMARY KEY SQLITE:
+    // Kolom 'id' di SQLite adalah INTEGER PRIMARY KEY AUTOINCREMENT lokal.
+    // Menghapus 'id' dari map update/insert agar tidak menimpa primary key lokal
+    // dengan id remote PostgreSQL (yang menyebabkan SQLITE_CONSTRAINT_PRIMARYKEY).
+    cleanMap.remove('id');
+
+    if (existing.isNotEmpty) {
+      final localId = existing.first['id'] as int;
+      await db.update(
+        'trip_proofs',
+        cleanMap,
+        where: 'id = ?',
+        whereArgs: [localId],
+      );
+      return localId;
     } else {
-      return await db.insert('trip_proofs', proofMap);
+      return await db.insert('trip_proofs', cleanMap);
     }
   }
 

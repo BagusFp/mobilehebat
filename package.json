@@ -10,7 +10,8 @@
   "scripts": {
     "compile": "node contracts/compile.js",
     "deploy:sepolia": "node contracts/deploy_sepolia.js",
-    "test:contracts": "node test/contracts/test_smart_contract.js"
+    "test:contracts": "node test/contracts/test_smart_contract.js",
+    "test:backend": "node test/backend/test_relayer_flow.js"
   },
   "repository": {
     "type": "git",

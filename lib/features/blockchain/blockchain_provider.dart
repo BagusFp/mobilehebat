@@ -284,6 +284,7 @@ class BlockchainProvider extends ChangeNotifier {
 
   /// Memperbarui status receipt transaksi jika sebelumnya pending
   Future<void> refreshProofStatus(TripProofModel proof) async {
+    if (proof.isSimulated) return; // Mode dry-run off-chain tidak memerlukan polling receipt
     if (proof.txHash == null || proof.txHash!.isEmpty) return;
 
     final newStatus = await _blockchainService.checkTxReceiptStatus(proof.txHash!);

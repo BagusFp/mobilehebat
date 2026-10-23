@@ -106,7 +106,7 @@ class TripRepository {
             : (remote.items.isNotEmpty ? remote.items : cached.items);
 
         mergedMap[key] = remote.copyWith(
-          id: cached.id ?? remote.id,
+          id: remote.id ?? cached.id,
           status: statusToKeep,
           completedAt: completedAtToKeep,
           totalActualCost: isLocallyCompleted && cached.totalActualCost > 0

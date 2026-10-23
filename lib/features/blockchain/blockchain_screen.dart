@@ -18,10 +18,7 @@ import 'blockchain_provider.dart';
 class BlockchainScreen extends StatefulWidget {
   final int? initialTripId;
 
-  const BlockchainScreen({
-    super.key,
-    this.initialTripId,
-  });
+  const BlockchainScreen({super.key, this.initialTripId});
 
   @override
   State<BlockchainScreen> createState() => _BlockchainScreenState();
@@ -110,7 +107,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
           indicatorWeight: 3,
           labelColor: AppColors.primary,
           unselectedLabelColor: AppColors.onSurfaceVariant,
-          labelStyle: AppTypography.titleSm.copyWith(fontWeight: FontWeight.bold),
+          labelStyle: AppTypography.titleSm.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
           tabs: const [
             Tab(
               icon: Icon(Icons.verified_outlined, size: 20),
@@ -232,7 +231,11 @@ class _BlockchainScreenState extends State<BlockchainScreen>
         children: [
           Row(
             children: [
-              const Icon(Icons.hub_outlined, color: AppColors.primary, size: 20),
+              const Icon(
+                Icons.hub_outlined,
+                color: AppColors.primary,
+                size: 20,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
@@ -266,14 +269,21 @@ class _BlockchainScreenState extends State<BlockchainScreen>
             children: [
               Text(
                 'Smart Contract:',
-                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
               InkWell(
                 onTap: () {
-                  Clipboard.setData(const ClipboardData(
-                      text: BlockchainService.defaultContractAddress));
+                  Clipboard.setData(
+                    const ClipboardData(
+                      text: BlockchainService.defaultContractAddress,
+                    ),
+                  );
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Alamat kontrak disalin ke clipboard!')),
+                    const SnackBar(
+                      content: Text('Alamat kontrak disalin ke clipboard!'),
+                    ),
                   );
                 },
                 child: Row(
@@ -281,7 +291,8 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                   children: [
                     Text(
                       BlockchainProofHelper.formatShortHash(
-                          BlockchainService.defaultContractAddress),
+                        BlockchainService.defaultContractAddress,
+                      ),
                       style: AppTypography.bodySm.copyWith(
                         fontFamily: 'monospace',
                         fontWeight: FontWeight.bold,
@@ -301,7 +312,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
             children: [
               Text(
                 'Block Explorer:',
-                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
               Text(
                 'sepolia.etherscan.io',
@@ -373,6 +386,13 @@ class _BlockchainScreenState extends State<BlockchainScreen>
         statusBgColor = const Color(0xFFE8F5E9);
         statusIcon = Icons.verified;
         statusText = 'Bukti tercatat di blockchain';
+        break;
+      case 'simulated':
+      case 'dry_run':
+        statusColor = const Color(0xFF00695C);
+        statusBgColor = const Color(0xFFE0F2F1);
+        statusIcon = Icons.science_outlined;
+        statusText = 'Simulasi Valid (Dry-Run)';
         break;
       case 'pending':
         statusColor = const Color(0xFFE65100);
@@ -477,18 +497,30 @@ class _BlockchainScreenState extends State<BlockchainScreen>
           // Ringkasan Destinasi & Tanggal
           Row(
             children: [
-              const Icon(Icons.place_outlined, size: 14, color: AppColors.onSurfaceVariant),
+              const Icon(
+                Icons.place_outlined,
+                size: 14,
+                color: AppColors.onSurfaceVariant,
+              ),
               const SizedBox(width: 4),
               Text(
                 '$visitedCount/${trip.items.length} Destinasi Tercatat',
-                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
               const SizedBox(width: 12),
-              const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.onSurfaceVariant),
+              const Icon(
+                Icons.calendar_today_outlined,
+                size: 14,
+                color: AppColors.onSurfaceVariant,
+              ),
               const SizedBox(width: 4),
               Text(
                 trip.startDate,
-                style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                style: AppTypography.bodySm.copyWith(
+                  color: AppColors.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -525,7 +557,11 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                         ),
                       ),
                       const SizedBox(width: 4),
-                      const Icon(Icons.copy, size: 12, color: AppColors.primary),
+                      const Icon(
+                        Icons.copy,
+                        size: 12,
+                        color: AppColors.primary,
+                      ),
                     ],
                   ),
                 ),
@@ -563,8 +599,22 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Icon(Icons.copy, size: 12, color: AppColors.primary),
+                        const Icon(
+                          Icons.copy,
+                          size: 12,
+                          color: AppColors.primary,
+                        ),
                       ],
+                    ),
+                  )
+                else if (proof.isSimulated)
+                  Text(
+                    'Simulasi off-chain (Mode Dry-Run)',
+                    style: AppTypography.bodySm.copyWith(
+                      fontStyle: FontStyle.italic,
+                      color: const Color(0xFF00695C),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
                   )
                 else
@@ -600,11 +650,17 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                         if (context.mounted) {
                           if (chain.proofError != null) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Gagal: ${chain.proofError}')),
+                              SnackBar(
+                                content: Text('Gagal: ${chain.proofError}'),
+                              ),
                             );
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Bukti perjalanan berhasil dibuat dan dicatat!')),
+                              const SnackBar(
+                                content: Text(
+                                  'Bukti perjalanan berhasil dibuat dan dicatat!',
+                                ),
+                              ),
                             );
                           }
                         }
@@ -613,11 +669,16 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Icon(Icons.verified_outlined, size: 18),
                 label: Text(
-                  chain.isGeneratingProof ? 'Memproses Bukti...' : 'Buat Bukti Perjalanan',
+                  chain.isGeneratingProof
+                      ? 'Memproses Bukti...'
+                      : 'Buat Bukti Perjalanan',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
@@ -630,64 +691,160 @@ class _BlockchainScreenState extends State<BlockchainScreen>
               ),
             )
           else
-            Row(
+            Column(
               children: [
-                // Tombol Lihat di Blockchain
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: proof.blockExplorerUrl != null
-                        ? () async {
-                            final uri = Uri.parse(proof.blockExplorerUrl!);
-                            if (await canLaunchUrl(uri)) {
-                              await launchUrl(uri, mode: LaunchMode.externalApplication);
-                            } else {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Gagal membuka Block Explorer.')),
-                                );
+                Row(
+                  children: [
+                    // Tombol Lihat di Blockchain
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: proof.blockExplorerUrl != null
+                            ? () async {
+                                final uri = Uri.parse(proof.blockExplorerUrl!);
+                                if (await canLaunchUrl(uri)) {
+                                  await launchUrl(
+                                    uri,
+                                    mode: LaunchMode.externalApplication,
+                                  );
+                                } else {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Gagal membuka Block Explorer.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                }
                               }
-                            }
-                          }
-                        : null,
-                    icon: const Icon(Icons.open_in_new, size: 16),
-                    label: const Text(
-                      'Lihat di Explorer',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                            : (proof.isSimulated
+                                ? () {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Mode Dry-Run: Transaksi tidak disiarkan on-chain, sehingga tidak ada data di Sepolia Explorer.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                : null),
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        label: const Text(
+                          'Lihat di Explorer',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppDimensions.radiusMd,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      side: const BorderSide(color: AppColors.primary),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                    const SizedBox(width: 8),
+                    // Tombol Verifikasi Bukti
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: chain.isVerifying
+                            ? null
+                            : () => _showVerificationBottomSheet(
+                                context,
+                                proof,
+                                chain,
+                              ),
+                        icon: const Icon(Icons.fact_check_outlined, size: 16),
+                        label: const Text(
+                          'Verifikasi Bukti',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondaryContainer,
+                          foregroundColor: AppColors.onSecondaryContainer,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              AppDimensions.radiusMd,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (proof.isPending || proof.isFailed) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 40,
+                    child: OutlinedButton.icon(
+                      onPressed: chain.isGeneratingProof
+                          ? null
+                          : () async {
+                              final session = SupabaseService().currentSession;
+                              await chain.generateProofForTrip(
+                                trip: trip,
+                                userId: userId,
+                                userJwtToken: session?.accessToken,
+                              );
+                              if (context.mounted) {
+                                if (chain.proofError != null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Gagal: ${chain.proofError}'),
+                                    ),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Bukti perjalanan berhasil disinkronkan ke server!',
+                                      ),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                      icon: chain.isGeneratingProof
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.sync, size: 16),
+                      label: Text(
+                        chain.isGeneratingProof
+                            ? 'Menyinkronkan...'
+                            : 'Sinkronkan / Perbarui Bukti (Dry-Run)',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            AppDimensions.radiusMd,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                // Tombol Verifikasi Bukti
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: chain.isVerifying
-                        ? null
-                        : () => _showVerificationBottomSheet(context, proof, chain),
-                    icon: const Icon(Icons.fact_check_outlined, size: 16),
-                    label: const Text(
-                      'Verifikasi Bukti',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondaryContainer,
-                      foregroundColor: AppColors.onSecondaryContainer,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                      ),
-                    ),
-                  ),
-                ),
+                ],
               ],
             ),
         ],
@@ -711,7 +868,8 @@ class _BlockchainScreenState extends State<BlockchainScreen>
         return FutureBuilder<Map<String, dynamic>>(
           future: chain.verifyProof(proof),
           builder: (ctx, snapshot) {
-            final isWaiting = snapshot.connectionState == ConnectionState.waiting;
+            final isWaiting =
+                snapshot.connectionState == ConnectionState.waiting;
             final result = snapshot.data;
 
             return Padding(
@@ -733,7 +891,10 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      const Icon(Icons.verified_user_outlined, color: AppColors.primary),
+                      const Icon(
+                        Icons.verified_user_outlined,
+                        color: AppColors.primary,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Audit Verifikasi Bukti Digital',
@@ -746,7 +907,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                   const SizedBox(height: 4),
                   Text(
                     'Verifikasi kriptografis deterministik antara snapshot lokal dan kondisi on-chain.',
-                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+                    style: AppTypography.bodySm.copyWith(
+                      color: AppColors.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -758,7 +921,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                           children: [
                             CircularProgressIndicator(),
                             SizedBox(height: 12),
-                            Text('Memverifikasi hash dan state Ethereum Sepolia...'),
+                            Text(
+                              'Memverifikasi hash dan state Ethereum Sepolia...',
+                            ),
                           ],
                         ),
                       ),
@@ -774,15 +939,21 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     ),
                     const SizedBox(height: 12),
 
-                    // Item 2: Status Transaksi di Sepolia
+                    // Item 2: Status Transaksi / Simulasi
                     _buildVerificationRow(
-                      title: 'Status Transaksi di Sepolia',
-                      isValid: result['isTxReceiptValid'] == true,
-                      description: result['isTxReceiptValid'] == true
-                          ? 'Receipt transaksi terkonfirmasi status 0x1 pada node Sepolia.'
-                          : (proof.isPending
-                              ? 'Transaksi sedang menunggu mining di mempool testnet.'
-                              : 'Receipt transaksi on-chain belum ditemukan.'),
+                      title: proof.isSimulated
+                          ? 'Status Simulasi Eksekusi'
+                          : 'Status Transaksi di Sepolia',
+                      isValid: proof.isSimulated
+                          ? true
+                          : result['isTxReceiptValid'] == true,
+                      description: proof.isSimulated
+                          ? 'Mode Dry-Run: Simulasi staticCall smart contract Sepolia berhasil tanpa revert (on-chain broadcast dinonaktifkan secara aman).'
+                          : (result['isTxReceiptValid'] == true
+                                ? 'Receipt transaksi terkonfirmasi status 0x1 pada node Sepolia.'
+                                : (proof.isPending
+                                      ? 'Transaksi sedang menunggu mining di mempool testnet.'
+                                      : 'Receipt transaksi on-chain belum ditemukan.')),
                     ),
                     const SizedBox(height: 12),
 
@@ -799,7 +970,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.surfaceContainerLow,
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusMd,
+                        ),
                       ),
                       child: Text(
                         result['details'] ?? '',
@@ -821,7 +994,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                           backgroundColor: AppColors.primary,
                           foregroundColor: AppColors.onPrimary,
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                            borderRadius: BorderRadius.circular(
+                              AppDimensions.radiusMd,
+                            ),
                           ),
                         ),
                         child: const Text('Tutup Verifikasi'),
@@ -893,7 +1068,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
               const SizedBox(width: 8),
               Text(
                 'Privasi & Kejujuran Sistem',
-                style: AppTypography.titleSm.copyWith(fontWeight: FontWeight.bold),
+                style: AppTypography.titleSm.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -1009,12 +1186,17 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: isChainValid
                           ? AppColors.surfaceContainerHigh
                           : AppColors.errorContainer,
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                      borderRadius: BorderRadius.circular(
+                        AppDimensions.radiusFull,
+                      ),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -1022,13 +1204,17 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                         Icon(
                           isChainValid ? Icons.verified : Icons.error,
                           size: 14,
-                          color: isChainValid ? AppColors.primary : AppColors.error,
+                          color: isChainValid
+                              ? AppColors.primary
+                              : AppColors.error,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           isChainValid ? 'Rantai Valid' : 'Rantai Rusak!',
                           style: AppTypography.labelSm.copyWith(
-                            color: isChainValid ? AppColors.primary : AppColors.error,
+                            color: isChainValid
+                                ? AppColors.primary
+                                : AppColors.error,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1074,7 +1260,10 @@ class _BlockchainScreenState extends State<BlockchainScreen>
   }
 
   Widget _buildBlockCard(
-      BuildContext context, BlockModel block, BlockchainProvider chain) {
+    BuildContext context,
+    BlockModel block,
+    BlockchainProvider chain,
+  ) {
     final isGenesis = block.index == 1;
     final isTampered = block.isTampered;
 
@@ -1086,7 +1275,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
             ? AppColors.errorContainer.withAlpha(50)
             : AppColors.surfaceContainerLowest,
         borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        border: isTampered ? Border.all(color: AppColors.error, width: 1.5) : null,
+        border: isTampered
+            ? Border.all(color: AppColors.error, width: 1.5)
+            : null,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withAlpha(6),
@@ -1108,8 +1299,8 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                   color: isTampered
                       ? AppColors.error
                       : (isGenesis
-                          ? AppColors.surfaceContainerHighest
-                          : AppColors.primary),
+                            ? AppColors.surfaceContainerHighest
+                            : AppColors.primary),
                   shape: BoxShape.circle,
                 ),
                 alignment: Alignment.center,
@@ -1132,14 +1323,17 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                       children: [
                         Flexible(
                           child: Container(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: isGenesis
                                   ? AppColors.surfaceContainer
                                   : AppColors.secondaryContainer,
-                              borderRadius:
-                                  BorderRadius.circular(AppDimensions.radiusSm),
+                              borderRadius: BorderRadius.circular(
+                                AppDimensions.radiusSm,
+                              ),
                             ),
                             child: Text(
                               isGenesis ? 'Genesis Block' : 'Blok Riwayat Sah',
@@ -1170,7 +1364,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                       block.title,
                       style: AppTypography.titleMd.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isTampered ? AppColors.error : AppColors.onSurface,
+                        color: isTampered
+                            ? AppColors.error
+                            : AppColors.onSurface,
                       ),
                     ),
                   ],
@@ -1200,7 +1396,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
   }
 
   Widget _buildAuditActionSection(
-      BuildContext context, BlockchainProvider chain) {
+    BuildContext context,
+    BlockchainProvider chain,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
       child: Container(
@@ -1225,33 +1423,44 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                 const SizedBox(width: 8),
                 Text(
                   'Cek Integritas Rantai',
-                  style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                  style: AppTypography.titleMd.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 6),
             Text(
               'Audit integritas memeriksa kesinambungan signature hash dari Blok Genesis hingga transaksi mutakhir.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
+              style: AppTypography.bodySm.copyWith(
+                color: AppColors.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton.icon(
-                onPressed: chain.isAuditing ? null : () => chain.runChainAudit(),
+                onPressed: chain.isAuditing
+                    ? null
+                    : () => chain.runChainAudit(),
                 icon: chain.isAuditing
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
                       )
                     : const Icon(Icons.fact_check, size: 18),
                 label: Text(
                   chain.isAuditing
                       ? 'Mengaudit SHA-256 Rantai...'
                       : 'Validasi Seluruh Rantai Blok',
-                  style: AppTypography.labelLg.copyWith(fontWeight: FontWeight.bold),
+                  style: AppTypography.labelLg.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1278,7 +1487,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                 children: [
                   Icon(
                     chain.isChainValid ? Icons.check_circle : Icons.warning,
-                    color: chain.isChainValid ? AppColors.primary : AppColors.error,
+                    color: chain.isChainValid
+                        ? AppColors.primary
+                        : AppColors.error,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
@@ -1286,7 +1497,9 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     child: Text(
                       chain.auditStatus,
                       style: AppTypography.bodySm.copyWith(
-                        color: chain.isChainValid ? AppColors.primary : AppColors.error,
+                        color: chain.isChainValid
+                            ? AppColors.primary
+                            : AppColors.error,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1303,16 +1516,22 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                         ? () => chain.restoreChain()
                         : () => chain.simulateTamper(3),
                     icon: Icon(
-                      chain.isTamperedState ? Icons.restart_alt : Icons.bug_report,
+                      chain.isTamperedState
+                          ? Icons.restart_alt
+                          : Icons.bug_report,
                       size: 16,
-                      color: chain.isTamperedState ? AppColors.primary : AppColors.error,
+                      color: chain.isTamperedState
+                          ? AppColors.primary
+                          : AppColors.error,
                     ),
                     label: Text(
                       chain.isTamperedState
                           ? 'Pulihkan Rantai Asli'
                           : 'Simulasi Manipulasi (Tamper Test)',
                       style: TextStyle(
-                        color: chain.isTamperedState ? AppColors.primary : AppColors.error,
+                        color: chain.isTamperedState
+                            ? AppColors.primary
+                            : AppColors.error,
                         fontWeight: FontWeight.bold,
                         fontSize: 12,
                       ),
@@ -1321,10 +1540,14 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     ),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(
-                        color: chain.isTamperedState ? AppColors.primary : AppColors.error,
+                        color: chain.isTamperedState
+                            ? AppColors.primary
+                            : AppColors.error,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                        borderRadius: BorderRadius.circular(
+                          AppDimensions.radiusMd,
+                        ),
                       ),
                     ),
                   ),

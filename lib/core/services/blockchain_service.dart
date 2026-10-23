@@ -16,10 +16,18 @@ import '../utils/blockchain_proof_helper.dart';
 /// 4. HANYA menandai status 'confirmed' jika receipt transaksi benar-benar diverifikasi sukses di testnet!
 class BlockchainService {
   static final BlockchainService _instance = BlockchainService._internal();
-  factory BlockchainService() => _instance;
-  BlockchainService._internal();
+  factory BlockchainService({http.Client? httpClient, DatabaseHelper? dbHelper}) {
+    if (httpClient != null || dbHelper != null) {
+      return BlockchainService._internal(httpClient: httpClient, dbHelper: dbHelper);
+    }
+    return _instance;
+  }
+  BlockchainService._internal({http.Client? httpClient, DatabaseHelper? dbHelper})
+      : _httpClient = httpClient ?? http.Client(),
+        _dbHelper = dbHelper ?? DatabaseHelper.instance;
 
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final http.Client _httpClient;
+  final DatabaseHelper _dbHelper;
 
   // Konfigurasi Sepolia Testnet
   static const int chainId = 11155111;
@@ -30,21 +38,24 @@ class BlockchainService {
   // Daftar RPC endpoint Sepolia publik dengan fallback otomatis
   static const List<String> rpcEndpoints = [
     'https://ethereum-sepolia-rpc.publicnode.com',
-    'https://rpc.sepolia.org',
     'https://1rpc.io/sepolia',
+    'https://sepolia.drpc.org',
     'https://gateway.tenderly.co/public/sepolia',
   ];
 
-  // Function selector keccak256 hash untuk getProof(bytes32) -> 0x1b80bb3a
+  // Function selector keccak256 hash untuk:
+  // getProof(bytes32) -> 0x1b80bb3a
   // verifyProof(bytes32,bytes32) -> 0x739808e5
+  // isProofRecorded(bytes32) -> 0x2d1813f1
   static const String verifyProofSelector = '0x739808e5';
   static const String getProofSelector = '0x1b80bb3a';
+  static const String isProofRecordedSelector = '0x2d1813f1';
 
-  /// Mendapatkan RPC endpoint yang aktif merespons
+  /// Mendapatkan RPC endpoint yang aktif merespons dan terbukti pada Sepolia Testnet
   Future<String> _getActiveRpc() async {
     for (final rpc in rpcEndpoints) {
       try {
-        final response = await http
+        final response = await _httpClient
             .post(
               Uri.parse(rpc),
               headers: {'Content-Type': 'application/json'},
@@ -60,7 +71,11 @@ class BlockchainService {
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           if (data['result'] != null) {
-            return rpc;
+            final rawChainId = data['result'].toString();
+            final parsedChainId = int.tryParse(rawChainId.replaceFirst('0x', ''), radix: 16);
+            if (parsedChainId == chainId) {
+              return rpc;
+            }
           }
         }
       } catch (_) {
@@ -86,7 +101,9 @@ class BlockchainService {
 
     // 1. Cek apakah sudah ada bukti yang tersimpan secara lokal
     final existingMap = await _dbHelper.getTripProofByTripId(trip.id!);
+    int? localId;
     if (existingMap != null) {
+      localId = existingMap['id'] as int?;
       final existingProof = TripProofModel.fromMap(existingMap);
       if (existingProof.isConfirmed) {
         return existingProof;
@@ -119,6 +136,7 @@ class BlockchainService {
 
     // 3. Simpan awal dengan status 'pending'
     var proofModel = TripProofModel(
+      id: localId,
       userId: userId,
       tripId: trip.id!,
       proofId: proofId,
@@ -134,33 +152,73 @@ class BlockchainService {
       createdAt: DateTime.now().toIso8601String(),
     );
 
-    await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+    final initialId = await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+    localId ??= initialId;
+    proofModel = proofModel.copyWith(id: localId);
 
-    // 4. Kirim ke backend (Supabase Edge Function jika auth tersedia)
-    try {
-      if (SupabaseConfig.isConfigured && userJwtToken != null && userJwtToken.isNotEmpty) {
+    // 4. Kirim ke backend (Supabase Edge Function jika konfigurasi Supabase aktif)
+    if (SupabaseConfig.isConfigured) {
+      if (userJwtToken == null || userJwtToken.isEmpty) {
+        proofModel = proofModel.copyWith(status: 'failed', id: localId);
+        await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+        throw Exception('Sesi autentikasi tidak ditemukan. Silakan login ke akun Supabase untuk membuat bukti perjalanan.');
+      }
+
+      try {
         final edgeFunctionUrl = '${SupabaseConfig.url}/functions/v1/record-proof';
-        final response = await http
+        final response = await _httpClient
             .post(
               Uri.parse(edgeFunctionUrl),
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer $userJwtToken',
               },
-              body: jsonEncode({'trip_id': trip.id}),
+              body: jsonEncode({
+                'trip_id': trip.id,
+                'trip_name': trip.tripName,
+              }),
             )
-            .timeout(const Duration(seconds: 12));
+            .timeout(const Duration(seconds: 15));
 
-        if (response.statusCode == 200 || response.statusCode == 201) {
+        if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
           final resData = jsonDecode(response.body);
           if (resData['proof'] != null) {
             proofModel = TripProofModel.fromMap(resData['proof'] as Map<String, dynamic>);
-            await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+            proofModel = proofModel.copyWith(id: localId);
+            // Safeguard: Jika backend merespons mode dry_run / broadcast disabled, pastikan status lokal adalah simulated
+            if ((resData['mode'] == 'dry_run' || resData['broadcast_enabled'] == false) && proofModel.isPending) {
+              proofModel = proofModel.copyWith(status: 'simulated');
+            }
+            final updatedId = await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+            proofModel = proofModel.copyWith(id: updatedId);
           }
+        } else {
+          String serverError = 'Gagal memproses bukti perjalanan di server (HTTP ${response.statusCode})';
+          try {
+            final resData = jsonDecode(response.body);
+            if (resData['error'] != null) {
+              serverError = resData['error'].toString();
+            } else if (resData['message'] != null) {
+              serverError = resData['message'].toString();
+            }
+          } catch (_) {}
+
+          proofModel = proofModel.copyWith(status: 'failed', id: localId);
+          try {
+            await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+          } catch (_) {}
+          throw Exception(serverError);
         }
+      } catch (e) {
+        if (e is Exception && e.toString().contains('Exception: ')) {
+          rethrow;
+        }
+        proofModel = proofModel.copyWith(status: 'failed', id: localId);
+        try {
+          await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
+        } catch (_) {}
+        throw Exception('Koneksi ke backend Supabase gagal: $e');
       }
-    } catch (e) {
-      debugPrint('Catatan backend relayer: $e. Mempertahankan status pending offline.');
     }
 
     return proofModel;
@@ -170,7 +228,7 @@ class BlockchainService {
   Future<String> checkTxReceiptStatus(String txHash) async {
     try {
       final rpc = await _getActiveRpc();
-      final response = await http.post(
+      final response = await _httpClient.post(
         Uri.parse(rpc),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
@@ -202,14 +260,33 @@ class BlockchainService {
 
   /// Memverifikasi integritas bukti secara menyeluruh:
   /// 1. Hash snapshot lokal vs hash tersimpan
-  /// 2. Cek status receipt transaksi di Ethereum Sepolia (jika ada txHash)
-  /// 3. Query smart contract langsung via eth_call
+  /// 2. Mode simulasi dry-run vs mode broadcast on-chain
+  /// 3. Cek status receipt transaksi di Ethereum Sepolia (jika ada txHash)
+  /// 4. Query smart contract langsung via eth_call
   Future<Map<String, dynamic>> verifyProofIntegrity(TripProofModel proof) async {
     // 1. Verifikasi lokal terhadap snapshot asli
     final isLocalHashValid = BlockchainProofHelper.verifyLocalSnapshot(
       snapshotJson: proof.snapshotJson,
       expectedHash: proof.proofHash,
     );
+
+    // Jika berstatus simulasi/dry-run, jangan tunggu konfirmasi blok Sepolia
+    if (proof.isSimulated) {
+      final details = isLocalHashValid
+          ? 'Bukti valid secara kriptografis (Mode Dry-Run). Hash kanonis lokal konsisten dan lolos verifikasi simulasi smart contract.'
+          : 'Peringatan: Hash snapshot lokal tidak cocok dengan hash tersimpan! Terdeteksi anomali integritas.';
+
+      return {
+        'isLocalHashValid': isLocalHashValid,
+        'isTxReceiptValid': false,
+        'isOnChainConfirmed': false,
+        'isSimulated': true,
+        'txBlockNumber': null,
+        'details': details,
+        'explorerUrl': null,
+        'verifiedAt': DateTime.now().toIso8601String(),
+      };
+    }
 
     bool isOnChainConfirmed = false;
     bool isTxReceiptValid = false;
@@ -220,7 +297,7 @@ class BlockchainService {
     if (proof.txHash != null && proof.txHash!.startsWith('0x') && proof.txHash!.length == 66) {
       try {
         final rpc = await _getActiveRpc();
-        final response = await http.post(
+        final response = await _httpClient.post(
           Uri.parse(rpc),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
@@ -248,12 +325,17 @@ class BlockchainService {
     if (isTxReceiptValid || proof.isConfirmed) {
       try {
         final rpc = await _getActiveRpc();
-        // Format calldata untuk getProof(bytes32 proofId)
-        // Selector 4 bytes + proofId 32 bytes (64 hex characters)
+        // Format calldata untuk verifyProof(bytes32 proofId, bytes32 proofHash)
+        // verifyProof aman dan tidak akan revert jika bukti belum tercatat (mengembalikan false)
         final cleanProofId = proof.proofId.replaceFirst('0x', '').padLeft(64, '0');
-        final callData = '$getProofSelector$cleanProofId';
+        final cleanProofHash = proof.proofHash.replaceFirst('0x', '').padLeft(64, '0');
+        final callData = '$verifyProofSelector$cleanProofId$cleanProofHash';
+        final targetAddress = BlockchainProofHelper.sanitizeContractAddress(
+          proof.contractAddress,
+          fallback: defaultContractAddress,
+        );
 
-        final response = await http.post(
+        final response = await _httpClient.post(
           Uri.parse(rpc),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
@@ -261,7 +343,7 @@ class BlockchainService {
             'method': 'eth_call',
             'params': [
               {
-                'to': proof.contractAddress,
+                'to': targetAddress,
                 'data': callData,
               },
               'latest',
@@ -273,10 +355,15 @@ class BlockchainService {
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body);
           final resultHex = data['result'] as String?;
-          if (resultHex != null && resultHex != '0x' && resultHex.length >= 66) {
-            final onChainHash = '0x${resultHex.substring(2, 66)}';
-            if (onChainHash.toLowerCase() == proof.proofHash.toLowerCase()) {
+          if (resultHex != null && resultHex != '0x') {
+            final boolVal = int.tryParse(resultHex.replaceFirst('0x', ''), radix: 16);
+            if (boolVal == 1) {
               isOnChainConfirmed = true;
+            } else if (resultHex.length >= 66) {
+              final onChainHash = '0x${resultHex.substring(2, 66)}';
+              if (onChainHash.toLowerCase() == proof.proofHash.toLowerCase()) {
+                isOnChainConfirmed = true;
+              }
             }
           }
         }

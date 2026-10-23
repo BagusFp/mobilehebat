@@ -119,5 +119,58 @@ void main() {
       expect(BlockchainProofHelper.formatShortHash(null), '-');
       expect(BlockchainProofHelper.formatShortHash(''), '-');
     });
+
+    group('Contract Address Validation & Sanitization Regression Tests', () {
+      const validAddress = '0xB8Fa4B7600f5905B8E958b8E0A21378ffef80b9D';
+
+      test('isValidEthereumAddress validasi alamat dengan benar', () {
+        // Alamat standar
+        expect(BlockchainProofHelper.isValidEthereumAddress(validAddress), isTrue);
+        expect(BlockchainProofHelper.isValidEthereumAddress(validAddress.toLowerCase()), isTrue);
+
+        // Alamat dengan leading/trailing newline dan whitespace
+        expect(BlockchainProofHelper.isValidEthereumAddress('$validAddress\n'), isTrue);
+        expect(BlockchainProofHelper.isValidEthereumAddress('\r\n$validAddress\r\n'), isTrue);
+        expect(BlockchainProofHelper.isValidEthereumAddress('  $validAddress  '), isTrue);
+
+        // Alamat invalid
+        expect(BlockchainProofHelper.isValidEthereumAddress(null), isFalse);
+        expect(BlockchainProofHelper.isValidEthereumAddress(''), isFalse);
+        expect(BlockchainProofHelper.isValidEthereumAddress('   '), isFalse);
+        expect(BlockchainProofHelper.isValidEthereumAddress('0xInvalidHexAddress1234567890'), isFalse);
+        expect(BlockchainProofHelper.isValidEthereumAddress('0xB8Fa4B7600f5905B8E958b8E0A21378ffef80b'), isFalse); // kurang panjang
+        expect(BlockchainProofHelper.isValidEthereumAddress('${validAddress}extra'), isFalse); // kelebihan panjang
+        expect(BlockchainProofHelper.isValidEthereumAddress('B8Fa4B7600f5905B8E958b8E0A21378ffef80b9D'), isFalse); // tanpa 0x
+        expect(BlockchainProofHelper.isValidEthereumAddress('meratrip.eth'), isFalse); // ENS name
+      });
+
+      test('sanitizeContractAddress membersihkan newline dan spasi, atau fallback jika invalid', () {
+        // Pembersihan newline \n ({0A}) penyebab bug ENS
+        expect(
+          BlockchainProofHelper.sanitizeContractAddress('$validAddress\n'),
+          validAddress,
+        );
+        // Pembersihan \r\n dan spasi
+        expect(
+          BlockchainProofHelper.sanitizeContractAddress('  \r\n$validAddress\n  '),
+          validAddress,
+        );
+
+        // Fallback untuk input invalid
+        const customFallback = '0x1111111111111111111111111111111111111111';
+        expect(
+          BlockchainProofHelper.sanitizeContractAddress(null, fallback: customFallback),
+          customFallback,
+        );
+        expect(
+          BlockchainProofHelper.sanitizeContractAddress('corrupted_address', fallback: customFallback),
+          customFallback,
+        );
+        expect(
+          BlockchainProofHelper.sanitizeContractAddress('', fallback: customFallback),
+          customFallback,
+        );
+      });
+    });
   });
 }

@@ -110,4 +110,23 @@ class BlockchainProofHelper {
     if (hash.length <= 16) return hash;
     return '${hash.substring(0, 10)}...${hash.substring(hash.length - 8)}';
   }
+
+  /// Memeriksa apakah string adalah alamat Ethereum/EVM yang valid (42 karakter: 0x + 40 hex chars)
+  static bool isValidEthereumAddress(String? address) {
+    if (address == null) return false;
+    final cleaned = address.trim();
+    final regex = RegExp(r'^0x[0-9a-fA-F]{40}$');
+    return regex.hasMatch(cleaned);
+  }
+
+  /// Membersihkan dan menormalisasi format alamat smart contract.
+  /// Menghapus whitespace, newline (\r, \n), dan mengembalikan alamat terverifikasi atau fallback jika invalid.
+  static String sanitizeContractAddress(String? address, {String fallback = '0xB8Fa4B7600f5905B8E958b8E0A21378ffef80b9D'}) {
+    if (address == null) return fallback;
+    final cleaned = address.trim();
+    if (isValidEthereumAddress(cleaned)) {
+      return cleaned;
+    }
+    return fallback;
+  }
 }

@@ -26,7 +26,16 @@ declare module "https://esm.sh/@supabase/supabase-js@2" {
   ): any;
 }
 
+declare module "npm:ethers@6.13.4" {
+  export const ethers: any;
+}
+
+declare module "npm:ethers*" {
+  export const ethers: any;
+}
+
 declare module "npm:*" {
+  export const ethers: any;
   const content: any;
-  export = content;
+  export default content;
 }
