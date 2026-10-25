@@ -9,10 +9,7 @@ import '../../core/constants/app_typography.dart';
 import '../../core/utils/image_compress_helper.dart';
 import '../../data/models/user_model.dart';
 import '../auth/auth_provider.dart';
-import '../quiz/quiz_screen.dart';
-import '../trip/trip_provider.dart';
 import '../blockchain/blockchain_screen.dart';
-import 'course_feedback_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   final Function(int tabIndex)? onNavigateTab;
@@ -133,21 +130,7 @@ class ProfileScreen extends StatelessWidget {
         ),
         const SizedBox(height: AppDimensions.spaceSm),
 
-        // Menu 1: Mini Game Kuis Merapi
-        _buildMenuItem(
-          context,
-          icon: Icons.sports_esports_rounded,
-          title: 'Mini Game Kuis Merapi',
-          subtitle: 'Uji wawasan vulkanologi & mitigasi bencana Merapi',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const QuizScreen()),
-            );
-          },
-        ),
-
-        // Menu 2: Catatan Bukti Blockchain
+        // Menu 1: Catatan Bukti Blockchain
         _buildMenuItem(
           context,
           icon: Icons.shield_outlined,
@@ -161,55 +144,11 @@ class ProfileScreen extends StatelessWidget {
           },
         ),
 
-        // Menu 3: Refleksi Kuliah & Evaluasi PAM
-        _buildMenuItem(
-          context,
-          icon: Icons.school_rounded,
-          title: 'Refleksi Kuliah & Evaluasi PAM',
-          subtitle: 'Laporan Ujian Praktikum Pemrograman Aplikasi Mobile',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CourseFeedbackScreen()),
-            );
-          },
-        ),
-
-        // Menu 4: Kunci Biometrik Aplikasi
+        // Menu 2: Kunci Biometrik Aplikasi
         _buildBiometricSettingTile(context, auth),
 
         const SizedBox(height: AppDimensions.spaceXl),
 
-        // 3. Tombol Logout & Informasi Versi Aplikasi
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: () => _showLogoutConfirmation(context, auth),
-            icon: const Icon(Icons.logout_rounded, size: 18),
-            label: const Text(
-              'Keluar dari Akun',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.errorContainer,
-              foregroundColor: AppColors.onErrorContainer,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'MeraTrip v2.4.0 — Ekowisata Lereng Merapi DIY & Jateng',
-          style: AppTypography.bodySm.copyWith(
-            color: AppColors.outline,
-            fontSize: 11,
-          ),
-          textAlign: TextAlign.center,
-        ),
       ],
     );
   }
@@ -217,8 +156,8 @@ class ProfileScreen extends StatelessWidget {
   /// Avatar Widget yang mendukung URL Supabase, File Lokal, dan Inisial Nama
   Widget _buildUserAvatar(UserModel? user, {required double radius}) {
     final photo = user?.profilePhoto;
-    final name = user?.name.isNotEmpty == true ? user!.name : 'Bima Sakti';
-    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'B';
+    final name = user?.name.isNotEmpty == true ? user!.name : 'User';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
 
     if (photo != null && photo.isNotEmpty) {
       if (photo.startsWith('http')) {
@@ -227,14 +166,6 @@ class ProfileScreen extends StatelessWidget {
           backgroundColor: AppColors.secondaryContainer,
           backgroundImage: NetworkImage(photo),
           onBackgroundImageError: (exception, stackTrace) {},
-          child: Text(
-            initial,
-            style: TextStyle(
-              fontSize: radius * 0.9,
-              fontWeight: FontWeight.bold,
-              color: AppColors.primary,
-            ),
-          ),
         );
       } else {
         final localFile = File(photo);
@@ -265,7 +196,7 @@ class ProfileScreen extends StatelessWidget {
   /// Dialog / Modal Sheet Edit Profil Pengguna
   void _showEditProfileDialog(BuildContext context, AuthProvider auth) {
     final user = auth.currentUser;
-    final nameController = TextEditingController(text: user?.name ?? 'Bima Sakti');
+    final nameController = TextEditingController(text: user?.name ?? 'User');
     Uint8List? selectedImageBytes;
     bool isCompressing = false;
     String? compressionStats;
@@ -312,7 +243,7 @@ class ProfileScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'Edit Profil Wisatawan',
+                          'Edit Profil',
                           style: AppTypography.titleMd.copyWith(
                             fontWeight: FontWeight.bold,
                             color: AppColors.onSurface,
@@ -427,7 +358,7 @@ class ProfileScreen extends StatelessWidget {
                           ] else ...[
                             const SizedBox(height: 8),
                             Text(
-                              'Pilih foto (JPG/PNG/dll) otomatis dikompres ke WebP',
+                              'Pilih foto (JPG/PNG)',
                               style: AppTypography.bodySm.copyWith(
                                 color: AppColors.onSurfaceVariant,
                                 fontSize: 12,
@@ -556,7 +487,7 @@ class ProfileScreen extends StatelessWidget {
                                     Navigator.pop(sheetCtx);
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content: Text('Profil dan foto berhasil diperbarui di Supabase.'),
+                                        content: Text('Profil dan foto berhasil diperbarui'),
                                         backgroundColor: AppColors.secondary,
                                       ),
                                     );
@@ -1093,85 +1024,4 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  /// Dialog Konfirmasi Logout
-  void _showLogoutConfirmation(BuildContext context, AuthProvider auth) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppDimensions.margin),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.outlineVariant,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: 52,
-                height: 52,
-                decoration: const BoxDecoration(
-                  color: AppColors.errorContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.logout, color: AppColors.error, size: 28),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Akhiri Sesi Penjelajahan?',
-                style: AppTypography.headlineSm.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Sesi Supabase akan diakhiri dan aplikasi kembali ke layar login.',
-                style: AppTypography.bodyMd.copyWith(color: AppColors.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Navigator.pop(sheetCtx);
-                    context.read<TripProvider>().clearSession();
-                    await auth.logout();
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: AppColors.onError,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                    ),
-                  ),
-                  child: const Text(
-                    'Ya, Keluar Akun',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: TextButton(
-                  onPressed: () => Navigator.pop(sheetCtx),
-                  child: const Text('Tetap di Sini'),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 }
