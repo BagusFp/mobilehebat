@@ -9,6 +9,7 @@ import '../explore/destination_detail_screen.dart';
 import '../explore/destination_provider.dart';
 import '../games/merapi_jeep_game_page.dart';
 import '../map/map_screen.dart';
+import '../nature_scanner/presentation/nature_scanner_screen.dart';
 import '../sensor/sensor_compass_screen.dart';
 import '../trip/create_trip_screen.dart';
 
@@ -172,64 +173,93 @@ class HomeScreen extends StatelessWidget {
                 ),
               ),
 
-              // 4. 3 Utilitas Utama Cards Row
+              // 4. Utilitas Navigasi & Fitur AI Cerdas MeraTrip
               Padding(
                 padding: const EdgeInsets.only(
                   left: AppDimensions.margin,
                   right: AppDimensions.margin,
                   bottom: AppDimensions.spaceSm,
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Expanded(
-                      child: _buildUtilityCard(
-                        context: context,
-                        icon: Icons.map_outlined,
-                        iconBgColor: const Color(0xFFD7F5E5),
-                        iconColor: const Color(0xFF04432F),
-                        title: 'Peta Merapi',
-                        subtitle: 'Rute',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const MapScreen()),
-                          );
-                        },
-                      ),
+                    // Baris 1: Utilitas Navigasi & Orientasi Lapangan
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildUtilityCard(
+                            context: context,
+                            icon: Icons.map_outlined,
+                            iconBgColor: const Color(0xFFD7F5E5),
+                            iconColor: const Color(0xFF04432F),
+                            title: 'Peta Merapi',
+                            subtitle: 'Rute & Jalur',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const MapScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildUtilityCard(
+                            context: context,
+                            icon: Icons.explore_outlined,
+                            iconBgColor: const Color(0xFFFEF3C7),
+                            iconColor: const Color(0xFFB45309),
+                            title: 'Kompas',
+                            subtitle: 'Arah Merapi',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const SensorCompassScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildUtilityCard(
-                        context: context,
-                        icon: Icons.explore_outlined,
-                        iconBgColor: const Color(0xFFFEF3C7),
-                        iconColor: const Color(0xFFB45309),
-                        title: 'Kompas',
-                        subtitle: 'Arah Merapi',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const SensorCompassScreen()),
-                          );
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildUtilityCard(
-                        context: context,
-                        icon: Icons.smart_toy_outlined,
-                        iconBgColor: const Color(0xFFD6F3EB),
-                        iconColor: const Color(0xFF04432F),
-                        title: 'Jagawana AI',
-                        subtitle: 'Tanya Asisten AI',
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
-                          );
-                        },
-                      ),
+                    const SizedBox(height: 10),
+                    // Baris 2: Dua Kartu Fitur AI Cerdas Sejajar (AI Nature Scanner & AI Assistant Chatbot)
+                    Row(
+                      children: [
+                        // Kartu 1: AI Nature Scanner
+                        Expanded(
+                          child: _buildUtilityCard(
+                            context: context,
+                            icon: Icons.document_scanner_rounded,
+                            iconBgColor: const Color(0xFFD7F5E5),
+                            iconColor: const Color(0xFF04432F),
+                            title: 'AI Nature Scanner',
+                            subtitle: 'Pindai Objek Alam',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const NatureScannerScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        // Kartu 2: AI Assistant / Chatbot
+                        Expanded(
+                          child: _buildUtilityCard(
+                            context: context,
+                            icon: Icons.chat_bubble_outline_rounded,
+                            iconBgColor: const Color(0xFFD6F3EB),
+                            iconColor: const Color(0xFF04432F),
+                            title: 'AI Assistant',
+                            subtitle: 'Tanya Jagawana AI',
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const AiAssistantScreen()),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -658,13 +688,18 @@ class HomeScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      'Tiket: Rp 10.000 / org',
-                                      style: AppTypography.labelMedium.copyWith(
-                                        color: const Color(0xFF69F0AE),
-                                        fontWeight: FontWeight.bold,
+                                    Expanded(
+                                      child: Text(
+                                        'Tiket: Rp 10.000 / org',
+                                        style: AppTypography.labelMedium.copyWith(
+                                          color: const Color(0xFF69F0AE),
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
+                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                       decoration: BoxDecoration(

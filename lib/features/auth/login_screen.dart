@@ -83,26 +83,25 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Mount Merapi Emblem
+              // Mount Merapi Emblem / Logo
               Container(
-                width: 72,
-                height: 72,
+                width: 76,
+                height: 76,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(20),
-                      blurRadius: 10,
+                      color: AppColors.primary.withAlpha(25),
+                      blurRadius: 14,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Icon(
-                    Icons.landscape_rounded,
-                    size: 40,
-                    color: AppColors.primary,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: Image.asset(
+                    'lib/img/logo.png',
+                    fit: BoxFit.contain,
                   ),
                 ),
               ),
@@ -112,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'MeraTrip',
+                    'MerapiTrip',
                     style: AppTypography.displayLarge.copyWith(
                       color: AppColors.primary,
                       fontSize: 28,

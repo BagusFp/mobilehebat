@@ -24,7 +24,7 @@ class FakeTripRepository extends TripRepository {
   }
 
   @override
-  Future<bool> deleteTrip(int tripId) async {
+  Future<bool> deleteTrip(int tripId, {String? tripName}) async {
     deleteCallCount++;
     memoryTrips.removeWhere((t) => t.id == tripId);
     return true;

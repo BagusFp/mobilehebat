@@ -201,18 +201,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
                   borderRadius: AppDimensions.roundedLg,
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.primary.withAlpha(40),
+                      color: AppColors.primary.withAlpha(25),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
-                child: const Center(
-                  child: Icon(Icons.volcano_rounded, color: Colors.white, size: 34),
+                child: ClipRRect(
+                  borderRadius: AppDimensions.roundedLg,
+                  child: Image.asset(
+                    'lib/img/logo.png',
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ),
               const SizedBox(height: 12),

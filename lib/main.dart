@@ -136,7 +136,7 @@ class MeraTripApp extends StatelessWidget {
           ChangeNotifierProvider<BlockchainProvider>(create: (_) => BlockchainProvider()),
       ],
       child: MaterialApp(
-        title: 'MeraTrip',
+        title: 'MerapiTrip',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
         home: const AuthGate(),
@@ -159,10 +159,25 @@ class _AuthGateState extends State<AuthGate> {
 
     // 1. Splash loading state saat inisialisasi awal
     if (!authProvider.isInitialized) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.background,
         body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  'lib/img/logo.png',
+                  width: 84,
+                  height: 84,
+                  fit: BoxFit.contain,
+                ),
+              ),
+              const SizedBox(height: 24),
+              const CircularProgressIndicator(color: AppColors.primary),
+            ],
+          ),
         ),
       );
     }

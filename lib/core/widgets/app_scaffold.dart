@@ -51,10 +51,18 @@ class AppScaffold extends StatelessWidget {
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.landscape_rounded, color: AppColors.primary, size: 24),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.asset(
+                            'lib/img/logo.png',
+                            width: 26,
+                            height: 26,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Text(
-                          'MeraTrip',
+                          'MerapiTrip',
                           style: AppTypography.titleLarge.copyWith(
                             fontWeight: FontWeight.w900,
                             color: AppColors.primary,

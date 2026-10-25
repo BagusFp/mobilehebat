@@ -104,7 +104,7 @@ void main() {
 
       final destinationsData = trip.items.map((it) => {
         'destination_name': it.itemName.trim(),
-        'elevation_mdpl': it.elevationMdpl ?? 0,
+        'elevation_mdpl': it.elevationMdpl,
         'is_visited': it.isCompleted,
       }).toList();
 
@@ -152,6 +152,7 @@ void main() {
           }),
         ).timeout(const Duration(seconds: 10));
 
+        // ignore: avoid_print
         print('DEBUG 3A: status=${liveResponse.statusCode}, body=${liveResponse.body}');
         expect(liveResponse.statusCode, anyOf(400, 401));
       } finally {
@@ -177,6 +178,7 @@ void main() {
           }),
         ).timeout(const Duration(seconds: 10));
 
+        // ignore: avoid_print
         print('DEBUG 3B: status=${liveResponse.statusCode}, body=${liveResponse.body}');
         expect(liveResponse.statusCode, anyOf(400, 401));
         if (liveResponse.statusCode == 401 && liveResponse.body.isNotEmpty) {

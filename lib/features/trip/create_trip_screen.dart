@@ -1246,13 +1246,14 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF045E44),
-                              borderRadius: BorderRadius.circular(8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.asset(
+                              'lib/img/logo.png',
+                              width: 32,
+                              height: 32,
+                              fit: BoxFit.contain,
                             ),
-                            child: const Icon(Icons.terrain_rounded, color: Colors.white, size: 20),
                           ),
                           const SizedBox(width: 8),
                           const Text(

@@ -133,11 +133,10 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
               children: [
                 // Top App Emblem
                 Container(
-                  width: 68,
-                  height: 68,
+                  width: 76,
+                  height: 76,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLow,
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
                         color: AppColors.primary.withAlpha(25),
@@ -146,11 +145,11 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                       ),
                     ],
                   ),
-                  child: const Center(
-                    child: Icon(
-                      Icons.landscape_rounded,
-                      size: 38,
-                      color: AppColors.primary,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
+                    child: Image.asset(
+                      'lib/img/logo.png',
+                      fit: BoxFit.contain,
                     ),
                   ),
                 ),
@@ -159,7 +158,7 @@ class _BiometricLockScreenState extends State<BiometricLockScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      'MeraTrip',
+                      'MerapiTrip',
                       style: AppTypography.displayLarge.copyWith(
                         fontSize: 26,
                         fontWeight: FontWeight.w900,

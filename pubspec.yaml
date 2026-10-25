@@ -7,6 +7,7 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  camera: ^0.12.1
   crypto: ^3.0.7
   flutter:
     sdk: flutter
@@ -22,6 +23,7 @@ dependencies:
   latlong2: ^0.10.1
   local_auth: ^3.0.2
   path: ^1.9.1
+  permission_handler: ^11.3.1
   provider: ^6.1.5+1
   sensors_plus: ^7.1.1
   shared_preferences: ^2.5.6
@@ -35,6 +37,23 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   sqflite_common_ffi: ^2.4.4
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
+  assets:
+    - lib/img/logo.png
+    - assets/logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "lib/img/logo.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "lib/img/logo.png"
+  windows:
+    generate: true
+    image_path: "lib/img/logo.png"
+
