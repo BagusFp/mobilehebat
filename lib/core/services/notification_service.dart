@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import '../database/preferences_helper.dart';
+import '../../features/notification/notification_model.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -11,6 +13,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _localNotifPlugin =
       FlutterLocalNotificationsPlugin();
+
+  final Map<int, Timer> _activeTimers = {};
 
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
@@ -21,6 +25,7 @@ class NotificationService {
       'Notifikasi pengingat perjalanan, destinasi berikutnya, dan peringatan vulkanik Merapi';
 
   Function(String? payload)? onNotificationClick;
+  static Function(NotificationModel notification)? onNotificationSent;
 
   /// Inisialisasi awal notifikasi lokal Android & iOS
   Future<void> init({Function(String? payload)? onClick}) async {
@@ -35,8 +40,14 @@ class NotificationService {
     }
 
     try {
-      // 1. Inisialisasi Database Zona Waktu
+      // 1. Inisialisasi Database Zona Waktu & set local location Asia/Jakarta (WIB)
       tz.initializeTimeZones();
+      try {
+        final location = tz.getLocation('Asia/Jakarta');
+        tz.setLocalLocation(location);
+      } catch (locErr) {
+        debugPrint('NotificationService: setLocalLocation warning: $locErr');
+      }
 
       // 2. Pengaturan Inisialisasi Android & iOS
       const AndroidInitializationSettings androidSettings =
@@ -143,7 +154,36 @@ class NotificationService {
     required String title,
     required String body,
     String? payload,
+    String category = 'system',
+    String tag = 'Sistem & Notifikasi',
+    String? actionText,
+    DateTime? timestamp,
   }) async {
+    final now = timestamp ?? DateTime.now();
+    final notifItem = NotificationModel(
+      id: id,
+      title: title,
+      body: body,
+      category: category,
+      timeAgo: 'Baru saja',
+      tag: tag,
+      isRead: false,
+      actionText: actionText,
+      actionRoute: payload,
+      timestamp: now,
+    );
+
+    // 1. Simpan ke riwayat notifikasi yang betulan terkirim
+    try {
+      final prefs = await PreferencesHelper.instance;
+      await prefs.addSentNotification(notifItem);
+    } catch (e) {
+      debugPrint('NotificationService save history error: $e');
+    }
+
+    // 2. Beritahu listener di NotificationProvider jika ada
+    onNotificationSent?.call(notifItem);
+
     if (_isTestEnv) return;
     try {
       await _localNotifPlugin.show(
@@ -159,48 +199,63 @@ class NotificationService {
     }
   }
 
-  /// Menjadwalkan Pengingat Trip Berdasarkan Setting Custom (Hari, Jam, Menit sebelum mulai)
-  Future<void> scheduleTripReminder({
+  /// Menjadwalkan Pengingat Trip pada Waktu Spesifik (Tanggal & Jam Presisi)
+  Future<void> scheduleTripReminderAtTime({
     required int tripId,
     required String tripTitle,
-    required DateTime tripStartTime,
-    required int beforeDays,
-    required int beforeHours,
-    required int beforeMinutes,
+    required DateTime triggerTime,
     String? startDestinationName,
   }) async {
-    if (_isTestEnv) return;
-    try {
-      final totalBeforeDuration = Duration(
-        days: beforeDays,
-        hours: beforeHours,
-        minutes: beforeMinutes,
+    // 1. Bersihkan timer lama jika ada
+    _activeTimers[tripId]?.cancel();
+    _activeTimers.remove(tripId);
+
+    final now = DateTime.now();
+    final diff = triggerTime.difference(now);
+
+    final bodyText = startDestinationName != null
+        ? 'Perjalanan menuju $startDestinationName dimulai sekarang. Siapkan ransel & perlengkapan Anda!'
+        : 'Waktu perjalanan trip "$tripTitle" telah tiba. Ketuk untuk membuka rute!';
+
+    // Jika waktu pemicu adalah saat ini atau baru saja lewat dalam 60 detik (misal selisih detik), langsung kirimkan
+    if (diff <= Duration.zero && diff.inSeconds >= -60) {
+      await showInstantNotification(
+        id: tripId,
+        title: '🔔 Pengingat Trip: $tripTitle',
+        body: bodyText,
+        payload: '/trip/$tripId',
+        category: 'trip',
+        tag: 'Pengingat Berangkat',
+        actionText: 'Lihat Detail Trip',
       );
+      return;
+    }
 
-      // Waktu alarm berbunyi = Waktu mulai trip dikurangi durasi pengingat
-      final triggerTime = tripStartTime.subtract(totalBeforeDuration);
-      final now = DateTime.now();
+    if (diff < Duration.zero) {
+      debugPrint('NotificationService: Waktu pengingat $triggerTime sudah lewat, tidak dijadwalkan.');
+      return;
+    }
 
-      // Jika waktu pemicu alarm sudah lewat dari sekarang, jangan jadwalkan alarm masa lampau
-      if (triggerTime.isBefore(now)) {
-        debugPrint(
-            'NotificationService: Waktu pengingat $triggerTime sudah lewat, tidak dijadwalkan.');
-        return;
-      }
+    // 2. In-memory Active Timer: Memastikan notifikasi 100% muncul di status bar HP saat jam tiba (persis seperti trip selesai)
+    _activeTimers[tripId] = Timer(diff, () async {
+      await showInstantNotification(
+        id: tripId,
+        title: '🔔 Pengingat Trip: $tripTitle',
+        body: bodyText,
+        payload: '/trip/$tripId',
+        category: 'trip',
+        tag: 'Pengingat Berangkat',
+        actionText: 'Lihat Detail Trip',
+      );
+      _activeTimers.remove(tripId);
+      debugPrint('NotificationService: In-memory timer fired for trip #$tripId');
+    });
 
+    if (_isTestEnv) return;
+
+    // 3. Daftarkan juga ke alarm manager OS via zonedSchedule (untuk background saat HP terkunci)
+    try {
       final tzTrigger = tz.TZDateTime.from(triggerTime, tz.local);
-
-      // Format teks timing yang informatif
-      final List<String> timingParts = [];
-      if (beforeDays > 0) timingParts.add('$beforeDays hari');
-      if (beforeHours > 0) timingParts.add('$beforeHours jam');
-      if (beforeMinutes > 0) timingParts.add('$beforeMinutes menit');
-      final timingString = timingParts.isEmpty ? 'segera' : timingParts.join(' ');
-
-      final bodyText = startDestinationName != null
-          ? 'Perjalanan menuju $startDestinationName dimulai dalam $timingString. Siapkan ransel & perlengkapan Anda!'
-          : 'Trip "$tripTitle" akan dimulai dalam $timingString. Ketuk untuk membuka rute!';
-
       try {
         await _localNotifPlugin.zonedSchedule(
           id: tripId,
@@ -223,16 +278,40 @@ class NotificationService {
           payload: '/trip/$tripId',
         );
       }
-
-      debugPrint(
-          'NotificationService: Alarm trip #$tripId dijadwalkan pada $triggerTime ($timingString sebelum start)');
+      debugPrint('NotificationService: Alarm trip #$tripId dijadwalkan pada $triggerTime ($diff lagi)');
     } catch (e) {
-      debugPrint('NotificationService.scheduleTripReminder warning: $e');
+      debugPrint('NotificationService.scheduleTripReminderAtTime warning: $e');
     }
+  }
+
+  /// Menjadwalkan Pengingat Trip Berdasarkan Setting Custom (Hari, Jam, Menit sebelum mulai)
+  Future<void> scheduleTripReminder({
+    required int tripId,
+    required String tripTitle,
+    required DateTime tripStartTime,
+    required int beforeDays,
+    required int beforeHours,
+    required int beforeMinutes,
+    String? startDestinationName,
+  }) async {
+    final totalBeforeDuration = Duration(
+      days: beforeDays,
+      hours: beforeHours,
+      minutes: beforeMinutes,
+    );
+    final triggerTime = tripStartTime.subtract(totalBeforeDuration);
+    await scheduleTripReminderAtTime(
+      tripId: tripId,
+      tripTitle: tripTitle,
+      triggerTime: triggerTime,
+      startDestinationName: startDestinationName,
+    );
   }
 
   /// Membatalkan alarm trip tertentu
   Future<void> cancelTripReminder(int tripId) async {
+    _activeTimers[tripId]?.cancel();
+    _activeTimers.remove(tripId);
     if (_isTestEnv) return;
     try {
       await _localNotifPlugin.cancel(id: tripId);
@@ -264,6 +343,9 @@ class NotificationService {
       title: title,
       body: buffer.toString(),
       payload: '/active_trip',
+      category: 'trip',
+      tag: 'Eksplorasi Aktif',
+      actionText: 'Petunjuk Navigasi',
     );
   }
 
@@ -277,6 +359,9 @@ class NotificationService {
       title: '🌋 $title',
       body: message,
       payload: '/map',
+      category: 'volcano',
+      tag: 'Peringatan Merapi',
+      actionText: 'Peta Titik Pantau',
     );
   }
 
@@ -291,6 +376,8 @@ class NotificationService {
       body: body ??
           'Notifikasi ini benar-benar muncul di bilah status ponsel Anda. Sistem pengingat siap digunakan untuk trip Merapi.',
       payload: '/notification',
+      category: 'system',
+      tag: 'Uji Sistem',
     );
   }
 }

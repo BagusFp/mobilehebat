@@ -82,6 +82,15 @@ class DatabaseHelper {
           await db.execute('ALTER TABLE trip_items ADD COLUMN completed_at TEXT');
         } catch (_) {}
         try {
+          await db.execute('ALTER TABLE trips ADD COLUMN current_step INTEGER DEFAULT 1');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN updated_at TEXT');
+        } catch (_) {}
+        try {
+          await db.execute('ALTER TABLE trips ADD COLUMN target_budget_original REAL');
+        } catch (_) {}
+        try {
           await db.execute('''
             CREATE TABLE IF NOT EXISTS trip_expenses (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -173,6 +182,7 @@ class DatabaseHelper {
         start_date TEXT NOT NULL,
         participant_count INTEGER DEFAULT 1,
         target_budget REAL DEFAULT 0,
+        target_budget_original REAL,
         total_estimated_cost REAL DEFAULT 0,
         total_actual_cost REAL DEFAULT 0,
         status TEXT DEFAULT 'upcoming',
@@ -187,6 +197,8 @@ class DatabaseHelper {
         destination_timezone TEXT,
         currency_source TEXT,
         currency_target TEXT,
+        current_step INTEGER DEFAULT 1,
+        updated_at TEXT,
         created_at TEXT NOT NULL
       )
     ''');
@@ -705,6 +717,33 @@ class DatabaseHelper {
     await db.delete('trips', where: 'user_id = ?', whereArgs: [userId]);
   }
 
+  /// Menghapus trip tertentu beserta itemnya berdasarkan ID dan nama trip
+  Future<int> deleteUserTrip(int tripId, {String? tripName}) async {
+    final db = await database;
+    if (tripId > 0) {
+      await db.delete('trip_expenses', where: 'trip_id = ?', whereArgs: [tripId]);
+      await db.delete('trip_items', where: 'trip_id = ?', whereArgs: [tripId]);
+    }
+    var count = 0;
+    if (tripId > 0) {
+      count = await db.delete('trips', where: 'id = ?', whereArgs: [tripId]);
+    }
+    if (tripName != null && tripName.trim().isNotEmpty) {
+      final nameClean = tripName.trim().toLowerCase();
+      final matching = await db.query('trips', where: 'LOWER(trip_name) = ?', whereArgs: [nameClean]);
+      for (final m in matching) {
+        final id = m['id'] as int?;
+        if (id != null) {
+          await db.delete('trip_expenses', where: 'trip_id = ?', whereArgs: [id]);
+          await db.delete('trip_items', where: 'trip_id = ?', whereArgs: [id]);
+        }
+      }
+      final nameCount = await db.delete('trips', where: 'LOWER(trip_name) = ?', whereArgs: [nameClean]);
+      count = count > nameCount ? count : nameCount;
+    }
+    return count;
+  }
+
   /// Mengambil ID destinasi favorit milik user tertentu
   Future<Set<int>> getFavoriteIds(int userId) async {
     final db = await database;
@@ -776,6 +815,17 @@ class DatabaseHelper {
         'is_completed': isCompleted ? 1 : 0,
         'completed_at': completedAt ?? (isCompleted ? DateTime.now().toIso8601String() : null),
       },
+      where: 'id = ? AND trip_id = ?',
+      whereArgs: [itemId, tripId],
+    );
+  }
+
+  /// Mengubah estimasi harga tiket destinasi dalam trip
+  Future<void> updateTripItemCost(int tripId, int itemId, double newCost) async {
+    final db = await database;
+    await db.update(
+      'trip_items',
+      {'estimated_cost': newCost},
       where: 'id = ? AND trip_id = ?',
       whereArgs: [itemId, tripId],
     );

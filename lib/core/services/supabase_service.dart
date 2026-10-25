@@ -365,6 +365,8 @@ class SupabaseService {
           destinationTimezone: map['destination_timezone'],
           currencySource: map['currency_source'] ?? 'IDR',
           currencyTarget: map['currency_target'] ?? 'USD',
+          currentStep: (map['current_step'] as num?)?.toInt() ?? (items.isNotEmpty ? 2 : 1),
+          updatedAt: map['updated_at'] as String?,
           items: items,
         );
       }).toList();
@@ -390,6 +392,7 @@ class SupabaseService {
         'reminder_enabled': trip.reminderEnabled,
         'is_saved_offline': trip.isSavedOffline,
         'banner_image_url': trip.bannerImageUrl,
+        'current_step': trip.currentStep,
         'items': trip.items.map((it) => it.toMap()).toList(),
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
@@ -403,15 +406,25 @@ class SupabaseService {
     }
   }
 
-  /// Menghapus trip dari Supabase
-  Future<bool> deleteTrip(int tripId) async {
+  /// Menghapus trip dari Supabase (berdasarkan ID dan/atau nama trip)
+  Future<bool> deleteTrip(int tripId, {String? tripName}) async {
     if (!isInitialized) return false;
     try {
-      await client
-          .from('trips')
-          .delete()
-          .eq('id', tripId)
-          .timeout(const Duration(seconds: 5));
+      if (tripId > 0) {
+        await client
+            .from('trips')
+            .delete()
+            .eq('id', tripId)
+            .timeout(const Duration(seconds: 5));
+      }
+      if (tripName != null && tripName.trim().isNotEmpty) {
+        final user = currentUser;
+        var query = client.from('trips').delete().eq('trip_name', tripName.trim());
+        if (user != null) {
+          query = query.eq('user_id', user.id);
+        }
+        await query.timeout(const Duration(seconds: 5));
+      }
       return true;
     } catch (e) {
       debugPrint('SupabaseService.deleteTrip error: $e');
@@ -444,6 +457,7 @@ class SupabaseService {
         if (trip.destinationTimezone != null) 'destination_timezone': trip.destinationTimezone,
         'currency_source': trip.currencySource,
         'currency_target': trip.currencyTarget,
+        'current_step': trip.currentStep,
         'items': trip.items.map((it) => it.toMap()).toList(),
         'updated_at': DateTime.now().toIso8601String(),
       };

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../core/database/database_helper.dart';
+import '../../core/database/preferences_helper.dart';
 import '../../core/services/supabase_service.dart';
 import '../models/trip_expense_model.dart';
 import '../models/trip_item_model.dart';
@@ -29,28 +30,41 @@ class TripRepository {
       return [];
     }
 
+    final prefs = await PreferencesHelper.instance;
+    final deletedKeys = prefs.getDeletedTripKeys().toSet();
+
+    bool isDeleted(TripModel t) {
+      if (t.id != null && deletedKeys.contains('${t.id}')) return true;
+      final name = t.tripName.trim().toLowerCase();
+      if (name.isNotEmpty && deletedKeys.contains(name)) return true;
+      return false;
+    }
+
     // Ambil cache lokal SQLite terlebih dahulu
     List<TripModel> cachedTrips = [];
     try {
       cachedTrips = await _dbHelper.getCachedUserTrips(userId, status: status);
+      cachedTrips = cachedTrips.where((t) => !isDeleted(t)).toList();
     } catch (_) {}
 
     // 1. Coba ambil data terverifikasi dari Supabase Cloud jika tidak dipaksa offline
     if (!forceOffline) {
       try {
-        final remoteTrips = await SupabaseService().fetchUserTrips(
+        final rawRemoteTrips = await SupabaseService().fetchUserTrips(
           localUserId: userId,
           status: status,
         );
+        final remoteTrips = rawRemoteTrips.where((t) => !isDeleted(t)).toList();
         if (remoteTrips.isNotEmpty) {
           // Gabungkan data cloud dengan cache lokal agar status 'completed' dan edit lokal tidak tertimpa
           final mergedTrips = _mergeTripsPreservingLocalStatus(cachedTrips, remoteTrips);
+          final filteredMerged = mergedTrips.where((t) => !isDeleted(t)).toList();
           try {
-            await _dbHelper.saveUserTrips(userId, mergedTrips);
+            await _dbHelper.saveUserTrips(userId, filteredMerged);
           } catch (_) {}
 
           _isUsingCachedData = false;
-          return mergedTrips;
+          return filteredMerged;
         }
       } catch (_) {}
     }
@@ -58,7 +72,7 @@ class TripRepository {
     // 2. Fallback ke database lokal SQLite
     _isUsingCachedData = true;
     if (cachedTrips.isNotEmpty) {
-      return cachedTrips;
+      return cachedTrips.where((t) => !isDeleted(t)).toList();
     }
 
     // 3. Cache kosong dan offline
@@ -94,6 +108,17 @@ class TripRepository {
         if (cached.id != null) mergedMap.remove(cached.id);
         mergedMap.remove(cached.tripName);
 
+        // Jika trip berstatus draft, pertahankan seluruh data lokal user yang sedang disusun
+        if (cached.status == 'draft') {
+          mergedMap[key] = cached.copyWith(
+            id: cached.id ?? remote.id,
+            currentStep: cached.currentStep,
+            targetBudget: cached.targetBudget,
+            updatedAt: cached.updatedAt ?? remote.updatedAt,
+          );
+          continue;
+        }
+
         final bool isLocallyCompleted =
             cached.status == 'completed' || (cached.completedAt != null && cached.completedAt!.isNotEmpty);
         final statusToKeep = isLocallyCompleted ? 'completed' : remote.status;
@@ -112,6 +137,9 @@ class TripRepository {
           totalActualCost: isLocallyCompleted && cached.totalActualCost > 0
               ? cached.totalActualCost
               : remote.totalActualCost,
+          currentStep: cached.currentStep > 1 ? cached.currentStep : remote.currentStep,
+          targetBudget: cached.targetBudget > 0 ? cached.targetBudget : remote.targetBudget,
+          updatedAt: cached.updatedAt ?? remote.updatedAt,
           items: itemsToKeep,
         );
       } else {
@@ -228,20 +256,28 @@ class TripRepository {
     }
   }
 
-  /// Menghapus trip beserta seluruh item dan pengeluarannya
-  Future<bool> deleteTrip(int tripId) async {
+  /// Menghapus trip beserta seluruh item dan pengeluarannya (berdasarkan ID dan/atau nama)
+  Future<bool> deleteTrip(int tripId, {String? tripName}) async {
     try {
-      final db = await _dbHelper.database;
-      await db.delete('trip_expenses', where: 'trip_id = ?', whereArgs: [tripId]);
-      await db.delete('trip_items', where: 'trip_id = ?', whereArgs: [tripId]);
-      final count = await db.delete('trips', where: 'id = ?', whereArgs: [tripId]);
-      // Sinkronisasi penghapusan ke Supabase Cloud
+      // 1. Catat ke daftar tombstone terhapus di preferences
+      final prefs = await PreferencesHelper.instance;
+      if (tripId > 0) {
+        await prefs.addDeletedTripKey('$tripId');
+      }
+      if (tripName != null && tripName.trim().isNotEmpty) {
+        await prefs.addDeletedTripKey(tripName.trim().toLowerCase());
+      }
+
+      // 2. Hapus dari SQLite lokal
+      await _dbHelper.deleteUserTrip(tripId, tripName: tripName);
+
+      // 3. Sinkronisasi penghapusan ke Supabase Cloud
       try {
-        await SupabaseService().deleteTrip(tripId);
+        await SupabaseService().deleteTrip(tripId, tripName: tripName);
       } catch (e) {
         debugPrint('SupabaseService.deleteTrip warning: $e');
       }
-      return count > 0;
+      return true;
     } catch (e) {
       debugPrint('TripRepository.deleteTrip error: $e');
       return false;
@@ -341,6 +377,17 @@ class TripRepository {
     final now = isCompleted ? DateTime.now().toIso8601String() : null;
     try {
       await _dbHelper.markTripItemCompleted(tripId, itemId, isCompleted, completedAt: now);
+      final trip = await getTripWithItems(tripId);
+      if (trip != null) {
+        SupabaseService().updateTripItems(tripId, trip.items).ignore();
+      }
+    } catch (_) {}
+  }
+
+  /// Mengubah harga tiket destinasi dalam trip
+  Future<void> updateTripItemCost(int tripId, int itemId, double newCost) async {
+    try {
+      await _dbHelper.updateTripItemCost(tripId, itemId, newCost);
       final trip = await getTripWithItems(tripId);
       if (trip != null) {
         SupabaseService().updateTripItems(tripId, trip.items).ignore();

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../features/notification/notification_model.dart';
 
 class PreferencesHelper {
   static const String _keyUserId = 'user_id';
@@ -166,5 +167,63 @@ class PreferencesHelper {
   Future<void> setTripsSeeded(bool seeded) async {
     final prefs = _preferences ?? await SharedPreferences.getInstance();
     await prefs.setBool(_keyTripsSeeded, seeded);
+  }
+
+  // Deleted Trips Tombstone
+  static const String _keyDeletedTripKeys = 'deleted_trip_keys_list';
+
+  List<String> getDeletedTripKeys() {
+    return _preferences?.getStringList(_keyDeletedTripKeys) ?? [];
+  }
+
+  Future<void> addDeletedTripKey(String key) async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    final list = List<String>.from(prefs.getStringList(_keyDeletedTripKeys) ?? []);
+    final trimmed = key.trim().toLowerCase();
+    if (trimmed.isNotEmpty && !list.contains(trimmed)) {
+      list.add(trimmed);
+      await prefs.setStringList(_keyDeletedTripKeys, list);
+    }
+  }
+
+  // Sent Notifications History (Hanya notifikasi yang betulan dikirim ke HP)
+  static const String _keySentNotificationsJson = 'sent_notifications_json_list';
+
+  List<NotificationModel> getSentNotifications() {
+    final prefs = _preferences;
+    if (prefs == null) return [];
+    final jsonStr = prefs.getString(_keySentNotificationsJson);
+    if (jsonStr == null || jsonStr.trim().isEmpty) return [];
+    try {
+      final list = jsonDecode(jsonStr) as List<dynamic>;
+      return list
+          .map((item) => NotificationModel.fromMap(item as Map<String, dynamic>))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveSentNotifications(List<NotificationModel> list) async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    final jsonList = list.map((n) => n.toMap()).toList();
+    await prefs.setString(_keySentNotificationsJson, jsonEncode(jsonList));
+  }
+
+  Future<void> addSentNotification(NotificationModel item) async {
+    final current = getSentNotifications();
+    // Cegah duplikasi ID berulang dalam hitungan detik
+    current.removeWhere((n) => n.id == item.id && n.title == item.title);
+    current.insert(0, item);
+    // Batasi riwayat maksimal 50 notifikasi terbaru
+    if (current.length > 50) {
+      current.removeRange(50, current.length);
+    }
+    await saveSentNotifications(current);
+  }
+
+  Future<void> clearSentNotifications() async {
+    final prefs = _preferences ?? await SharedPreferences.getInstance();
+    await prefs.remove(_keySentNotificationsJson);
   }
 }

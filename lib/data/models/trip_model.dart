@@ -7,6 +7,7 @@ class TripModel {
   final String startDate;
   final int participantCount;
   final double targetBudget;
+  final double? targetBudgetOriginal; // Nilai asli yang diinputkan pengguna dalam mata uang currencySource
   final double totalEstimatedCost;
   final double totalActualCost;
   final String status; // 'draft', 'upcoming'/'planned', 'active', 'completed'
@@ -22,6 +23,8 @@ class TripModel {
   final String? destinationTimezone;
   final String? currencySource;
   final String? currencyTarget;
+  final int currentStep; // 1: Info & Budget, 2: Destinasi & Jadwal, 3: Ringkasan & Notifikasi
+  final String? updatedAt;
   final List<TripItemModel> items;
 
   const TripModel({
@@ -31,6 +34,7 @@ class TripModel {
     required this.startDate,
     this.participantCount = 2,
     this.targetBudget = 400000.0,
+    this.targetBudgetOriginal,
     this.totalEstimatedCost = 64000.0,
     this.totalActualCost = 0.0,
     this.status = 'upcoming',
@@ -46,6 +50,8 @@ class TripModel {
     this.destinationTimezone,
     this.currencySource = 'IDR',
     this.currencyTarget = 'USD',
+    this.currentStep = 1,
+    this.updatedAt,
     this.items = const [],
   });
 
@@ -56,6 +62,7 @@ class TripModel {
     String? startDate,
     int? participantCount,
     double? targetBudget,
+    double? targetBudgetOriginal,
     double? totalEstimatedCost,
     double? totalActualCost,
     String? status,
@@ -71,6 +78,8 @@ class TripModel {
     String? destinationTimezone,
     String? currencySource,
     String? currencyTarget,
+    int? currentStep,
+    String? updatedAt,
     List<TripItemModel>? items,
   }) {
     return TripModel(
@@ -80,6 +89,7 @@ class TripModel {
       startDate: startDate ?? this.startDate,
       participantCount: participantCount ?? this.participantCount,
       targetBudget: targetBudget ?? this.targetBudget,
+      targetBudgetOriginal: targetBudgetOriginal ?? this.targetBudgetOriginal,
       totalEstimatedCost: totalEstimatedCost ?? this.totalEstimatedCost,
       totalActualCost: totalActualCost ?? this.totalActualCost,
       status: status ?? this.status,
@@ -95,8 +105,18 @@ class TripModel {
       destinationTimezone: destinationTimezone ?? this.destinationTimezone,
       currencySource: currencySource ?? this.currencySource,
       currencyTarget: currencyTarget ?? this.currencyTarget,
+      currentStep: currentStep ?? this.currentStep,
+      updatedAt: updatedAt ?? this.updatedAt,
       items: items ?? this.items,
     );
+  }
+
+  /// Nilai efektif inputan asli pengguna dalam mata uang pilihannya (currencySource)
+  double get effectiveOriginalBudget {
+    if (targetBudgetOriginal != null && targetBudgetOriginal! > 0) {
+      return targetBudgetOriginal!;
+    }
+    return targetBudget;
   }
 
   factory TripModel.fromMap(Map<String, dynamic> map, {List<TripItemModel> items = const []}) {
@@ -107,6 +127,7 @@ class TripModel {
       startDate: map['start_date'] as String,
       participantCount: map['participant_count'] as int? ?? 1,
       targetBudget: (map['target_budget'] as num?)?.toDouble() ?? 400000.0,
+      targetBudgetOriginal: (map['target_budget_original'] as num?)?.toDouble(),
       totalEstimatedCost: (map['total_estimated_cost'] as num?)?.toDouble() ?? 0.0,
       totalActualCost: (map['total_actual_cost'] as num?)?.toDouble() ?? 0.0,
       status: map['status'] as String? ?? 'upcoming',
@@ -122,6 +143,8 @@ class TripModel {
       destinationTimezone: map['destination_timezone'] as String?,
       currencySource: map['currency_source'] as String? ?? 'IDR',
       currencyTarget: map['currency_target'] as String? ?? 'USD',
+      currentStep: (map['current_step'] as num?)?.toInt() ?? (items.isNotEmpty ? 2 : 1),
+      updatedAt: map['updated_at'] as String? ?? map['created_at'] as String?,
       items: items,
     );
   }
@@ -134,6 +157,7 @@ class TripModel {
       'start_date': startDate,
       'participant_count': participantCount,
       'target_budget': targetBudget,
+      if (targetBudgetOriginal != null) 'target_budget_original': targetBudgetOriginal,
       'total_estimated_cost': totalEstimatedCost,
       'total_actual_cost': totalActualCost,
       'status': status,
@@ -149,6 +173,8 @@ class TripModel {
       'destination_timezone': destinationTimezone,
       'currency_source': currencySource,
       'currency_target': currencyTarget,
+      'current_step': currentStep,
+      if (updatedAt != null) 'updated_at': updatedAt,
     };
   }
 }
