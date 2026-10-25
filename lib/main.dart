@@ -339,7 +339,6 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
 
     return AppScaffold(
       title: _getTabTitle(_currentTabIndex),
-      showVolcanoStatusBar: _currentTabIndex != 0 && _currentTabIndex != 2,
       actions: [
         IconButton(
           icon: Badge(
