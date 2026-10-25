@@ -246,17 +246,17 @@ class NatureClassifierService {
           if (inFocus) focusGreenPixels++;
         }
 
-        // 2. Air / Danau / Sungai / Kolam Air Terjun (Biru Alami atau Turquoise / Toska)
-        else if (sy >= 0.32 && ((blue > 0.30 && blue > red * 1.18 && green > red * 0.92) ||
-                 (green > 0.26 && blue > 0.26 && (green + blue) > red * 2.1 && red < 0.36))) {
-          waterPixels++;
-          if (inFocus) focusWaterPixels++;
-          if (sy >= 0.48) bottomWaterPixels++;
+        // 2. Langit Biru Cerah di Bagian Atas / Horizon Gunung
+        else if (sy < 0.50 && (blue > 0.32 && blue > red * 1.15 && blue >= green * 0.96)) {
+          topSkyBluePixels++;
         }
 
-        // 3. Langit Biru Cerah di Bagian Atas
-        else if (sy < 0.42 && (blue > 0.38 && blue > red * 1.20 && green > red)) {
-          topSkyBluePixels++;
+        // 3. Air / Danau / Sungai / Kolam (Toska / Turquoise Alami atau Badan Air di Tanah Bawah)
+        else if ((sy >= 0.35 && green > 0.26 && blue > 0.26 && (green + blue) > red * 2.2 && red < 0.36) ||
+                 (sy >= 0.50 && blue > 0.28 && blue > red * 1.20 && blue > green * 0.95 && delta > 0.08)) {
+          waterPixels++;
+          if (inFocus) focusWaterPixels++;
+          if (sy >= 0.50) bottomWaterPixels++;
         }
 
         // 4. Area Putih / Terang (Awan Langit vs Busa Air Terjun)
@@ -439,10 +439,12 @@ class NatureClassifierService {
 
     if (hasWaterPresence) {
       final double conf;
-      if (isWaterInFocus) {
+      if (isWaterInFocus && !isMountainCandidate) {
         conf = (0.84 + focusWaterRatio * 1.0).clamp(0.86, 0.95);
       } else if (isWaterfallDetected) {
         conf = (0.74 + (bottomWaterRatio + waterRatio) * 0.8).clamp(0.72, 0.84);
+      } else if (isMountainCandidate) {
+        conf = (0.64 + waterRatio * 0.4).clamp(0.65, 0.78);
       } else {
         conf = (0.78 + waterRatio * 1.0).clamp(0.78, 0.92);
       }
@@ -902,17 +904,17 @@ class NatureClassifierService {
           if (inFocusCircle) focusGreenPixels++;
         }
 
-        // 2. Air / Danau / Sungai / Kolam Air Terjun (Biru Alami atau Turquoise / Toska)
-        else if (yNorm >= 0.32 && ((b > 0.30 && b > r * 1.18 && g > r * 0.92) ||
-                 (g > 0.26 && b > 0.26 && (g + b) > r * 2.1 && r < 0.36))) {
-          blueWaterPixels++;
-          if (inFocusCircle) focusWaterPixels++;
-          if (yNorm >= 0.48) bottomWater++;
+        // 2. Langit Biru Cerah di Bagian Atas / Horizon
+        else if (yNorm < 0.50 && (b > 0.32 && b > r * 1.15 && b >= g * 0.96)) {
+          topSkyBlue++;
         }
 
-        // 3. Langit Biru Cerah di Bagian Atas
-        else if (yNorm < 0.42 && (b > 0.38 && b > r * 1.20 && g > r)) {
-          topSkyBlue++;
+        // 3. Air / Danau / Sungai / Kolam (Toska / Turquoise Alami atau Badan Air di Tanah Bawah)
+        else if ((yNorm >= 0.35 && g > 0.26 && b > 0.26 && (g + b) > r * 2.2 && r < 0.36) ||
+                 (yNorm >= 0.50 && b > 0.28 && b > r * 1.20 && b > g * 0.95 && delta > 0.08)) {
+          blueWaterPixels++;
+          if (inFocusCircle) focusWaterPixels++;
+          if (yNorm >= 0.50) bottomWater++;
         }
 
         // 4. Area Putih / Terang (Awan Langit vs Busa Air Terjun)
@@ -1071,10 +1073,12 @@ class NatureClassifierService {
 
     if (hasWaterPresence) {
       final double conf;
-      if (isWaterInFocus) {
+      if (isWaterInFocus && !isMountainCandidate) {
         conf = (0.84 + focusWaterRatio * 1.0).clamp(0.86, 0.95);
       } else if (isWaterfallDetected) {
         conf = (0.74 + (bottomWaterRatio + waterRatio) * 0.8).clamp(0.72, 0.84);
+      } else if (isMountainCandidate) {
+        conf = (0.64 + waterRatio * 0.4).clamp(0.65, 0.78);
       } else {
         conf = (0.78 + waterRatio * 1.0).clamp(0.78, 0.92);
       }
