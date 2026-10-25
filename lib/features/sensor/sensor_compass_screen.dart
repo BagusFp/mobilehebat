@@ -37,25 +37,25 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121619), // Dark Charcoal Slate sesuai Gambar 1
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white70, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.onSurface, size: 20),
           tooltip: 'Kembali',
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
           'Kompas',
           style: AppTypography.titleMd.copyWith(
-            color: Colors.white,
+            color: AppColors.onSurface,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune_rounded, color: Colors.white70),
+            icon: const Icon(Icons.tune_rounded, color: AppColors.primary),
             tooltip: 'Kalibrasi Kompas',
             onPressed: () {
               sensorProvider.calibrateCompass();
@@ -63,13 +63,13 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                 const SnackBar(
                   content: Text('Sensor kompas berhasil dikalibrasi ulang.'),
                   duration: Duration(seconds: 1),
-                  backgroundColor: Color(0xFF04432F),
+                  backgroundColor: AppColors.primary,
                 ),
               );
             },
           ),
           IconButton(
-            icon: const Icon(Icons.location_on_outlined, color: Color(0xFF10B981)),
+            icon: const Icon(Icons.location_on_outlined, color: AppColors.primary),
             tooltip: 'Ganti / Deteksi Lokasi',
             onPressed: () => _showLocationSelector(context, sensorProvider),
           ),
@@ -100,9 +100,9 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                                 Text(
                                   sensorProvider.userLocationName,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.onSurface,
                                     fontSize: 20,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                     letterSpacing: -0.2,
                                   ),
                                   textAlign: TextAlign.center,
@@ -110,7 +110,7 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                                 const SizedBox(width: 6),
                                 const Icon(
                                   Icons.keyboard_arrow_down_rounded,
-                                  color: Color(0xFFD1A768),
+                                  color: AppColors.primary,
                                   size: 20,
                                 ),
                               ],
@@ -119,10 +119,10 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                             Text(
                               sensorProvider.userRegionName,
                               style: const TextStyle(
-                                color: Color(0xFFD1A768), // Champagne Gold
+                                color: AppColors.secondary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
-                                letterSpacing: 3.0,
+                                letterSpacing: 2.5,
                               ),
                             ),
                           ],
@@ -136,15 +136,15 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
 
                       const Spacer(),
 
-                      // 3. Merapi Bearing & Distance Info (Sesuai Gambar 1)
+                      // 3. Merapi Bearing & Distance Info
                       Column(
                         children: [
                           Text(
                             'Arah Merapi ${sensorProvider.merapiBearing.toStringAsFixed(2).replaceAll('.', ',')}° dari Utara',
                             style: const TextStyle(
-                              color: Color(0xFFD1A768), // Champagne Gold sesuai Gambar 1
+                              color: AppColors.primary,
                               fontSize: 18,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 0.2,
                             ),
                             textAlign: TextAlign.center,
@@ -152,10 +152,10 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                           const SizedBox(height: 4),
                           Text(
                             'Jarak ke Puncak Merapi ± ${sensorProvider.merapiDistanceKm.toStringAsFixed(1)} KM',
-                            style: TextStyle(
-                              color: Colors.white.withAlpha(220),
-                              fontSize: 15,
-                              fontWeight: FontWeight.w400,
+                            style: const TextStyle(
+                              color: AppColors.onSurfaceVariant,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -170,24 +170,24 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: sensorProvider.isFacingMerapi
-                              ? const Color(0xFF04432F)
-                              : Colors.white.withAlpha(15),
+                              ? AppColors.primary
+                              : AppColors.surfaceContainerLowest,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                             color: sensorProvider.isFacingMerapi
-                                ? const Color(0xFF10B981)
-                                : Colors.white12,
+                                ? AppColors.primary
+                                : AppColors.outlineVariant,
                             width: 1.2,
                           ),
-                          boxShadow: sensorProvider.isFacingMerapi
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(0xFF10B981).withAlpha(80),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ]
-                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: sensorProvider.isFacingMerapi
+                                  ? AppColors.primary.withAlpha(60)
+                                  : Colors.black.withAlpha(8),
+                              blurRadius: sensorProvider.isFacingMerapi ? 12 : 6,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -198,8 +198,8 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                                   : Icons.navigation_rounded,
                               size: 16,
                               color: sensorProvider.isFacingMerapi
-                                  ? const Color(0xFF10B981)
-                                  : const Color(0xFFD1A768),
+                                  ? AppColors.secondaryContainer
+                                  : AppColors.primary,
                             ),
                             const SizedBox(width: 8),
                             Flexible(
@@ -210,11 +210,11 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                                 style: TextStyle(
                                   color: sensorProvider.isFacingMerapi
                                       ? Colors.white
-                                      : Colors.white70,
+                                      : AppColors.onSurfaceVariant,
                                   fontSize: 12,
                                   fontWeight: sensorProvider.isFacingMerapi
                                       ? FontWeight.bold
-                                      : FontWeight.normal,
+                                      : FontWeight.w600,
                                 ),
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -225,14 +225,14 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
 
                       const Spacer(),
 
-                      // 5. Bottom Calibration Advice (Teks persis Gambar 1)
+                      // 5. Bottom Calibration Advice
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                         child: Text(
                           'Jauhkan perangkat dari objek yang berbahan besi atau logam, agar lebih akurat.',
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            color: Colors.white.withAlpha(90),
+                            color: AppColors.onSurfaceVariant.withAlpha(160),
                             fontSize: 11.5,
                             height: 1.4,
                           ),
@@ -264,33 +264,33 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
           boxShadow: [
             if (provider.isFacingMerapi)
               BoxShadow(
-                color: const Color(0xFF10B981).withAlpha(100),
-                blurRadius: 36,
-                spreadRadius: 6,
+                color: AppColors.primary.withAlpha(80),
+                blurRadius: 32,
+                spreadRadius: 4,
               )
             else
               BoxShadow(
-                color: Colors.black.withAlpha(80),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+                color: AppColors.primary.withAlpha(25),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
               ),
           ],
         ),
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Cincin Luar Berwarna Teal/Emerald Khas Gambar 1
+            // Cincin Luar Berwarna Hijau Pine Khas Tema Aplikasi
             Container(
               width: dialSize + 12,
               height: dialSize + 12,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF222B2F),
+                color: AppColors.surfaceContainerLowest,
                 border: Border.all(
                   color: provider.isFacingMerapi
-                      ? const Color(0xFF10B981)
-                      : const Color(0xFF00897B), // Teal Ring persis Gambar 1
-                  width: 6,
+                      ? AppColors.safeRadius
+                      : AppColors.primary,
+                  width: 5,
                 ),
               ),
             ),
@@ -333,11 +333,11 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                       height: 26,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: const Color(0xFF04432F),
+                        color: AppColors.primary,
                         border: Border.all(color: Colors.white, width: 2),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withAlpha(60),
+                            color: Colors.black.withAlpha(40),
                             blurRadius: 4,
                             offset: const Offset(0, 2),
                           ),
@@ -350,8 +350,8 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: provider.isFacingMerapi
-                                ? const Color(0xFF10B981)
-                                : const Color(0xFFD1A768),
+                                ? AppColors.secondaryContainer
+                                : AppColors.primaryFixed,
                           ),
                         ),
                       ),
@@ -384,25 +384,25 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
           width: 30,
           height: 30,
           decoration: BoxDecoration(
-            color: isAligned ? const Color(0xFF10B981) : const Color(0xFF1A2226),
+            color: isAligned ? AppColors.primary : AppColors.surfaceContainerLowest,
             shape: BoxShape.circle,
             border: Border.all(
-              color: isAligned ? Colors.white : const Color(0xFFD1A768),
+              color: isAligned ? AppColors.secondaryContainer : AppColors.primary,
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withAlpha(50),
+                color: Colors.black.withAlpha(40),
                 blurRadius: 4,
                 offset: const Offset(0, 1),
               ),
             ],
           ),
-          child: const Center(
+          child: Center(
             child: Icon(
               Icons.landscape_rounded, // Ikon Puncak Gunung Merapi
               size: 16,
-              color: Colors.white,
+              color: isAligned ? Colors.white : AppColors.primary,
             ),
           ),
         ),
@@ -414,7 +414,7 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
   void _showLocationSelector(BuildContext context, SensorProvider provider) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1A2126),
+      backgroundColor: AppColors.surfaceContainerLowest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -432,27 +432,27 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                     const Text(
                       'Pilih Lokasi Keberadaanmu',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.onSurface,
                         fontSize: 17,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white60, size: 20),
+                      icon: const Icon(Icons.close, color: AppColors.onSurfaceVariant, size: 20),
                       onPressed: () => Navigator.pop(ctx),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(
+                const Text(
                   'Arah panah dan sudut jarum kompas akan otomatis menyesuaikan posisi Gunung Merapi dari titik ini.',
-                  style: TextStyle(color: Colors.white.withAlpha(160), fontSize: 12),
+                  style: TextStyle(color: AppColors.onSurfaceVariant, fontSize: 12),
                 ),
                 const SizedBox(height: 16),
 
                 // Tombol Ambil GPS Otomatis
                 ListTile(
-                  tileColor: const Color(0xFF04432F),
+                  tileColor: AppColors.primary,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   leading: provider.isLocatingGps
                       ? const SizedBox(
@@ -460,7 +460,7 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                           height: 22,
                           child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
-                      : const Icon(Icons.my_location_rounded, color: Color(0xFF10B981)),
+                      : const Icon(Icons.my_location_rounded, color: AppColors.secondaryContainer),
                   title: const Text(
                     'Deteksi GPS Otomatis (Live)',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
@@ -478,7 +478,7 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                       messenger.showSnackBar(
                         SnackBar(
                           content: Text('Lokasi GPS berhasil diperbarui: ${provider.userLocationName}'),
-                          backgroundColor: const Color(0xFF04432F),
+                          backgroundColor: AppColors.primary,
                         ),
                       );
                     } else if (provider.gpsErrorMessage != null) {
@@ -491,11 +491,11 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                     }
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 const Text(
                   'Preset Titik Sekitar Merapi:',
-                  style: TextStyle(color: Color(0xFFD1A768), fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
 
@@ -504,30 +504,32 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> with SingleTi
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: SensorProvider.presetLocations.length,
-                    separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
+                    separatorBuilder: (_, _) => const Divider(color: AppColors.surfaceContainer, height: 1),
                     itemBuilder: (c, idx) {
                       final item = SensorProvider.presetLocations[idx];
                       final isSelected = provider.userLocationName == item['name'];
 
                       return ListTile(
                         dense: true,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        tileColor: isSelected ? AppColors.surfaceContainerLow : Colors.transparent,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
                         leading: Icon(
                           isSelected ? Icons.check_circle_rounded : Icons.place_outlined,
-                          color: isSelected ? const Color(0xFF10B981) : Colors.white60,
+                          color: isSelected ? AppColors.primary : AppColors.onSurfaceVariant,
                           size: 20,
                         ),
                         title: Text(
                           item['name'] as String,
                           style: TextStyle(
-                            color: isSelected ? Colors.white : Colors.white70,
+                            color: isSelected ? AppColors.primary : AppColors.onSurface,
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                             fontSize: 13,
                           ),
                         ),
                         subtitle: Text(
                           item['description'] as String,
-                          style: TextStyle(color: Colors.white.withAlpha(120), fontSize: 11),
+                          style: const TextStyle(color: AppColors.onSurfaceVariant, fontSize: 11),
                         ),
                         onTap: () {
                           provider.setManualLocation(
@@ -564,15 +566,15 @@ class QiblaStyleDialPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // 1. Lingkaran Dasar Putih Piringan Kompas (Sesuai Gambar 1)
+    // 1. Lingkaran Dasar Putih Piringan Kompas
     final bgPaint = Paint()
-      ..color = const Color(0xFFF7FAF8)
+      ..color = AppColors.surfaceContainerLowest
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, bgPaint);
 
     // Border Halus Dalam
     final innerBorder = Paint()
-      ..color = const Color(0xFFE2E8E4)
+      ..color = AppColors.surfaceContainer
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
     canvas.drawCircle(center, radius - 2, innerBorder);
@@ -600,8 +602,8 @@ class QiblaStyleDialPainter extends CustomPainter {
 
       tickPaint.strokeWidth = isMajor ? 2.0 : (isMedium ? 1.5 : 0.9);
       tickPaint.color = isMajor
-          ? const Color(0xFF00897B)
-          : (isMedium ? const Color(0xFF334155) : const Color(0xFF94A3B8));
+          ? AppColors.primary
+          : (isMedium ? AppColors.secondary : AppColors.outlineVariant);
 
       canvas.drawLine(start, end, tickPaint);
     }
@@ -623,11 +625,11 @@ class QiblaStyleDialPainter extends CustomPainter {
   /// Menggambar Bintang 8 Mata Angin Faint (Klasik Gambar 1)
   void _drawCompassRoseStar(Canvas canvas, Offset center, double radius) {
     final lightPaint = Paint()
-      ..color = const Color(0xFFFFFFFF)
+      ..color = Colors.white
       ..style = PaintingStyle.fill;
 
     final shadowPaint = Paint()
-      ..color = const Color(0xFFE4ECE7)
+      ..color = AppColors.surfaceContainerLow
       ..style = PaintingStyle.fill;
 
     final double outerR = radius * 0.76;
@@ -664,7 +666,7 @@ class QiblaStyleDialPainter extends CustomPainter {
     final textSpan = TextSpan(
       text: text,
       style: TextStyle(
-        color: isNorth ? const Color(0xFF00897B) : const Color(0xFF1E293B),
+        color: isNorth ? AppColors.primary : AppColors.onSurface,
         fontSize: isNorth ? 16 : 13,
         fontWeight: FontWeight.bold,
       ),
@@ -686,7 +688,7 @@ class QiblaStyleDialPainter extends CustomPainter {
     final textSpan = TextSpan(
       text: text,
       style: const TextStyle(
-        color: Color(0xFF64748B),
+        color: AppColors.onSurfaceVariant,
         fontSize: 10,
         fontWeight: FontWeight.bold,
       ),
@@ -777,7 +779,7 @@ class MerapiNeedlePainter extends CustomPainter {
 
     // 3. Ekor Belakang Jarum
     final tailPaint = Paint()
-      ..color = const Color(0xFF334155)
+      ..color = AppColors.tertiary
       ..style = PaintingStyle.fill;
 
     final tailPath = Path()
