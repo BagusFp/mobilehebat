@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/services/api_service.dart';
 import '../../core/services/gemini_service.dart';
 import '../../data/models/trip_item_model.dart';
@@ -7,7 +9,11 @@ import '../trip/trip_provider.dart';
 import 'ai_chat_model.dart';
 
 class AiAssistantProvider extends ChangeNotifier {
+  static const String _historyPrefsKey = 'ai_chat_history_sessions';
+
   bool _isTyping = false;
+  String _currentSessionId = 'session_initial';
+  List<AiChatSession> _historySessions = [];
 
   final List<String> _quickPrompts = const [
     '🗺️ Buat itinerary 1 hari',
@@ -55,30 +61,31 @@ class AiAssistantProvider extends ChangeNotifier {
         'Bawa jaket tipis untuk si kecil karena angin Kaliadem cukup kencang sebelum pukul 11 siang. Jangan lupa siapkan uang pas untuk parkir (Rp 5.000/mobil).',
   );
 
-  List<ChatMessage> _messages = [
-    const ChatMessage(
-      id: 'msg-welcome',
+  static ChatMessage _createDefaultWelcomeMessage() {
+    final now = DateTime.now();
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+    return ChatMessage(
+      id: 'msg-welcome-${now.millisecondsSinceEpoch}',
       isUser: false,
-      text:
-          'Halo! Saya Jagawana AI, asisten cerdas resmi MeraTrip. Saya siap merekomendasikan rute wisata lereng Merapi yang aman, info tiket terverifikasi, dan itinerary terbaik untukmu.',
-      time: '08:00',
-      recommendation: _defaultRecommendation,
-      followUpText: 'Mau coba jelajahi rute rekomendasi di atas?',
-    ),
-  ];
+      text: 'Halo! Saya Jagawana AI. Ada yang bisa saya bantu untuk rencana wisatamu di lereng Merapi hari ini?',
+      time: '$hour:$minute',
+    );
+  }
+
+  late List<ChatMessage> _messages;
+  String? _selectedQuickPrompt;
 
   AiAssistantProvider() {
+    _messages = [_createDefaultWelcomeMessage()];
+    _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
+
     GeminiService().init().then((_) {
       notifyListeners();
     });
-  }
 
-  /// Notifikasi perubahan kunci API
-  void notifyKeyChanged() {
-    notifyListeners();
+    _loadSessionsFromPrefs();
   }
-
-  String? _selectedQuickPrompt;
 
   // Getters
   bool get isTyping => _isTyping;
@@ -86,6 +93,125 @@ class AiAssistantProvider extends ChangeNotifier {
   List<ChatMessage> get messages => _messages;
   ItineraryRecommendation get defaultRecommendation => _defaultRecommendation;
   String? get selectedQuickPrompt => _selectedQuickPrompt;
+  String get currentSessionId => _currentSessionId;
+  List<AiChatSession> get historySessions => List.unmodifiable(_historySessions);
+
+  /// Notifikasi perubahan kunci API
+  void notifyKeyChanged() {
+    notifyListeners();
+  }
+
+  /// Memuat riwayat sesi obrolan dari SharedPreferences
+  Future<void> _loadSessionsFromPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonStr = prefs.getString(_historyPrefsKey);
+      if (jsonStr != null && jsonStr.isNotEmpty) {
+        final decoded = jsonDecode(jsonStr) as List;
+        _historySessions = decoded
+            .map((item) => AiChatSession.fromJson(Map<String, dynamic>.from(item)))
+            .toList();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading AI history: $e');
+    }
+  }
+
+  /// Menyimpan riwayat sesi ke SharedPreferences
+  Future<void> _saveSessionsToPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final jsonList = _historySessions.map((s) => s.toJson()).toList();
+      await prefs.setString(_historyPrefsKey, jsonEncode(jsonList));
+    } catch (e) {
+      debugPrint('Error saving AI history: $e');
+    }
+  }
+
+  /// Memulai room chat yang baru (riwayat obrolan sebelumnya disimpan)
+  void startNewSession({bool autoSavePrevious = true}) {
+    if (autoSavePrevious) {
+      _saveCurrentSessionToHistory();
+    }
+
+    _currentSessionId = 'session_${DateTime.now().millisecondsSinceEpoch}';
+    _messages = [_createDefaultWelcomeMessage()];
+    _selectedQuickPrompt = null;
+    _isTyping = false;
+    GeminiService().resetChat();
+    notifyListeners();
+  }
+
+  /// Menyimpan obrolan yang sedang aktif ke dalam daftar riwayat
+  void _saveCurrentSessionToHistory() {
+    final userMessages = _messages.where((m) => m.isUser).toList();
+    if (userMessages.isEmpty) return; // Jangan simpan sesi kosong hanya sambutan
+
+    final firstUserText = userMessages.first.text.trim();
+    final sessionTitle = firstUserText.length > 35
+        ? '${firstUserText.substring(0, 35)}...'
+        : firstUserText;
+
+    final existingIndex = _historySessions.indexWhere((s) => s.id == _currentSessionId);
+    final session = AiChatSession(
+      id: _currentSessionId,
+      title: sessionTitle,
+      createdAt: DateTime.now().toIso8601String(),
+      messages: List.from(_messages),
+    );
+
+    if (existingIndex >= 0) {
+      _historySessions[existingIndex] = session;
+    } else {
+      _historySessions.insert(0, session);
+    }
+
+    _saveSessionsToPrefs();
+  }
+
+  /// Membuka sesi obrolan lama dari riwayat
+  void loadSession(String sessionId) {
+    if (sessionId == _currentSessionId) return;
+
+    // Simpan dulu sesi saat ini jika ada pesan pengguna
+    _saveCurrentSessionToHistory();
+
+    final found = _historySessions.firstWhere(
+      (s) => s.id == sessionId,
+      orElse: () => AiChatSession(
+        id: sessionId,
+        title: 'Obrolan',
+        createdAt: DateTime.now().toIso8601String(),
+        messages: [_createDefaultWelcomeMessage()],
+      ),
+    );
+
+    _currentSessionId = found.id;
+    _messages = List.from(found.messages);
+    _selectedQuickPrompt = null;
+    _isTyping = false;
+    notifyListeners();
+  }
+
+  /// Menghapus sesi tertentu dari riwayat
+  void deleteSession(String sessionId) {
+    _historySessions.removeWhere((s) => s.id == sessionId);
+    _saveSessionsToPrefs();
+
+    if (_currentSessionId == sessionId) {
+      startNewSession(autoSavePrevious: false);
+    } else {
+      notifyListeners();
+    }
+  }
+
+  /// Menghapus seluruh riwayat chat
+  void clearAllHistory() {
+    _historySessions.clear();
+    _saveSessionsToPrefs();
+    startNewSession(autoSavePrevious: false);
+  }
 
   /// Memilih quick prompt rekomendasi
   Future<void> selectQuickPrompt(String prompt) async {
@@ -97,11 +223,15 @@ class AiAssistantProvider extends ChangeNotifier {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
+    final now = DateTime.now();
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
+
     final userMsg = ChatMessage(
-      id: 'msg-${DateTime.now().millisecondsSinceEpoch}',
+      id: 'msg-${now.millisecondsSinceEpoch}',
       isUser: true,
       text: text,
-      time: 'Sekarang',
+      time: '$hour:$minute',
     );
     _messages.add(userMsg);
     _isTyping = true;
@@ -131,7 +261,6 @@ class AiAssistantProvider extends ChangeNotifier {
         if (backendRes != null && backendRes['text'] != null) {
           aiResponseText = backendRes['text'] as String;
 
-          // Parsing rekomendasi jika ada
           if (backendRes['recommendation'] is Map) {
             final r = backendRes['recommendation'] as Map<String, dynamic>;
             final stopsList = <ItineraryStopModel>[];
@@ -162,24 +291,31 @@ class AiAssistantProvider extends ChangeNotifier {
       } catch (_) {}
     }
 
-    // 3. Mesin Cerdas Jagawana jika Gemini API sibuk, kuota habis, atau tidak ada internet
+    // 3. Mesin Cerdas MeraTrip AI jika Gemini API sibuk, kuota habis, atau tidak ada internet
     if (aiResponseText == null) {
       final offlineResult = _generateSmartMerapiResponse(text);
       aiResponseText = offlineResult.$1;
       rec = offlineResult.$2;
     }
 
+    final respNow = DateTime.now();
+    final respHour = respNow.hour.toString().padLeft(2, '0');
+    final respMin = respNow.minute.toString().padLeft(2, '0');
+
     final aiMsg = ChatMessage(
-      id: 'msg-${DateTime.now().millisecondsSinceEpoch + 1}',
+      id: 'msg-${respNow.millisecondsSinceEpoch + 1}',
       isUser: false,
       text: aiResponseText,
-      time: 'Sekarang',
+      time: '$respHour:$respMin',
       recommendation: rec,
       followUpText: 'Apakah ada destinasi lain yang ingin kamu tanyakan pada Jagawana AI?',
     );
 
     _messages.add(aiMsg);
     _isTyping = false;
+
+    // Simpan otomatis update sesi ke riwayat
+    _saveCurrentSessionToHistory();
     notifyListeners();
   }
 
@@ -193,60 +329,60 @@ class AiAssistantProvider extends ChangeNotifier {
 
     String quotaNote = '';
     if (isQuotaExceeded) {
-      quotaNote = '\n\n💡 Info: Kuota AI cloud sedang padat. Jawaban disajikan langsung oleh Asisten Jagawana Terverifikasi.';
+      quotaNote = '\n\n💡 Info: Kuota AI cloud sedang padat. Jawaban disajikan langsung oleh Jagawana AI Terverifikasi.';
     }
 
     // 1. Wisata Keluarga / Anak / Santai
     if (lower.contains('keluarga') || lower.contains('anak') || lower.contains('santai') || lower.contains('ramah')) {
       final familyRec = ItineraryRecommendation(
-        title: 'Wisata Edukasi & Rekreasi Ramah Keluarga',
-        categoryBadge: 'Ramah Keluarga & Anak',
+        title: 'Wisata Edukasi & Rekreasi Keluarga',
+        categoryBadge: 'Ramah Keluarga',
         totalDuration: '~3.5 Jam',
-        estimatedTicket: 'Rp 65.000/org',
-        accessibility: 'Jalan Aspal Landai, Aman Kereta Bayi',
-        stops: [
-          const ItineraryStopModel(
-            timeRange: '08:30 - 10:30',
-            name: 'Museum Ullen Sentalu',
-            ticketBadge: 'Tiket Rp 50.000',
-            description: 'Wisata budaya Jawa bernuansa sejuk, asri, dan aman untuk anak serta lansia.',
+        estimatedTicket: 'Rp 30.000/org',
+        accessibility: 'Aman untuk Stroller & Lansia',
+        stops: const [
+          ItineraryStopModel(
+            timeRange: '08:30 - 10:00',
+            name: 'Kaliurang Park Botanical Garden',
+            ticketBadge: 'Rp 25.000',
+            description: 'Taman bunga, flying fox aman untuk anak, dan playground rindang berhawa sejuk.',
             imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAT5SWRj9svCiCBlgYQx-zjjhyIZQ5obyW29TwX8hzE5Kypnjt2XCT_aIxPg_VVv7WgrpGcCDqPyRVRXO4KbCMAz0DGV5uxOBVT1Xmb7iR5rzWOf_rSa3MzPiIhKT5twdqV6OFikGTSio858GCmZgcX2T__egyhyosgIhO3w5SnZZMjhWC2sbCeWnE8mHLxuV9z6LVj8ogmkLQSxHfEXY8KWYkJDjxiMoNk576yo3CyJTti8_Sacqg',
           ),
-          const ItineraryStopModel(
-            timeRange: '10:45 - 12:00',
-            name: 'Taman Rekreasi Kaliurang',
-            ticketBadge: 'Tiket Rp 10.000',
-            description: 'Taman bermain teduh dengan arena playground dan udara segar khas Kaliurang.',
+          ItineraryStopModel(
+            timeRange: '10:15 - 11:30',
+            name: 'Museum Mini Sisa Hartaku',
+            ticketBadge: 'Donasi Sukarela',
+            description: 'Mengenalkan sejarah letusan Merapi dan nilai-nilai ketangguhan masyarakat.',
             imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuDnewMUxraaoMgsDZ14E3ySpfnSJs9bnzZp8wc3RA9G4TaYAPVbF-yXiIze2KnRF2wueiIbn18uKgQ8S9drhcNBbCqUqQZeHd0NWHAHkp5uK372tlpHMyrhEX-myc5cT-_TXk_FxMNaOtVDhqATfeK6GbLPdxMUL0VBA8hRQphwhCUZG2ag3fIQTa0SEwlEtabIDrS3DnLItFzeyxZbRQREoQr8RWceeWsfClw-XeroHn2zTERL4Rw',
           ),
         ],
-        proTip: 'Bawa jaket tipis untuk anak-anak dan nikmati kuliner jadah tempe hangat di sekitar Kaliurang.',
+        proTip: 'Sangat cocok dikunjungi sebelum terik siang. Banyak penjual jadah tempe hangat legendaris di sekitar Kaliurang.',
       );
 
       return (
-        'Untuk liburan keluarga yang nyaman dan aman, kawasan Kaliurang bawah sangat ideal! Jalur perjalanan mudah diakses mobil dan stroller dengan suasana yang sejuk:$quotaNote',
+        'Berikut rekomendasi perjalanan wisata yang sangat ramah untuk liburan keluarga:$quotaNote',
         familyRec,
       );
     }
 
-    // 2. Petualangan Trekking & Panorama Alam
-    if (lower.contains('petualangan') || lower.contains('trekking') || lower.contains('jalur') || lower.contains('alam')) {
+    // 2. Petualangan / Jeep / Alam
+    if (lower.contains('jeep') || lower.contains('petualangan') || lower.contains('adventure') || lower.contains('lava')) {
       final adventureRec = ItineraryRecommendation(
-        title: 'Petualangan Alam Merapi',
-        categoryBadge: 'Petualangan & Panorama',
-        totalDuration: '~3 Jam',
-        estimatedTicket: 'Rp 25.000 / orang',
-        accessibility: 'Jalur Trekking & Aspal Pegunungan',
-        stops: [
-          const ItineraryStopModel(
-            timeRange: '06:00 - 07:30',
-            name: 'Bukit Klangon',
-            ticketBadge: 'Rp 10.000',
-            description: 'Menikmati golden sunrise dan panorama kawah aktif Merapi dari jarak 4 km.',
-            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuAT5SWRj9svCiCBlgYQx-zjjhyIZQ5obyW29TwX8hzE5Kypnjt2XCT_aIxPg_VVv7WgrpGcCDqPyRVRXO4KbCMAz0DGV5uxOBVT1Xmb7iR5rzWOf_rSa3MzPiIhKT5twdqV6OFikGTSio858GCmZgcX2T__egyhyosgIhO3w5SnZZMjhWC2sbCeWnE8mHLxuV9z6LVj8ogmkLQSxHfEXY8KWYkJDjxiMoNk576yo3CyJTti8_Sacqg',
+        title: 'Ekspedisi Lava Tour & Alam Merapi',
+        categoryBadge: 'Petualangan Alam',
+        totalDuration: '~4.5 Jam',
+        estimatedTicket: 'Rp 350.000 - Rp 450.000 / Jeep (4-5 orang)',
+        accessibility: 'Off-road Sedang',
+        stops: const [
+          ItineraryStopModel(
+            timeRange: '07:30 - 09:30',
+            name: 'Merapi Lava Tour Jeep',
+            ticketBadge: 'Paket Short/Medium',
+            description: 'Menyusuri bekas aliran lahar dingin, manuver air Kali Kuning, dan batu alien.',
+            imageUrl: 'https://lh3.googleusercontent.com/aida-public/AB6AXuD__JTBQcN2VsrNHKnYZ3FxiZdpsu2-fckBgW-YFTPB2_IwRsWRTY0ZzPK3EY0nOTR9Jaut-9xVIAY7bJ0r5GeR5Bp6WKDYOBF8nqbDwSw2iRpvqT-lu6DRI-DJ3fgMNSdprlLU4CPEld1KWrAocN1GBaG6J3iyYnlEw9_cvpKjcZAeSyY_sWN4k8zIzEvVJH4PvHj12yNDoQ4qetdwZJVqvmwcvyYcl_Kf_2lp-GWVsts1KsPJGgk',
           ),
-          const ItineraryStopModel(
-            timeRange: '08:00 - 09:30',
+          ItineraryStopModel(
+            timeRange: '09:45 - 11:00',
             name: 'Plunyon Kalikuning',
             ticketBadge: 'Rp 12.000',
             description: 'Trekking ringan melintasi jembatan gantung berlatar hutan pinus asri.',
@@ -270,7 +406,7 @@ class AiAssistantProvider extends ChangeNotifier {
         '• Jam Buka: 06.00 - 17.00 WIB.\n'
         '• Waktu Terbaik: Pukul 05.30 - 08.00 WIB untuk melihat puncak kawah Merapi tanpa tertutup kabut.\n'
         '• Akses: Bisa dijangkau sepeda motor atau mobil pribadi melalui jalan aspal halus.$quotaNote',
-        _defaultRecommendation,
+        null,
       );
     }
 
@@ -281,7 +417,7 @@ class AiAssistantProvider extends ChangeNotifier {
         '• Tiket Masuk: Rp 12.000 / orang.\n'
         '• Jam Buka: 07.00 - 16.00 WIB.\n'
         '• Aktivitas: Foto di jembatan gantung, trekking sungai bebatuan, dan menikmati gemericik air kali sejuk.$quotaNote',
-        _defaultRecommendation,
+        null,
       );
     }
 
@@ -295,7 +431,7 @@ class AiAssistantProvider extends ChangeNotifier {
         '4. Museum Sisa Hartaku: Donasi sukarela (Rp 5.000 - Rp 10.000)\n'
         '5. Museum Ullen Sentalu: Rp 50.000 / orang (termasuk guide)\n\n'
         'Untuk paket hemat 1 hari, kamu cukup menyiapkan budget tiket sekitar Rp 25.000 - Rp 30.000 saja per orang!$quotaNote',
-        _defaultRecommendation,
+        null,
       );
     }
 
@@ -319,15 +455,16 @@ class AiAssistantProvider extends ChangeNotifier {
         '2. Pintu Masuk Bunker Kaliadem: Foto sudut rendah berlatar kerucut kawah Merapi.\n'
         '3. Bukit Klangon: Menara pandang gardu kayu hanya berjarak 4 km dari puncak kawah, sangat dramatis.\n'
         '4. Kopi Merapi: Bersantai minum kopi robusta lereng Merapi dengan pemandangan batuan sisa lava.$quotaNote',
-        _defaultRecommendation,
+        null,
       );
     }
 
-    // 8. Default Rute & Rekomendasi Umum
+    // 8. Respon Umum Destinasi / Pertanyaan
     return (
-      'Halo! Saya Jagawana AI, pemandu resmi kawasan Merapi. Saya siap membantu kamu merencanakan rute liburan, info tiket terverifikasi, dan keselamatan perjalanan.\n\n'
-      'Berikut adalah rute tur terfavorit yang direkomendasikan untuk eksplorasi Merapi hari ini:$quotaNote',
-      _defaultRecommendation,
+      'Halo! Saya Jagawana AI, asisten perjalanan wisatamu di kawasan lereng Merapi.\n\n'
+      'Kawasan lereng Merapi menawarkan keindahan panorama alam, udara sejuk pegunungan, serta ragam edukasi mitigasi dan geowisata yang menakjubkan. '
+      'Silakan tanyakan info tiket, rekomendasi rute perjalanan, spot foto, atau fasilitas destinasi yang ingin kamu kunjungi!$quotaNote',
+      null,
     );
   }
 
@@ -392,10 +529,8 @@ class AiAssistantProvider extends ChangeNotifier {
     }
   }
 
-  /// Mengosongkan riwayat obrolan AI
+  /// Mengosongkan riwayat obrolan AI sesi aktif
   void clearChat() {
-    _messages = [];
-    GeminiService().resetChat();
-    notifyListeners();
+    startNewSession(autoSavePrevious: false);
   }
 }

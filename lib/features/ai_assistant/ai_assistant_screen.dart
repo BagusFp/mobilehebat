@@ -4,6 +4,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_typography.dart';
 import '../auth/auth_provider.dart';
+import '../explore/destination_provider.dart';
 import '../trip/create_trip_screen.dart';
 import '../trip/my_trip_screen.dart';
 import '../trip/trip_provider.dart';
@@ -25,6 +26,13 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   @override
   void initState() {
     super.initState();
+    // Setiap kali pengguna mengakses fitur AI, arahkan ke room chat yang baru
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<AiAssistantProvider>().startNewSession(autoSavePrevious: true);
+      }
+    });
+
     GeminiService().init().then((_) {
       if (mounted) setState(() {});
     });
@@ -49,6 +57,366 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     });
   }
 
+  /// Menampilkan bottom sheet pemilihan destinasi untuk ditanyakan ke AI
+  void _showSelectDestinationBottomSheet(BuildContext context, AiAssistantProvider provider) {
+    final destProvider = context.read<DestinationProvider>();
+    if (destProvider.allDestinations.isEmpty) {
+      destProvider.loadDestinations();
+    }
+
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setSheetState) {
+            final allDest = destProvider.allDestinations;
+            final filtered = searchQuery.isEmpty
+                ? allDest
+                : allDest.where((d) => d.name.toLowerCase().contains(searchQuery.toLowerCase())).toList();
+
+            return SafeArea(
+              child: Container(
+                height: MediaQuery.of(dialogCtx).size.height * 0.7,
+                padding: const EdgeInsets.fromLTRB(AppDimensions.margin, 16, AppDimensions.margin, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.outlineVariant,
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Pilih Destinasi untuk Ditanyakan',
+                            style: AppTypography.titleMd.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.onSurface,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheetCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Search Field
+                    TextField(
+                      decoration: InputDecoration(
+                        hintText: 'Cari nama destinasi Merapi...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        filled: true,
+                        fillColor: AppColors.surfaceContainerLow,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onChanged: (val) {
+                        setSheetState(() {
+                          searchQuery = val;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Text(
+                                'Destinasi tidak ditemukan',
+                                style: AppTypography.bodySm.copyWith(color: AppColors.outline),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: filtered.length,
+                              separatorBuilder: (ctx, index) => const Divider(height: 1),
+                              itemBuilder: (ctx, idx) {
+                                final dest = filtered[idx];
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                  leading: ClipRRect(
+                                    borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+                                    child: Container(
+                                      width: 46,
+                                      height: 46,
+                                      color: AppColors.secondaryContainer,
+                                      child: (dest.imageUrl != null && dest.imageUrl!.isNotEmpty)
+                                          ? Image.network(
+                                              dest.imageUrl!,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error, stackTrace) => const Icon(
+                                                Icons.landscape,
+                                                color: AppColors.primary,
+                                              ),
+                                            )
+                                          : const Icon(Icons.landscape, color: AppColors.primary),
+                                    ),
+                                  ),
+                                  title: Text(
+                                    dest.name,
+                                    style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  subtitle: Text(
+                                    '${dest.categoryName} • Tiket: ${dest.ticketPrice > 0 ? "Rp ${dest.ticketPrice.toInt()}" : "Gratis/Donasi"}',
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.onSurfaceVariant,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.outline),
+                                  onTap: () {
+                                    Navigator.pop(sheetCtx);
+                                    provider.sendMessage(
+                                      'Bagaimana rute, harga tiket, fasilitas, dan waktu terbaik berkunjung ke ${dest.name}?',
+                                    );
+                                    _scrollToBottom();
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Menampilkan modal riwayat percakapan pengguna dengan AI
+  void _showChatHistoryModal(BuildContext context, AiAssistantProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
+      ),
+      builder: (sheetCtx) {
+        return StatefulBuilder(
+          builder: (dialogCtx, setSheetState) {
+            final sessions = provider.historySessions;
+
+            return SafeArea(
+              child: Container(
+                height: MediaQuery.of(sheetCtx).size.height * 0.65,
+                padding: const EdgeInsets.fromLTRB(AppDimensions.margin, 16, AppDimensions.margin, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.outlineVariant,
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.history_rounded, color: AppColors.primary, size: 22),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Riwayat Obrolan AI',
+                                  style: AppTypography.titleMd.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.onSurface,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(sheetCtx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Tombol Buat Room Chat Baru
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.add_comment_outlined, size: 18),
+                        label: const Text(
+                          '+ Room Chat Baru',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          provider.startNewSession(autoSavePrevious: true);
+                          Navigator.pop(sheetCtx);
+                          _scrollToBottom();
+                        },
+                      ),
+                    ),
+
+                    Expanded(
+                      child: sessions.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.chat_bubble_outline, size: 48, color: AppColors.outline),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'Belum ada riwayat obrolan.',
+                                    style: AppTypography.bodyMd.copyWith(color: AppColors.outline),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Setiap obrolan Anda dengan Jagawana AI akan otomatis tersimpan di sini.',
+                                    style: AppTypography.bodySm.copyWith(color: AppColors.outlineVariant),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: sessions.length,
+                              separatorBuilder: (ctx, index) => const Divider(height: 1),
+                              itemBuilder: (_, idx) {
+                                final session = sessions[idx];
+                                final isCurrent = session.id == provider.currentSessionId;
+                                final userMsgCount = session.messages.where((m) => m.isUser).length;
+
+                                String formattedTime = '';
+                                try {
+                                  final dt = DateTime.parse(session.createdAt).toLocal();
+                                  final months = [
+                                    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                                    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+                                  ];
+                                  final day = dt.day.toString().padLeft(2, '0');
+                                  final month = months[dt.month - 1];
+                                  final hour = dt.hour.toString().padLeft(2, '0');
+                                  final min = dt.minute.toString().padLeft(2, '0');
+                                  formattedTime = '$day $month, $hour:$min';
+                                } catch (_) {
+                                  formattedTime = session.createdAt;
+                                }
+
+                                return ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                  leading: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: isCurrent ? AppColors.primaryContainer : AppColors.surfaceContainerLow,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      isCurrent ? Icons.chat_bubble : Icons.chat_bubble_outline,
+                                      size: 20,
+                                      color: isCurrent ? Colors.white : AppColors.primary,
+                                    ),
+                                  ),
+                                  title: Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          session.title,
+                                          style: AppTypography.titleSmall.copyWith(
+                                            fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
+                                            color: isCurrent ? AppColors.primary : AppColors.onSurface,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (isCurrent)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.secondaryContainer,
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: const Text(
+                                            'Aktif',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: AppColors.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                  subtitle: Text(
+                                    '$formattedTime • $userMsgCount pesan pengguna',
+                                    style: AppTypography.bodySmall.copyWith(
+                                      color: AppColors.onSurfaceVariant,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                  trailing: IconButton(
+                                    icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.outline),
+                                    tooltip: 'Hapus Obrolan',
+                                    onPressed: () {
+                                      provider.deleteSession(session.id);
+                                      setSheetState(() {});
+                                    },
+                                  ),
+                                  onTap: () {
+                                    provider.loadSession(session.id);
+                                    Navigator.pop(sheetCtx);
+                                    _scrollToBottom();
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final aiProvider = context.watch<AiAssistantProvider>();
@@ -66,7 +434,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
-          'Ai Assistant',
+          'Jagawana MeraTrip AI Assistant',
           style: AppTypography.titleMd.copyWith(
             color: AppColors.onSurface,
             fontWeight: FontWeight.bold,
@@ -74,13 +442,19 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.onSurfaceVariant),
-            tooltip: 'Bersihkan Obrolan',
+            icon: const Icon(Icons.history_rounded, color: AppColors.onSurfaceVariant),
+            tooltip: 'Riwayat Chat',
+            onPressed: () => _showChatHistoryModal(context, aiProvider),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_comment_outlined, color: AppColors.onSurfaceVariant),
+            tooltip: 'Room Chat Baru',
             onPressed: () {
-              aiProvider.clearChat();
+              aiProvider.startNewSession(autoSavePrevious: true);
+              _textController.clear();
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Obrolan AI berhasil dibersihkan.'),
+                  content: Text('Memulai room chat baru.'),
                   duration: Duration(seconds: 1),
                 ),
               );
@@ -95,13 +469,12 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             controller: _scrollController,
             padding: const EdgeInsets.only(bottom: 120),
             children: [
-              // 1. Volcanic Activity & AI Companion Status Bar
-              _buildCompanionStatusBar(context, aiProvider),
+              const SizedBox(height: 8),
 
-              // 2. Quick Prompts Horizontal Scroll
+              // 1. Quick Prompts Horizontal Scroll
               _buildQuickPrompts(aiProvider),
 
-              // 3. Conversation Flow
+              // 2. Conversation Flow
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin, vertical: 8),
                 child: Column(
@@ -166,7 +539,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'MeraTrip AI sedang merancang rute...',
+                        'Jagawana AI sedang merancang rute...',
                         style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
                       ),
                     ],
@@ -175,7 +548,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             ],
           ),
 
-          // 4. Pinned Ergonomic Floating Input Bar
+          // 3. Pinned Ergonomic Floating Input Bar
           Positioned(
             left: 0,
             right: 0,
@@ -187,137 +560,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     );
   }
 
-  // 1. Companion Status Bar
-  Widget _buildCompanionStatusBar(BuildContext context, AiAssistantProvider provider) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        AppDimensions.margin,
-        AppDimensions.spaceSm,
-        AppDimensions.margin,
-        AppDimensions.spaceXs,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(6),
-            blurRadius: 4,
-            offset: const Offset(0, 1),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.smart_toy, size: 20, color: AppColors.primary),
-              ),
-              Positioned(
-                bottom: 0,
-                right: 0,
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: AppColors.secondary,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        'MeraTrip AI',
-                        style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondaryContainer,
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                      ),
-                      child: Text(
-                        'Gemini AI',
-                        style: AppTypography.labelSm.copyWith(
-                          color: AppColors.onSecondaryContainer,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 1),
-                Text(
-                  'Direct Cloud AI • Mandiri',
-                  style: AppTypography.bodySm.copyWith(
-                    color: AppColors.onSurfaceVariant,
-                    fontSize: 11,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.secondaryContainer.withAlpha(120),
-              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: AppColors.secondary,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(
-                  'Online',
-                  style: AppTypography.labelSm.copyWith(
-                    color: AppColors.onSecondaryContainer,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 2. Quick Prompts Horizontal Scroll
+  // 1. Quick Prompts Horizontal Scroll
   Widget _buildQuickPrompts(AiAssistantProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,7 +624,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     );
   }
 
-  // 3. User Message Bubble (Align Right)
+  // 2. User Message Bubble (Align Right)
   Widget _buildUserMessageBubble(ChatMessage msg) {
     return Align(
       alignment: Alignment.centerRight,
@@ -431,7 +674,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     );
   }
 
-  // 4. AI Message Bubble (Align Left, with Rich Itinerary Card)
+  // 3. AI Message Bubble (Align Left, with Rich Itinerary Card)
   Widget _buildAiMessageBubble(
     BuildContext context,
     ChatMessage msg,
@@ -461,7 +704,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  'MeraTrip AI',
+                  'Jagawana AI',
                   style: AppTypography.labelMd.copyWith(
                     fontWeight: FontWeight.bold,
                     color: AppColors.onSurface,
@@ -484,469 +727,408 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
               padding: const EdgeInsets.all(AppDimensions.spaceMd),
               decoration: BoxDecoration(
                 color: AppColors.surfaceContainerLowest,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(4),
-                topRight: Radius.circular(16),
-                bottomLeft: Radius.circular(16),
-                bottomRight: Radius.circular(16),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withAlpha(8),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4),
+                  topRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
                 ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildFormattedAiText(msg.text),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(8),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildFormattedAiText(msg.text),
 
-                if (rec != null) ...[
-                  const SizedBox(height: 12),
-                  // Journey Recommendation Card
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceContainerLow,
-                      borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: AppColors.secondaryContainer,
-                                borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                              ),
-                              child: Text(
-                                rec.categoryBadge,
-                                style: AppTypography.labelSm.copyWith(
-                                  color: AppColors.onSecondaryContainer,
-                                  fontWeight: FontWeight.bold,
+                  if (rec != null) ...[
+                    const SizedBox(height: 12),
+                    // Journey Recommendation Card
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.secondaryContainer,
+                                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
                                 ),
-                              ),
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  'Total Durasi',
-                                  style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant),
-                                ),
-                                Text(
-                                  rec.totalDuration,
-                                  style: AppTypography.labelLg.copyWith(
+                                child: Text(
+                                  rec.categoryBadge,
+                                  style: AppTypography.labelSm.copyWith(
+                                    color: AppColors.onSecondaryContainer,
                                     fontWeight: FontWeight.bold,
-                                    color: AppColors.primary,
                                   ),
                                 ),
-                              ],
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          rec.title,
-                          style: AppTypography.headlineSm.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.onSurface,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-
-                        // Metrics Bar
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerLowest,
-                                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Estimasi Tiket', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10)),
-                                    Text(rec.estimatedTicket, style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold)),
-                                  ],
-                                ),
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surfaceContainerLowest,
-                                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Aksesibilitas', style: AppTypography.labelSm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 10)),
-                                    Text(rec.accessibility, style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold, color: AppColors.secondary)),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Stops
-                        Column(
-                          children: rec.stops.map((stop) {
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 10),
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.surfaceContainerLowest,
-                                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  Text(
+                                    'Total Durasi',
+                                    style: AppTypography.labelSm.copyWith(
+                                      color: AppColors.onSurfaceVariant,
+                                      fontSize: 10,
+                                    ),
+                                  ),
+                                  Text(
+                                    rec.totalDuration,
+                                    style: AppTypography.titleSmall.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+
+                          Text(
+                            rec.title,
+                            style: AppTypography.headlineSm.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          // Metadata Chips
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerLowest,
+                                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Expanded(
-                                        child: Text(
-                                          stop.timeRange,
-                                          style: AppTypography.labelSm.copyWith(
-                                            color: AppColors.primary,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
+                                      Text(
+                                        'Estimasi Tiket',
+                                        style: AppTypography.labelSm.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                          fontSize: 10,
                                         ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.surfaceContainer,
-                                          borderRadius: BorderRadius.circular(4),
-                                        ),
-                                        child: Text(
-                                          stop.ticketBadge,
-                                          style: AppTypography.labelSm.copyWith(
-                                            color: AppColors.onSurfaceVariant,
-                                            fontSize: 10,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        rec.estimatedTicket,
+                                        style: AppTypography.bodySm.copyWith(
+                                          fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    stop.name,
-                                    style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: Image.network(
-                                      stop.imageUrl,
-                                      height: 100,
-                                      width: double.infinity,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Container(
-                                        height: 60,
-                                        color: AppColors.surfaceContainer,
-                                        child: const Center(
-                                          child: Icon(Icons.landscape, color: AppColors.outline),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    stop.description,
-                                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                                  ),
-                                ],
+                                ),
                               ),
-                            );
-                          }).toList(),
-                        ),
-
-                        // Pro Tip Box
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceContainerHigh.withAlpha(150),
-                            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(Icons.tips_and_updates, color: AppColors.primary, size: 18),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Tips Pintar MeraTrip', style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold)),
-                                    Text(rec.proTip, style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant, fontSize: 11)),
-                                  ],
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceContainerLowest,
+                                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Aksesibilitas',
+                                        style: AppTypography.labelSm.copyWith(
+                                          color: AppColors.onSurfaceVariant,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        rec.accessibility,
+                                        style: AppTypography.bodySm.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.secondary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 12),
+                          const SizedBox(height: 12),
 
-                        // Action Buttons
-                        SizedBox(
-                          width: double.infinity,
-                          height: 46,
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: AppColors.onPrimary,
-                              shape: RoundedRectangleBorder(
+                          // Stops Timeline
+                          ...rec.stops.map((stop) => _buildStopCard(stop)),
+
+                          if (rec.proTip.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
                                 borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                                border: Border.all(color: const Color(0xFFFDE68A)),
                               ),
-                            ),
-                            onPressed: () async {
-                              final success = await context.read<AiAssistantProvider>().adoptItineraryToMyTrip(
-                                tripProvider,
-                                userId: userId,
-                                customRec: rec,
-                              );
-                              if (context.mounted && success) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Rute rekomendasi AI berhasil disimpan ke My Trip!'),
-                                    duration: Duration(seconds: 2),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(Icons.lightbulb_outline, size: 16, color: Color(0xFFD97706)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      rec.proTip,
+                                      style: AppTypography.bodySm.copyWith(
+                                        color: const Color(0xFF92400E),
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ),
-                                );
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const MyTripScreen()),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.bookmark_add, size: 18),
-                            label: Text(
-                              'Simpan ke My Trip',
-                              style: AppTypography.labelLg.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.onPrimary,
+                                ],
                               ),
                             ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SizedBox(
-                          width: double.infinity,
-                          height: 42,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              backgroundColor: AppColors.surfaceContainerLowest,
-                              side: BorderSide.none,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                              ),
-                            ),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const CreateTripScreen()),
-                              );
-                            },
-                            icon: const Icon(Icons.tune, size: 16, color: AppColors.primary),
-                            label: Text(
-                              'Kustomisasi Rute',
-                              style: AppTypography.labelMd.copyWith(
-                                color: AppColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+                          ],
 
-                if (msg.followUpText != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    msg.followUpText!,
-                    style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                  ),
+                          const SizedBox(height: 12),
+
+                          // Adopt CTA Buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 3,
+                                child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                    final success = await context.read<AiAssistantProvider>().adoptItineraryToMyTrip(
+                                          tripProvider,
+                                          userId: userId,
+                                          customRec: rec,
+                                        );
+
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            success
+                                                ? 'Rute "${rec.title}" berhasil disimpan ke My Trip!'
+                                                : 'Gagal mengadopsi rute.',
+                                          ),
+                                          backgroundColor: success ? AppColors.secondary : AppColors.error,
+                                          action: success
+                                              ? SnackBarAction(
+                                                  label: 'Lihat Trip',
+                                                  textColor: Colors.white,
+                                                  onPressed: () {
+                                                    Navigator.push(
+                                                      context,
+                                                      MaterialPageRoute(builder: (_) => const MyTripScreen()),
+                                                    );
+                                                  },
+                                                )
+                                              : null,
+                                        ),
+                                      );
+                                    }
+                                  },
+                                  icon: const Icon(Icons.playlist_add_check, size: 18),
+                                  label: const Text('Simpan ke My Trip', style: TextStyle(fontWeight: FontWeight.bold)),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: AppColors.primary,
+                                    foregroundColor: AppColors.onPrimary,
+                                    elevation: 0,
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 2,
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    tripProvider.initBuilderTrip(empty: true);
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => const CreateTripScreen()),
+                                    );
+                                  },
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    side: const BorderSide(color: AppColors.primary),
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                                    ),
+                                  ),
+                                  child: const Text('Kustomisasi Rute', style: TextStyle(fontSize: 12)),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  if (msg.followUpText != null && msg.followUpText!.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      msg.followUpText!,
+                      style: AppTypography.bodySm.copyWith(
+                        color: AppColors.onSurfaceVariant,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStopCard(ItineraryStopModel stop) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceContainerLow,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  stop.timeRange,
+                  style: AppTypography.labelSm.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.onSurface,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  stop.ticketBadge,
+                  style: AppTypography.labelSm.copyWith(
+                    color: AppColors.onSecondaryContainer,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            stop.name,
+            style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppDimensions.radiusSm),
+            child: SizedBox(
+              width: double.infinity,
+              height: 110,
+              child: Image.network(
+                stop.imageUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (ctx, err, stack) => Container(
+                  color: AppColors.surfaceContainerLow,
+                  child: const Center(
+                    child: Icon(Icons.broken_image, color: AppColors.outline),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            stop.description,
+            style: AppTypography.bodySm.copyWith(
+              color: AppColors.onSurfaceVariant,
+              fontSize: 11,
             ),
           ),
         ],
       ),
-    ),
-  );
-  }
-
-  /// Parser teks AI untuk merender format markdown (bold, bullet point, heading)
-  /// dan membersihkan tanda bintang asteris (** atau *) agar tampilan rapi
-  Widget _buildFormattedAiText(String text) {
-    final lines = text.split('\n');
-    final List<Widget> widgets = [];
-
-    for (int i = 0; i < lines.length; i++) {
-      final trimmedLine = lines[i].trim();
-
-      if (trimmedLine.isEmpty) {
-        widgets.add(const SizedBox(height: 6));
-        continue;
-      }
-
-      // 1. Heading markdown (contoh: ### Subjudul)
-      final headingMatch = RegExp(r'^(#{1,4})\s+(.+)$').firstMatch(trimmedLine);
-      if (headingMatch != null) {
-        final content = headingMatch.group(2) ?? '';
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 4),
-            child: Text(
-              _cleanStrayAsterisks(content),
-              style: AppTypography.bodyMd.copyWith(
-                fontWeight: FontWeight.bold,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-        );
-        continue;
-      }
-
-      // 2. Bullet point (* atau - atau •)
-      final bulletMatch = RegExp(r'^(\*|-|•)\s+(.+)$').firstMatch(trimmedLine);
-      if (bulletMatch != null) {
-        final content = bulletMatch.group(2) ?? '';
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '• ',
-                  style: AppTypography.bodyMd.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                Expanded(
-                  child: _buildRichInlineText(content, AppTypography.bodyMd),
-                ),
-              ],
-            ),
-          ),
-        );
-        continue;
-      }
-
-      // 3. Numbered list (contoh: 1. atau 2.)
-      final numberMatch = RegExp(r'^(\d+[\.\)])\s+(.+)$').firstMatch(trimmedLine);
-      if (numberMatch != null) {
-        final numPrefix = numberMatch.group(1) ?? '1.';
-        final content = numberMatch.group(2) ?? '';
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 4),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '$numPrefix ',
-                  style: AppTypography.bodyMd.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.onSurface,
-                  ),
-                ),
-                Expanded(
-                  child: _buildRichInlineText(content, AppTypography.bodyMd),
-                ),
-              ],
-            ),
-          ),
-        );
-        continue;
-      }
-
-      // 4. Paragraf biasa (dengan parsing inline **bold** / *italic*)
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: _buildRichInlineText(trimmedLine, AppTypography.bodyMd),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: widgets,
     );
   }
 
-  Widget _buildRichInlineText(String text, TextStyle baseStyle) {
-    // Regex mencocokkan **teks tebal** atau *teks miring*
-    final regex = RegExp(r'(\*\*(.*?)\*\*|\*(.*?)\*)');
-    final List<InlineSpan> spans = [];
-    int lastIndex = 0;
+  Widget _buildFormattedAiText(String text) {
+    final cleanText = _cleanStrayAsterisks(text);
+    final paragraphs = cleanText.split('\n\n');
 
-    for (final match in regex.allMatches(text)) {
-      if (match.start > lastIndex) {
-        spans.add(TextSpan(
-          text: _cleanStrayAsterisks(text.substring(lastIndex, match.start)),
-        ));
-      }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: paragraphs.map((p) {
+        if (p.trim().isEmpty) return const SizedBox.shrink();
 
-      final boldText = match.group(2);
-      final italicText = match.group(3);
+        final lines = p.split('\n');
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lines.map((line) {
+              final trimmed = line.trim();
+              if (trimmed.isEmpty) return const SizedBox.shrink();
 
-      if (boldText != null && boldText.isNotEmpty) {
-        spans.add(TextSpan(
-          text: _cleanStrayAsterisks(boldText),
-          style: baseStyle.copyWith(
-            fontWeight: FontWeight.bold,
-            color: AppColors.onSurface,
+              if (trimmed.startsWith('•') || trimmed.startsWith('-')) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 4, bottom: 2),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Expanded(
+                        child: Text(
+                          trimmed.substring(1).trim(),
+                          style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Text(
+                trimmed,
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+              );
+            }).toList(),
           ),
-        ));
-      } else if (italicText != null && italicText.isNotEmpty) {
-        spans.add(TextSpan(
-          text: _cleanStrayAsterisks(italicText),
-          style: baseStyle.copyWith(
-            fontStyle: FontStyle.italic,
-          ),
-        ));
-      }
-
-      lastIndex = match.end;
-    }
-
-    if (lastIndex < text.length) {
-      spans.add(TextSpan(
-        text: _cleanStrayAsterisks(text.substring(lastIndex)),
-      ));
-    }
-
-    if (spans.isEmpty) {
-      return Text(
-        _cleanStrayAsterisks(text),
-        style: baseStyle,
-      );
-    }
-
-    return Text.rich(
-      TextSpan(style: baseStyle, children: spans),
+        );
+      }).toList(),
     );
   }
 
@@ -954,7 +1136,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
     return str.replaceAll('**', '').replaceAll('*', '');
   }
 
-  // 5. Floating Bottom Input Bar
+  // 4. Floating Bottom Input Bar (Icon Lokasi Berfungsi & Icon Suara Dihapus)
   Widget _buildFloatingInputBar(BuildContext context, AiAssistantProvider provider) {
     return SafeArea(
       top: false,
@@ -970,78 +1152,70 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
             ),
           ],
         ),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(10),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.add_location_alt, size: 20, color: AppColors.onSurfaceVariant),
-              onPressed: () {
-                provider.sendMessage('Rekomendasikan spot terdekat dari Pos Retribusi Kaliurang');
-                _scrollToBottom();
-              },
-            ),
-            Expanded(
-              child: TextField(
-                controller: _textController,
-                decoration: InputDecoration(
-                  hintText: 'Tanyakan rute, waktu terbaik, atau budget...',
-                  hintStyle: AppTypography.bodyMd.copyWith(color: AppColors.outline),
-                  border: InputBorder.none,
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainerLowest,
+            borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(10),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Icon Tambah Lokasi: Membuka Daftar Destinasi untuk Ditanyakan ke AI
+              IconButton(
+                icon: const Icon(Icons.add_location_alt, size: 20, color: AppColors.primary),
+                tooltip: 'Pilih Destinasi',
+                onPressed: () => _showSelectDestinationBottomSheet(context, provider),
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _textController,
+                  decoration: InputDecoration(
+                    hintText: 'Tanyakan rute, waktu terbaik, atau budget...',
+                    hintStyle: AppTypography.bodyMd.copyWith(color: AppColors.outline),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 6),
+                  ),
+                  onSubmitted: (val) {
+                    if (val.trim().isNotEmpty) {
+                      provider.sendMessage(val);
+                      _textController.clear();
+                      _scrollToBottom();
+                    }
+                  },
                 ),
-                onSubmitted: (val) {
-                  if (val.trim().isNotEmpty) {
-                    provider.sendMessage(val);
+              ),
+              // Icon suara dihapus sesuai permintaan
+              InkWell(
+                onTap: () {
+                  if (_textController.text.trim().isNotEmpty) {
+                    provider.sendMessage(_textController.text);
                     _textController.clear();
                     _scrollToBottom();
                   }
                 },
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.mic, size: 20, color: AppColors.onSurfaceVariant),
-              onPressed: () {
-                provider.sendMessage('Cari spot foto sunrise Merapi');
-                _scrollToBottom();
-              },
-            ),
-            InkWell(
-              onTap: () {
-                if (_textController.text.trim().isNotEmpty) {
-                  provider.sendMessage(_textController.text);
-                  _textController.clear();
-                  _scrollToBottom();
-                }
-              },
-              borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-              child: Container(
-                width: 38,
-                height: 38,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.send, size: 18, color: AppColors.onPrimary),
                 ),
-                child: const Icon(Icons.send, size: 18, color: AppColors.onPrimary),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
-}
-
