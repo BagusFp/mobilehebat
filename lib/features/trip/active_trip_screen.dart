@@ -648,19 +648,12 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Perjalanan Aktif',
+          trip.status == 'completed' ? 'Ringkasan Perjalanan' : 'Perjalanan Aktif',
           style: AppTypography.titleLarge.copyWith(fontWeight: FontWeight.bold, color: AppColors.onSurface),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Tambah Pengeluaran',
-            icon: const Icon(Icons.add_card_rounded, color: AppColors.primary),
-            onPressed: () => _showAddExpenseModal(context, trip, tripProvider),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 120),
+        padding: EdgeInsets.only(bottom: trip.status == 'completed' ? 24 : 120),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -673,7 +666,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
             if (nextItem != null)
               _buildNextDestinationCard(context, nextItem, tripProvider)
             else
-              _buildAllCompletedCard(),
+              _buildAllCompletedCard(trip),
 
             const SizedBox(height: 20),
 
@@ -736,40 +729,42 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         ),
       ),
 
-      // E. Tombol Sticky Bottom "Akhiri Perjalanan"
-      bottomSheet: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceContainerLowest,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withAlpha(20),
-              blurRadius: 10,
-              offset: const Offset(0, -3),
-            ),
-          ],
-        ),
-        child: SafeArea(
-          child: SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.volcanoStatusWaspada,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 2,
+      // E. Tombol Sticky Bottom "Akhiri Perjalanan" (hanya jika perjalanan belum selesai)
+      bottomSheet: trip.status == 'completed'
+          ? null
+          : Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withAlpha(20),
+                    blurRadius: 10,
+                    offset: const Offset(0, -3),
+                  ),
+                ],
               ),
-              icon: const Icon(Icons.flag_rounded),
-              label: const Text(
-                'Akhiri Perjalanan',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              child: SafeArea(
+                child: SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.volcanoStatusWaspada,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.flag_rounded),
+                    label: const Text(
+                      'Akhiri Perjalanan',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    onPressed: () => _confirmFinishTrip(context, trip, tripProvider),
+                  ),
+                ),
               ),
-              onPressed: () => _confirmFinishTrip(context, trip, tripProvider),
             ),
-          ),
-        ),
-      ),
     );
   }
 
@@ -816,10 +811,10 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      'Perjalanan Sedang Aktif',
+                      trip.status == 'completed' ? 'Perjalanan Selesai' : 'Perjalanan Sedang Aktif',
                       style: AppTypography.labelSmall.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
+                        color: trip.status == 'completed' ? AppColors.secondary : AppColors.primary,
                       ),
                     ),
                   ],
@@ -1019,7 +1014,7 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
   }
 
   // Kartu saat seluruh destinasi sudah selesai
-  Widget _buildAllCompletedCard() {
+  Widget _buildAllCompletedCard(TripModel trip) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
       padding: const EdgeInsets.all(18),
@@ -1049,7 +1044,9 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Semua tempat telah dikunjungi. Anda dapat meninjau pengeluaran atau mengakhiri perjalanan.',
+                  trip.status == 'completed'
+                      ? 'Perjalanan ini telah selesai. Seluruh catatan destinasi dan pengeluaran tercatat di bawah.'
+                      : 'Semua tempat telah dikunjungi. Anda dapat meninjau pengeluaran atau mengakhiri perjalanan.',
                   style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant),
                 ),
               ],
@@ -1169,9 +1166,33 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      '${item.plannedTime} • Estimasi Tiket: ${_currencyFormat.format(item.estimatedCost)}',
-                      style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${item.plannedTime} • Tiket (${trip.participantCount} Peserta): ${_currencyFormat.format(item.estimatedCost)}',
+                            style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: () => _showEditTicketCostDialog(context, trip, item, tripProvider),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(Icons.edit_outlined, size: 13, color: AppColors.primary),
+                                SizedBox(width: 3),
+                                Text(
+                                  'Edit Tiket',
+                                  style: TextStyle(fontSize: 11, color: AppColors.primary, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (item.notes != null && item.notes!.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -1243,63 +1264,63 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
     );
   }
 
-  void _showEditTargetBudgetDialog(
+  void _showEditTicketCostDialog(
     BuildContext context,
     TripModel trip,
+    TripItemModel item,
     TripProvider tripProvider,
   ) {
-    final controller = TextEditingController(
-      text: trip.targetBudget.toInt().toString(),
-    );
-    final totalDestTickets =
-        trip.items.fold<double>(0.0, (sum, it) => sum + it.estimatedCost);
-
+    final controller = TextEditingController(text: item.estimatedCost.toInt().toString());
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg)),
         title: Row(
           children: const [
-            Icon(Icons.account_balance_wallet, color: AppColors.primary),
+            Icon(Icons.confirmation_number_outlined, color: AppColors.primary),
             SizedBox(width: 8),
-            Expanded(child: Text('Ubah Target Anggaran')),
+            Expanded(child: Text('Edit Harga Tiket', style: TextStyle(fontSize: 18))),
           ],
         ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Sesuaikan batas pagu anggaran untuk rute perjalanan ini:',
-                style: TextStyle(fontSize: 13),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              item.itemName,
+              style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer.withAlpha(50),
+                borderRadius: BorderRadius.circular(6),
               ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: controller,
-                keyboardType: TextInputType.number,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  prefixText: 'Rp ',
-                  labelText: 'Target Anggaran',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (totalDestTickets > 0) ...[
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    controller.text = totalDestTickets.toInt().toString();
-                  },
-                  icon: const Icon(Icons.auto_fix_high, size: 16),
-                  label: Text(
-                    'Samakan Biaya Destinasi (${_currencyFormat.format(totalDestTickets)})',
-                    style: const TextStyle(fontSize: 11),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.people_outline, size: 14, color: AppColors.primary),
+                  const SizedBox(width: 4),
+                  Text(
+                    '${trip.participantCount} Orang Peserta',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
                   ),
-                ),
-              ],
-            ],
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Total Harga Tiket Langsung',
+                prefixText: 'Rp ',
+                helperText: 'Sesuaikan jika harga di lokasi berbeda',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -1315,11 +1336,11 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
               final raw = double.tryParse(controller.text.replaceAll(RegExp(r'[^0-9]'), ''));
               if (raw != null && raw >= 0) {
                 Navigator.pop(ctx);
-                await tripProvider.updateTripTargetBudget(trip.id!, raw);
+                await tripProvider.updateTripItemCost(trip.id!, item.id!, raw);
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Target anggaran diubah menjadi ${_currencyFormat.format(raw)}'),
+                      content: Text('Harga tiket ${item.itemName} diubah menjadi ${_currencyFormat.format(raw)}'),
                       backgroundColor: AppColors.primary,
                     ),
                   );
@@ -1346,11 +1367,10 @@ class _ActiveTripScreenState extends State<ActiveTripScreen> {
         children: [
           Expanded(
             child: _buildMetricCard(
-              'Target Awal',
+              'Budget',
               _currencyFormat.format(target),
               Icons.account_balance_wallet_rounded,
               AppColors.primary,
-              onTap: () => _showEditTargetBudgetDialog(context, trip, tripProvider),
             ),
           ),
           const SizedBox(width: 8),

@@ -113,10 +113,13 @@ class TripProvider extends ChangeNotifier {
   double get remainingBudget => targetBudget - totalMandatoryCost;
 
   /// Mengatur target pagu anggaran pada pembuatan/edit trip
-  void setBuilderTargetBudget(double newBudget) {
+  void setBuilderTargetBudget(double newBudget, {double? targetBudgetOriginal}) {
     if (newBudget < 0) return;
     if (_builderTrip != null) {
-      _builderTrip = _builderTrip!.copyWith(targetBudget: newBudget);
+      _builderTrip = _builderTrip!.copyWith(
+        targetBudget: newBudget,
+        targetBudgetOriginal: targetBudgetOriginal ?? _builderTrip!.targetBudgetOriginal,
+      );
       notifyListeners();
     }
   }
@@ -127,12 +130,14 @@ class TripProvider extends ChangeNotifier {
     String? startDate,
     int? participantCount,
     double? targetBudget,
+    double? targetBudgetOriginal,
     String? originCity,
     String? originTimezone,
     String? destinationCity,
     String? destinationTimezone,
     String? currencySource,
     String? currencyTarget,
+    int? currentStep,
     bool clearOrigin = false,
   }) {
     if (_builderTrip != null) {
@@ -141,12 +146,14 @@ class TripProvider extends ChangeNotifier {
         startDate: startDate ?? _builderTrip!.startDate,
         participantCount: participantCount ?? _builderTrip!.participantCount,
         targetBudget: targetBudget ?? _builderTrip!.targetBudget,
+        targetBudgetOriginal: targetBudgetOriginal ?? _builderTrip!.targetBudgetOriginal,
         originCity: clearOrigin ? null : (originCity ?? _builderTrip!.originCity),
         originTimezone: clearOrigin ? null : (originTimezone ?? _builderTrip!.originTimezone),
         destinationCity: destinationCity ?? _builderTrip!.destinationCity,
         destinationTimezone: destinationTimezone ?? _builderTrip!.destinationTimezone,
         currencySource: currencySource ?? _builderTrip!.currencySource,
         currencyTarget: currencyTarget ?? _builderTrip!.currencyTarget,
+        currentStep: currentStep ?? _builderTrip!.currentStep,
       );
       notifyListeners();
     }
@@ -442,7 +449,7 @@ class TripProvider extends ChangeNotifier {
           estimatedCost: 24000.0,
           elevationMdpl: 850,
           connectingDistanceKm: 2.5,
-          connectingTimeMinutes: 10,
+          connectingTimeMinutes: 15,
         ),
         const TripItemModel(
           destinationId: 1,
@@ -461,8 +468,8 @@ class TripProvider extends ChangeNotifier {
           itemName: 'Museum Sisa Hartaku',
           itemSubtitle: 'Kunjungan Memoar Erupsi',
           visitOrder: 3,
-          plannedTime: '11:00 - 12:30',
-          durationHours: 1.5,
+          plannedTime: '11:00 - 12:00',
+          durationHours: 1.0,
           estimatedCost: 10000.0,
           elevationMdpl: 920,
           connectingDistanceKm: 0.0,
@@ -552,6 +559,12 @@ class TripProvider extends ChangeNotifier {
   /// Bersihkan builder items
   void clearBuilderItems() {
     _builderItems.clear();
+    notifyListeners();
+  }
+
+  /// Khusus testing / inisialisasi langsung builder items
+  void setBuilderItemsForTesting(List<TripItemModel> items) {
+    _builderItems = List.from(items);
     notifyListeners();
   }
 
@@ -694,7 +707,11 @@ class TripProvider extends ChangeNotifier {
               userId: userId,
               status: targetStatus,
               totalEstimatedCost: totalMandatoryCost,
-              createdAt: DateTime.now().toIso8601String(),
+              createdAt: (_builderTrip?.createdAt != null && _builderTrip!.createdAt.isNotEmpty)
+                  ? _builderTrip!.createdAt
+                  : DateTime.now().toIso8601String(),
+              updatedAt: DateTime.now().toIso8601String(),
+              currentStep: _builderTrip?.currentStep ?? 1,
               items: List<TripItemModel>.from(_builderItems),
             );
 
@@ -707,10 +724,16 @@ class TripProvider extends ChangeNotifier {
       if (_selectedTrip?.id == _builderTrip!.id) {
         _selectedTrip = updatedTrip;
       }
+      _builderTrip = updatedTrip;
       notifyListeners();
       await _repository.updateTrip(updatedTrip);
     } else {
-      await _repository.createTrip(finalTrip);
+      final newId = await _repository.createTrip(finalTrip);
+      final createdTrip = finalTrip.copyWith(id: newId);
+      _builderTrip = createdTrip;
+      _allTrips.removeWhere((t) => t.id == newId || (t.tripName == createdTrip.tripName && t.status == createdTrip.status));
+      _allTrips.insert(0, createdTrip);
+      notifyListeners();
     }
     await loadUserTrips(userId);
   }
@@ -854,9 +877,11 @@ class TripProvider extends ChangeNotifier {
   }
 
   /// Hapus trip dengan aman (validasi pemilik, batalkan notifikasi, perbarui state)
-  Future<bool> deleteTrip(int tripId, int userId) async {
+  Future<bool> deleteTrip(int tripId, int userId, {String? tripName}) async {
     // 1. Verifikasi kepemilikan trip jika ada di cache
-    final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+    final tripIdx = _allTrips.indexWhere((t) =>
+        (tripId > 0 && t.id == tripId) ||
+        (tripName != null && t.tripName.trim().toLowerCase() == tripName.trim().toLowerCase()));
     if (tripIdx != -1) {
       final trip = _allTrips[tripIdx];
       final isOwner = userId <= 0 || trip.userId <= 1 || trip.userId == userId;
@@ -868,14 +893,18 @@ class TripProvider extends ChangeNotifier {
 
     // 2. Batalkan pengingat notifikasi terkait
     try {
-      await NotificationService().cancelTripReminder(tripId);
+      if (tripId > 0) {
+        await NotificationService().cancelTripReminder(tripId);
+      }
     } catch (_) {}
 
     // 3. Eksekusi penghapusan di database lokal dan Supabase
-    final success = await _repository.deleteTrip(tripId);
+    final success = await _repository.deleteTrip(tripId, tripName: tripName);
 
     // 4. Update state lokal segera
-    _allTrips.removeWhere((t) => t.id == tripId);
+    _allTrips.removeWhere((t) =>
+        (tripId > 0 && t.id == tripId) ||
+        (tripName != null && t.tripName.trim().toLowerCase() == tripName.trim().toLowerCase()));
     if (_selectedTrip?.id == tripId) {
       final remaining = _allTrips.where((t) => t.status == 'upcoming' || t.status == 'active');
       _selectedTrip = remaining.isNotEmpty ? remaining.first : null;
@@ -1009,6 +1038,55 @@ class TripProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Mengubah estimasi harga tiket destinasi dalam trip
+  Future<void> updateTripItemCost(int tripId, int itemId, double newCost) async {
+    if (newCost < 0) return;
+    await _repository.updateTripItemCost(tripId, itemId, newCost);
+
+    if (_selectedTrip != null && _selectedTrip!.id == tripId) {
+      final updatedItems = _selectedTrip!.items.map((it) {
+        if (it.id == itemId) {
+          return it.copyWith(estimatedCost: newCost);
+        }
+        return it;
+      }).toList();
+      _selectedTrip = _selectedTrip!.copyWith(items: updatedItems);
+    }
+
+    final tripIdx = _allTrips.indexWhere((t) => t.id == tripId);
+    if (tripIdx != -1) {
+      final updatedItems = _allTrips[tripIdx].items.map((it) {
+        if (it.id == itemId) {
+          return it.copyWith(estimatedCost: newCost);
+        }
+        return it;
+      }).toList();
+      _allTrips[tripIdx] = _allTrips[tripIdx].copyWith(items: updatedItems);
+    }
+
+    // Jika ada catatan pengeluaran tiket terkait yang sudah dicatat, update nominalnya juga
+    final expIdx = _activeTripExpenses.indexWhere(
+      (e) => e.tripId == tripId && (e.category == 'Tiket & Atraksi'),
+    );
+    if (expIdx != -1 && _selectedTrip != null) {
+      final item = _selectedTrip!.items.firstWhere((it) => it.id == itemId, orElse: () => _selectedTrip!.items.first);
+      final matchExpIdx = _activeTripExpenses.indexWhere(
+        (e) => e.tripId == tripId && e.destinationName == item.itemName,
+      );
+      if (matchExpIdx != -1) {
+        final oldExp = _activeTripExpenses[matchExpIdx];
+        final updatedExp = oldExp.copyWith(amount: newCost);
+        _activeTripExpenses[matchExpIdx] = updatedExp;
+        if (oldExp.id != null) {
+          await _repository.deleteExpense(oldExp.id!, tripId);
+          await addExpense(updatedExp);
+        }
+      }
+    }
+
+    notifyListeners();
+  }
+
   /// Mencatat pengeluaran aktual baru
   Future<void> addExpense(TripExpenseModel expense) async {
     final id = await _repository.addExpense(expense);
@@ -1073,6 +1151,10 @@ class TripProvider extends ChangeNotifier {
       title: '🎉 Perjalanan Selesai!',
       body:
           'Selamat! Seluruh destinasi trip berhasil dijelajahi. Pengeluaran aktual telah tersimpan.',
+      payload: '/trip',
+      category: 'trip',
+      tag: 'Trip Selesai',
+      actionText: 'Lihat Riwayat Trip',
     );
 
     await _repository.completeTrip(tripId, totalActualCost: totalActual);

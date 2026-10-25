@@ -27,6 +27,42 @@ class _MyTripScreenState extends State<MyTripScreen> {
   String _selectedCurrency = 'IDR';
   String _selectedTimezone = 'WIB (GMT+7)';
   int _selectedTimelineIndex = 0;
+  String? _lastSyncedTripKey;
+
+  void _applyDefaultPreferencesFromTrip(TripModel trip) {
+    if (trip.currencySource != null && trip.currencySource!.isNotEmpty) {
+      final cur = trip.currencySource!.toUpperCase().trim();
+      const validCurrencies = ['IDR', 'USD', 'EUR', 'SGD', 'JPY', 'MYR'];
+      if (validCurrencies.contains(cur)) {
+        _selectedCurrency = cur;
+      }
+    }
+
+    if (trip.originTimezone != null && trip.originTimezone!.isNotEmpty) {
+      final origin = trip.originTimezone!;
+      const availableTimezones = [
+        'WIB (GMT+7)',
+        'WITA (GMT+8)',
+        'WIT (GMT+9)',
+        'UTC (GMT+0)',
+        'JST (GMT+9)',
+        'SGT (GMT+8)',
+      ];
+      final matchedTz = availableTimezones.firstWhere(
+        (tz) {
+          if (tz.startsWith('WITA')) {
+            return origin.contains('WITA');
+          } else if (tz.startsWith('WIT')) {
+            return origin.contains('WIT') && !origin.contains('WITA');
+          }
+          final code = tz.substring(0, 3);
+          return origin.contains(code);
+        },
+        orElse: () => 'WIB (GMT+7)',
+      );
+      _selectedTimezone = matchedTz;
+    }
+  }
 
   String _getTimelineItemImageUrl(TripItemModel item, TripModel trip) {
     if (item.imageUrl != null && item.imageUrl!.isNotEmpty) {
@@ -76,7 +112,10 @@ class _MyTripScreenState extends State<MyTripScreen> {
   }
 
   String _formatConvertedCurrency(double idrAmount, String cur) {
-    final targetCur = cur == 'IDR' ? 'USD' : cur;
+    if (cur == 'IDR') {
+      return _formatCurrency(idrAmount);
+    }
+    final targetCur = cur;
     final rate = _getExchangeRate(targetCur);
     final converted = idrAmount / rate;
     final symbol = _getCurrencySymbol(targetCur);
@@ -102,6 +141,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
       return 'Belum dijadwalkan';
     }
 
+    final baseHourStr = hour.toString().padLeft(2, '0');
+    final baseMinStr = minute.toString().padLeft(2, '0');
+
     int offset = 0;
     String tzCode = 'WIB';
     if (_selectedTimezone.startsWith('WITA')) {
@@ -121,11 +163,15 @@ class _MyTripScreenState extends State<MyTripScreen> {
       tzCode = 'SGT';
     }
 
+    if (tzCode == 'WIB') {
+      return '$baseHourStr:$baseMinStr WIB';
+    }
+
     int adjustedHour = (hour + offset) % 24;
     if (adjustedHour < 0) adjustedHour += 24;
-    final hourStr = adjustedHour.toString().padLeft(2, '0');
-    final minStr = minute.toString().padLeft(2, '0');
-    return '$hourStr:$minStr $tzCode';
+    final adjustedHourStr = adjustedHour.toString().padLeft(2, '0');
+    final adjustedMinStr = minute.toString().padLeft(2, '0');
+    return '$baseHourStr:$baseMinStr WIB ($adjustedHourStr:$adjustedMinStr $tzCode)';
   }
 
   @override
@@ -288,7 +334,14 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 _buildConfirmRow(Icons.map_outlined, 'Nama', trip.tripName),
                 _buildConfirmRow(Icons.calendar_today, 'Tanggal', trip.startDate),
                 _buildConfirmRow(Icons.place_outlined, 'Destinasi', '${trip.items.length} Destinasi'),
-                _buildConfirmRow(Icons.account_balance_wallet_outlined, 'Estimasi Anggaran', _formatCurrency(trip.targetBudget)),
+                _buildConfirmRow(
+                  Icons.account_balance_wallet_outlined,
+                  'Budget',
+                  (trip.currencySource != null && trip.currencySource != 'IDR')
+                      ? '${_getCurrencySymbol(trip.currencySource!)}${trip.effectiveOriginalBudget % 1 == 0 ? trip.effectiveOriginalBudget.toInt().toString() : trip.effectiveOriginalBudget.toStringAsFixed(2)} (${_formatCurrency(trip.targetBudget)})'
+                      : _formatCurrency(trip.targetBudget),
+                ),
+                _buildConfirmRow(Icons.confirmation_number_outlined, 'Estimasi Anggaran', _formatCurrency(trip.items.fold<double>(0.0, (sum, i) => sum + i.estimatedCost))),
               ],
             ),
           ),
@@ -362,8 +415,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
       ),
     );
 
-    if (confirm == true && trip.id != null && context.mounted) {
-      final success = await tripProvider.deleteTrip(trip.id!, userId);
+    if (confirm == true && context.mounted) {
+      final tripId = trip.id ?? -1;
+      final success = await tripProvider.deleteTrip(tripId, userId, tripName: trip.tripName);
       if (context.mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -843,14 +897,28 @@ class _MyTripScreenState extends State<MyTripScreen> {
         ? tripProvider.selectedTrip
         : (upcomingTrips.isNotEmpty ? upcomingTrips.first : null);
 
-    // Draft trips (pastikan bersih dari duplikasi jika ada data ganda di SQLite)
+    final activeSyncKey = activeTrip != null
+        ? '${activeTrip.id}_${activeTrip.updatedAt}_${activeTrip.currencySource}_${activeTrip.originTimezone}_${activeTrip.targetBudgetOriginal}'
+        : null;
+    if (activeTrip != null && _lastSyncedTripKey != activeSyncKey) {
+      _lastSyncedTripKey = activeSyncKey;
+      _applyDefaultPreferencesFromTrip(activeTrip);
+    }
+
+    // Draft trips (diurutkan dari update terbaru dan bebas duplikasi ID)
     final rawDraftTrips = tripProvider.allTrips.where((t) => t.status == 'draft').toList();
-    final seenDraftNames = <String>{};
+    rawDraftTrips.sort((a, b) {
+      final timeA = a.updatedAt ?? a.createdAt;
+      final timeB = b.updatedAt ?? b.createdAt;
+      final cmp = timeB.compareTo(timeA);
+      if (cmp != 0) return cmp;
+      return (b.id ?? 0).compareTo(a.id ?? 0);
+    });
+    final seenDraftIds = <int>{};
     final draftTrips = <TripModel>[];
     for (final d in rawDraftTrips) {
-      final key = d.tripName.trim().toLowerCase();
-      if (key.isNotEmpty && seenDraftNames.contains(key)) continue;
-      if (key.isNotEmpty) seenDraftNames.add(key);
+      if (d.id != null && seenDraftIds.contains(d.id)) continue;
+      if (d.id != null) seenDraftIds.add(d.id!);
       draftTrips.add(d);
     }
     // Completed trips
@@ -870,7 +938,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                // 1. Judul Halaman & Tombol + + Trip Baru
+                // 1. Judul Halaman & Tombol + Trip Baru
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: AppDimensions.margin),
                   child: Column(
@@ -925,7 +993,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                                   Icon(Icons.add, color: Colors.white, size: 16),
                                   SizedBox(width: 4),
                                   Text(
-                                    '+ Trip Baru',
+                                    'Trip Baru',
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
@@ -1362,134 +1430,6 @@ class _MyTripScreenState extends State<MyTripScreen> {
                           ),
                         );
                       }),
-
-                      // Draft trips if available
-                      if (draftTrips.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10, top: 4),
-                          child: Row(
-                            children: [
-                              const Text(
-                                'TRIP DRAFT (BISA DIAKTIFKAN)',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  color: Color(0xFFD97706),
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFEF3C7),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  '${draftTrips.length}',
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFFD97706),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        ...draftTrips.map((draft) {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFFBEB),
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: const Color(0xFFFDE68A)),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        draft.tripName,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF92400E),
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        'Draft • ${draft.items.length} Destinasi',
-                                        style: const TextStyle(fontSize: 11, color: Color(0xFFB45309)),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFD97706),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                    minimumSize: Size.zero,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  ),
-                                  onPressed: () async {
-                                    if (draft.id != null) {
-                                      await tripProvider.updateTripStatus(draft.id!, 'upcoming');
-                                      tripProvider.selectTrip(draft);
-                                      if (ctx.mounted) Navigator.pop(ctx);
-                                      if (context.mounted) {
-                                        _handleStartTrip(context, draft, tripProvider);
-                                      }
-                                    }
-                                  },
-                                  child: const Text('Aktifkan & Mulai', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                ),
-                                const SizedBox(width: 4),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFF94A3B8)),
-                                  padding: EdgeInsets.zero,
-                                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                                  tooltip: 'Hapus Draft',
-                                  onPressed: () {
-                                    Navigator.pop(ctx);
-                                    _showDeleteTripConfirmationDialog(context, draft, tripProvider);
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-
-                      // Button to create new trip
-                      const SizedBox(height: 10),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: const Color(0xFF045E44),
-                          side: const BorderSide(color: Color(0xFF045E44)),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        icon: const Icon(Icons.add_circle_outline, size: 18),
-                        label: const Text(
-                          '+ Trip Baru',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          tripProvider.initBuilderTrip(empty: true);
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const CreateTripScreen()),
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 12),
                     ],
                   ),
                 ),
@@ -1901,10 +1841,28 @@ class _MyTripScreenState extends State<MyTripScreen> {
       ticketCost += item.estimatedCost;
     }
     final remaining = targetBudget - ticketCost;
+    final isIdr = _selectedCurrency == 'IDR';
 
-    final targetConverted = _formatConvertedCurrency(targetBudget, _selectedCurrency);
-    final ticketConverted = _formatConvertedCurrency(ticketCost, _selectedCurrency);
-    final remainingConverted = _formatConvertedCurrency(remaining, _selectedCurrency);
+    final symbol = _getCurrencySymbol(_selectedCurrency);
+    String origTargetStr;
+    if (trip.targetBudgetOriginal != null && trip.targetBudgetOriginal! > 0 && trip.currencySource == _selectedCurrency) {
+      final orig = trip.targetBudgetOriginal!;
+      origTargetStr = '$symbol${orig % 1 == 0 ? orig.toInt().toString() : orig.toStringAsFixed(2)}';
+    } else {
+      origTargetStr = _formatConvertedCurrency(targetBudget, _selectedCurrency);
+    }
+
+    final targetVal = isIdr
+        ? _formatCurrency(targetBudget)
+        : '$origTargetStr (${_formatCurrency(targetBudget)})';
+    final ticketVal = isIdr
+        ? '- ${_formatCurrency(ticketCost)}'
+        : '- ${_formatConvertedCurrency(ticketCost, _selectedCurrency)} (-${_formatCurrency(ticketCost)})';
+    final remainingVal = isIdr
+        ? (remaining >= 0 ? _formatCurrency(remaining) : '- ${_formatCurrency(remaining.abs())}')
+        : (remaining >= 0
+            ? '${_formatConvertedCurrency(remaining, _selectedCurrency)} (${_formatCurrency(remaining)})'
+            : '- ${_formatConvertedCurrency(remaining.abs(), _selectedCurrency)} (-${_formatCurrency(remaining.abs())})');
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -1965,13 +1923,13 @@ class _MyTripScreenState extends State<MyTripScreen> {
           const SizedBox(height: 12),
           _buildBudgetRow(
             'Target Budget:',
-            '${_formatCurrency(targetBudget)} ($targetConverted)',
+            targetVal,
             const Color(0xFF1E293B),
           ),
           const SizedBox(height: 4),
           _buildBudgetRow(
             'Tiket Wajib (${trip.participantCount} Pax):',
-            '- ${_formatCurrency(ticketCost)} (-$ticketConverted)',
+            ticketVal,
             const Color(0xFFE11D48),
           ),
           const Padding(
@@ -1980,8 +1938,8 @@ class _MyTripScreenState extends State<MyTripScreen> {
           ),
           _buildBudgetRow(
             'Sisa Anggaran:',
-            '${_formatCurrency(remaining)} ($remainingConverted)',
-            const Color(0xFF059669),
+            remainingVal,
+            remaining >= 0 ? const Color(0xFF059669) : const Color(0xFFE11D48),
             isBold: true,
           ),
         ],
@@ -2097,6 +2055,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: const [
                   Icon(Icons.history_rounded, color: Color(0xFF1E293B), size: 16),
                   SizedBox(width: 6),
@@ -2111,19 +2070,27 @@ class _MyTripScreenState extends State<MyTripScreen> {
                   ),
                 ],
               ),
-              Row(
-                children: [
-                  const Icon(Icons.touch_app_outlined, size: 12, color: Color(0xFF059669)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${items.length} Destinasi (Ketuk untuk ganti foto)',
-                    style: const TextStyle(
-                      color: Color(0xFF059669),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.touch_app_outlined, size: 12, color: Color(0xFF059669)),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        '${items.length} Destinasi (Ketuk ganti foto)',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFF059669),
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ],
           ),
@@ -2197,38 +2164,15 @@ class _MyTripScreenState extends State<MyTripScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  item.itemName,
-                                  style: TextStyle(
-                                    fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
-                                    fontSize: 13,
-                                    color: isSelected ? const Color(0xFF045E44) : const Color(0xFF0F172A),
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                              if (isSelected)
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                  margin: const EdgeInsets.only(left: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF045E44),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'Foto Aktif',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 8.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ),
-                            ],
+                          Text(
+                            item.itemName,
+                            style: TextStyle(
+                              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w800,
+                              fontSize: 13,
+                              color: isSelected ? const Color(0xFF045E44) : const Color(0xFF0F172A),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -2291,7 +2235,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
       onLongPress: () => _showTripMenuSheet(context, trip),
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        height: 185,
+        height: 195,
         margin: const EdgeInsets.symmetric(
           horizontal: AppDimensions.margin,
           vertical: 6,
@@ -2338,7 +2282,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2346,7 +2290,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: const Color(0xFF00C288),
                             borderRadius: BorderRadius.circular(6),
@@ -2363,7 +2307,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                         ),
                         const SizedBox(width: 6),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                           decoration: BoxDecoration(
                             color: Colors.black.withAlpha(120),
                             borderRadius: BorderRadius.circular(6),
@@ -2384,33 +2328,35 @@ class _MyTripScreenState extends State<MyTripScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(width: 6),
                         const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF045E44).withAlpha(225),
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF6EE7B7).withAlpha(150)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.location_on, size: 10, color: Color(0xFF6EE7B7)),
-                              const SizedBox(width: 3),
-                              ConstrainedBox(
-                                constraints: const BoxConstraints(maxWidth: 130),
-                                child: Text(
-                                  currentStop?.itemName ?? (trip.destinationCity != null && trip.destinationCity!.isNotEmpty ? trip.destinationCity! : 'Lereng Merapi'),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF045E44).withAlpha(225),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: const Color(0xFF6EE7B7).withAlpha(150)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.location_on, size: 10, color: Color(0xFF6EE7B7)),
+                                const SizedBox(width: 3),
+                                Flexible(
+                                  child: Text(
+                                    currentStop?.itemName ?? (trip.destinationCity != null && trip.destinationCity!.isNotEmpty ? trip.destinationCity! : 'Lereng Merapi'),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -2450,6 +2396,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(width: 8),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           mainAxisSize: MainAxisSize.min,
@@ -2558,14 +2505,6 @@ class _MyTripScreenState extends State<MyTripScreen> {
                   fontSize: 13,
                 ),
               ),
-              const Text(
-                'Tersimpan Otomatis',
-                style: TextStyle(
-                  color: Color(0xFF059669),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 11,
-                ),
-              ),
             ],
           ),
         ),
@@ -2581,15 +2520,113 @@ class _MyTripScreenState extends State<MyTripScreen> {
     );
   }
 
+  String _formatDraftRelativeTime(String? dateStr, String? fallback) {
+    if (dateStr == null || dateStr.trim().isEmpty) {
+      return (fallback != null && fallback.trim().isNotEmpty) ? fallback : 'Baru saja';
+    }
+    final lower = dateStr.trim().toLowerCase();
+    if (lower == 'kemarin' || lower.contains('lalu') || lower.contains('hari')) {
+      return dateStr;
+    }
+    final parsed = DateTime.tryParse(dateStr);
+    if (parsed == null) {
+      return (fallback != null && fallback.trim().isNotEmpty) ? fallback : dateStr;
+    }
+    final now = DateTime.now();
+    final diff = now.difference(parsed);
+
+    if (diff.isNegative || diff.inSeconds < 60) {
+      return 'Baru saja';
+    }
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes} menit yang lalu';
+    }
+    if (diff.inHours < 24) {
+      if (now.day != parsed.day) {
+        return 'Kemarin';
+      }
+      return '${diff.inHours} jam yang lalu';
+    }
+    if (diff.inDays == 1 || (now.day - parsed.day == 1 && diff.inDays <= 2)) {
+      return 'Kemarin';
+    }
+    if (diff.inDays < 7) {
+      return '${diff.inDays} hari yang lalu';
+    }
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+    ];
+    final monthName = (parsed.month >= 1 && parsed.month <= 12) ? months[parsed.month] : '${parsed.month}';
+    return '${parsed.day} $monthName ${parsed.year}';
+  }
+
+  Widget _buildInitialAvatar(String letter) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF045E44), Color(0xFF0D9488)],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+          fontSize: 22,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDraftCard(
     BuildContext context,
     TripModel draft,
     TripProvider tripProvider,
     int userId,
   ) {
-    final targetBudgetK = draft.targetBudget > 0
-        ? (draft.targetBudget >= 1000 ? 'Rp ${(draft.targetBudget / 1000).toStringAsFixed(0)}k' : _formatCurrency(draft.targetBudget))
-        : 'Rp 300k';
+    // 1. Budget Display (Nominal yang diinputkan user beserta konversi jika diperlukan)
+    final String budgetDisplay;
+    final currency = (draft.currencySource != null && draft.currencySource!.isNotEmpty)
+        ? draft.currencySource!.toUpperCase().trim()
+        : 'IDR';
+    final isIdr = currency == 'IDR';
+    final origBudget = draft.effectiveOriginalBudget;
+
+    if (origBudget > 0) {
+      if (isIdr) {
+        budgetDisplay = 'Rp ${NumberFormat('#,###', 'id_ID').format(origBudget.toInt())}';
+      } else {
+        final symbol = _getCurrencySymbol(currency);
+        final origFormatted = origBudget % 1 == 0
+            ? origBudget.toInt().toString()
+            : origBudget.toStringAsFixed(2);
+        final idrVal = draft.targetBudget > 0
+            ? draft.targetBudget
+            : (origBudget * _getExchangeRate(currency));
+        final idrFormatted = NumberFormat('#,###', 'id_ID').format(idrVal.round());
+        budgetDisplay = '$symbol$origFormatted (Rp $idrFormatted)';
+      }
+    } else {
+      budgetDisplay = 'Belum diatur';
+    }
+
+    // 2. Destinasi pertama & Foto (Dinamis dari inputan user)
+    final hasDestinations = draft.items.isNotEmpty;
+    final firstDest = hasDestinations ? draft.items.first : null;
+    final photoUrl = firstDest?.imageUrl ?? draft.bannerImageUrl;
+    final initialLetter = draft.tripName.trim().isNotEmpty ? draft.tripName.trim()[0].toUpperCase() : 'D';
+
+    // 3. Progres Langkah (1/3, 2/3, 3/3 sesuai draft.currentStep)
+    final stepNum = draft.currentStep.clamp(1, 3);
+
+    // 4. Waktu Terakhir Diedit (Kemarin, 5 menit yang lalu, 10 jam yang lalu, tanggal)
+    final timeText = _formatDraftRelativeTime(draft.updatedAt ?? draft.createdAt, draft.startDate);
 
     return Container(
       margin: const EdgeInsets.symmetric(
@@ -2614,21 +2651,18 @@ class _MyTripScreenState extends State<MyTripScreen> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Foto destinasi pertama atau Huruf Pertama Nama Perjalanan
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
-                child: Image.network(
-                  draft.bannerImageUrl ??
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuAPCRJJgh8Rcxr67OUIBH0lTkBEjznYjV4dRG5FgHsyOkFAhrLdHE1wBAIXN3blB_0TSNHKVyKtZtLIFFJt8277BtD0ks8ED9PzBx9SXFgFt3jBWChmkm8uOCyZEr-Za1g-7k0Kf6oBpQhN5yO0mPcFO0P9mfeYovAYB9NngDAPmbdPG16QZGbdrhjEWVp_0C0G-8ZWCS0S3UFjvckAn-KVl5TQqS7Yl3ZlBbS98WpVL3OHNQ2Px1Q',
-                  width: 56,
-                  height: 56,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    width: 56,
-                    height: 56,
-                    color: const Color(0xFFF1F5F9),
-                    child: const Icon(Icons.coffee, color: Color(0xFF94A3B8)),
-                  ),
-                ),
+                child: (hasDestinations && photoUrl != null && photoUrl.isNotEmpty)
+                    ? Image.network(
+                        photoUrl,
+                        width: 56,
+                        height: 56,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _buildInitialAvatar(initialLetter),
+                      )
+                    : _buildInitialAvatar(initialLetter),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -2643,27 +2677,32 @@ class _MyTripScreenState extends State<MyTripScreen> {
                             color: const Color(0xFFFEF3C7),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: const Text(
-                            'Langkah 2/3',
-                            style: TextStyle(
+                          child: Text(
+                            'Langkah $stepNum/3',
+                            style: const TextStyle(
                               color: Color(0xFFD97706),
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
-                        const Text(
-                          ' • Kemarin',
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 10,
+                        if (timeText.isNotEmpty)
+                          Flexible(
+                            child: Text(
+                              ' • $timeText',
+                              style: const TextStyle(
+                                color: Color(0xFF94A3B8),
+                                fontSize: 10,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      draft.tripName,
+                      draft.tripName.isNotEmpty ? draft.tripName : 'Rencana Trip Baru',
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 14,
@@ -2672,21 +2711,27 @@ class _MyTripScreenState extends State<MyTripScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: const [
-                        Icon(Icons.location_on, size: 12, color: Color(0xFF059669)),
-                        SizedBox(width: 2),
-                        Text(
-                          'Kopi Merapi',
-                          style: TextStyle(
-                            color: Color(0xFF059669),
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                    if (hasDestinations && firstDest != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.location_on, size: 12, color: Color(0xFF059669)),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              firstDest.itemName + (draft.items.length > 1 ? ' (+${draft.items.length - 1} lainnya)' : ''),
+                              style: const TextStyle(
+                                color: Color(0xFF059669),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -2703,15 +2748,21 @@ class _MyTripScreenState extends State<MyTripScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Target: $targetBudgetK',
-                style: const TextStyle(
-                  color: Color(0xFF475569),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  'Budget: $budgetDisplay',
+                  style: const TextStyle(
+                    color: Color(0xFF475569),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
+              const SizedBox(width: 8),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   InkWell(
                     onTap: () async {
@@ -2753,7 +2804,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
                         MaterialPageRoute(
                           builder: (_) => CreateTripScreen(existingTrip: draft),
                         ),
-                      );
+                      ).then((_) {
+                        tripProvider.loadUserTrips(userId, seedIfEmpty: false);
+                      });
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
@@ -2921,7 +2974,9 @@ class _MyTripScreenState extends State<MyTripScreen> {
                             alignment: Alignment.centerRight,
                             fit: BoxFit.scaleDown,
                             child: Text(
-                              _formatCurrency(trip.targetBudget),
+                              (trip.currencySource != null && trip.currencySource != 'IDR')
+                                  ? '${_getCurrencySymbol(trip.currencySource!)}${trip.effectiveOriginalBudget % 1 == 0 ? trip.effectiveOriginalBudget.toInt().toString() : trip.effectiveOriginalBudget.toStringAsFixed(2)} (${_formatCurrency(trip.targetBudget)})'
+                                  : _formatCurrency(trip.targetBudget),
                               style: AppTypography.titleMedium.copyWith(color: AppColors.onSurface, fontWeight: FontWeight.w600),
                             ),
                           ),
