@@ -205,7 +205,7 @@ class HomeScreen extends StatelessWidget {
                         iconBgColor: const Color(0xFFFEF3C7),
                         iconColor: const Color(0xFFB45309),
                         title: 'Kompas',
-                        subtitle: 'Arah & Angin',
+                        subtitle: 'Arah Merapi',
                         onTap: () {
                           Navigator.push(
                             context,
@@ -222,7 +222,7 @@ class HomeScreen extends StatelessWidget {
                         iconBgColor: const Color(0xFFD6F3EB),
                         iconColor: const Color(0xFF04432F),
                         title: 'Jagawana AI',
-                        subtitle: 'Tanya Asisten',
+                        subtitle: 'Tanya Asisten AI',
                         onTap: () {
                           Navigator.push(
                             context,
@@ -253,7 +253,7 @@ class HomeScreen extends StatelessWidget {
                     },
                     borderRadius: BorderRadius.circular(16),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      padding: const EdgeInsets.all(AppDimensions.spaceMd),
                       decoration: BoxDecoration(
                         color: const Color(0xFF042B1D),
                         borderRadius: BorderRadius.circular(16),
@@ -265,95 +265,106 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: Colors.white.withAlpha(20),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.directions_car_filled_rounded,
-                                color: Color(0xFF4EE39D),
-                                size: 24,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Row(
                                   children: [
-                                    Flexible(
+                                    Container(
+                                      width: 40,
+                                      height: 40,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: const Center(
+                                        child: Icon(
+                                          Icons.directions_car_filled_rounded,
+                                          color: Color(0xFF4EE39D),
+                                          size: 22,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
                                       child: Text(
                                         'Merapi Jeep Run',
                                         style: AppTypography.titleMedium.copyWith(
                                           color: Colors.white,
                                           fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFFFB74D),
-                                        borderRadius: BorderRadius.circular(4),
-                                      ),
-                                      child: const Text(
-                                        'MINI GAME',
-                                        style: TextStyle(
-                                          color: Color(0xFF3E2723),
-                                          fontSize: 9,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: 0.3,
+                                          fontSize: 15,
                                         ),
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  'Simulasi offroad lereng gunung',
-                                  style: AppTypography.bodySmall.copyWith(
-                                    color: Colors.white.withAlpha(180),
-                                    fontSize: 11,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFB74D),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                              ],
+                                child: const Text(
+                                  'MINI GAME',
+                                  style: TextStyle(
+                                    color: Color(0xFF3E2723),
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            'Simulasi offroad lereng gunung Merapi seru. Lewati rintangan lahar, batuan terjal, dan raih skor tertinggi!',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: Colors.white.withAlpha(200),
+                              fontSize: 12,
+                              height: 1.4,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF4EE39D),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.play_arrow_rounded, color: Color(0xFF042B1D), size: 16),
-                                SizedBox(width: 2),
-                                Text(
-                                  'Main',
-                                  style: TextStyle(
-                                    color: Color(0xFF042B1D),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF4EE39D),
+                                foregroundColor: const Color(0xFF042B1D),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
-                              ],
+                              ),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const MerapiJeepGamePage()),
+                                );
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: const [
+                                  Icon(Icons.play_arrow_rounded, color: Color(0xFF042B1D), size: 18),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Mainkan Sekarang',
+                                    style: TextStyle(
+                                      color: Color(0xFF042B1D),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
