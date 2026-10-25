@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../core/database/preferences_helper.dart';
 import '../../core/services/notification_service.dart';
 import 'notification_model.dart';
 
@@ -10,6 +11,38 @@ class NotificationProvider extends ChangeNotifier {
   int _reminderDays = 0;
   int _reminderHours = 2;
   int _reminderMinutes = 0;
+
+  // Hanya memuat notifikasi yang betulan dikirimkan oleh APK ke HP user
+  List<NotificationModel> _notifications = [];
+
+  NotificationProvider({List<NotificationModel>? initialNotifications}) {
+    if (initialNotifications != null) {
+      _notifications = List.from(initialNotifications);
+    } else {
+      _loadSentNotifications();
+    }
+
+    // Dengarkan setiap notifikasi yang betulan dikirim oleh NotificationService ke bilah status HP
+    NotificationService.onNotificationSent = (item) {
+      addNotification(item);
+    };
+  }
+
+  Future<void> _loadSentNotifications() async {
+    try {
+      final prefs = await PreferencesHelper.instance;
+      final saved = prefs.getSentNotifications();
+      if (saved.isNotEmpty) {
+        _notifications = saved;
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
+  void setNotificationsForTesting(List<NotificationModel> items) {
+    _notifications = List.from(items);
+    notifyListeners();
+  }
 
   int get reminderDays => _reminderDays;
   int get reminderHours => _reminderHours;
@@ -27,57 +60,6 @@ class NotificationProvider extends ChangeNotifier {
     if (parts.isEmpty) return 'Tepat Waktu';
     return 'H-${parts.join(" ")}';
   }
-
-  List<NotificationModel> _notifications = [
-    const NotificationModel(
-      id: 1,
-      title: 'Siaga Level II (Waspada)',
-      body:
-          'Radius aman wisata di luar 3 km dari puncak kawah. Bunker Kaliadem & Plunyon aman dikunjungi dengan pemantauan reguler BPPTKG.',
-      category: 'volcano',
-      timeAgo: '10 mnt lalu',
-      tag: 'Penting • Status Merapi',
-      isRead: false,
-      actionText: 'Peta Titik Pantau',
-      actionRoute: '/map',
-    ),
-    const NotificationModel(
-      id: 2,
-      title: 'Eksplorasi Merapi 1 Hari',
-      body:
-          'Perjalanan dimulai besok pukul 07:30 WIB dari meeting point. Jangan lupa jaket hangat, kacamata debu pasir, dan baterai cadangan.',
-      category: 'trip',
-      timeAgo: '1 jam lalu',
-      tag: 'Pengingat Berangkat',
-      isRead: false,
-      actionText: 'Cek Daftar Bawaan',
-      actionRoute: '/trip',
-    ),
-    const NotificationModel(
-      id: 3,
-      title: 'Pembaruan Data Rute Berhasil',
-      body:
-          'Data rute navigasi Bunker Kaliadem & Plunyon siap diakses dengan lancar di kawasan lereng Merapi.',
-      category: 'system',
-      timeAgo: 'Kemarin',
-      tag: 'Sistem & Notifikasi',
-      isRead: true,
-      actionText: null,
-      actionRoute: '/map',
-    ),
-    const NotificationModel(
-      id: 4,
-      title: 'Skor Kamu Masuk 10 Besar!',
-      body:
-          'Selamat! Kamu mengumpulkan 850 poin pada Mini Game Flora & Batuan Vulkanik Merapi.',
-      category: 'system',
-      timeAgo: '2 hari lalu',
-      tag: 'Komunitas & Kuis',
-      isRead: true,
-      actionText: 'Lihat Papan Peringkat Mingguan',
-      actionRoute: '/quiz',
-    ),
-  ];
 
   // Getters
   String get activeFilter => _activeFilter;
@@ -146,23 +128,11 @@ class NotificationProvider extends ChangeNotifier {
   /// Mengirimkan notifikasi uji coba langsung ke status bar HP
   Future<void> sendTestNotificationToDevice() async {
     await NotificationService().showTestNotification();
-    addNotification(
-      NotificationModel(
-        id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-        title: 'Uji Coba Notifikasi Sistem',
-        body:
-            'Notifikasi berhasil muncul di bilah status ponsel Anda dengan getaran dan suara.',
-        category: 'system',
-        timeAgo: 'Baru saja',
-        tag: 'Uji Sistem',
-        isRead: false,
-        actionText: null,
-      ),
-    );
   }
 
   void markAllAsRead() {
     _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+    PreferencesHelper.instance.then((prefs) => prefs.saveSentNotifications(_notifications));
     notifyListeners();
   }
 
@@ -170,17 +140,21 @@ class NotificationProvider extends ChangeNotifier {
     final idx = _notifications.indexWhere((n) => n.id == id);
     if (idx != -1) {
       _notifications[idx] = _notifications[idx].copyWith(isRead: true);
+      PreferencesHelper.instance.then((prefs) => prefs.saveSentNotifications(_notifications));
       notifyListeners();
     }
   }
 
   void deleteNotification(int id) {
     _notifications.removeWhere((n) => n.id == id);
+    PreferencesHelper.instance.then((prefs) => prefs.saveSentNotifications(_notifications));
     notifyListeners();
   }
 
   void addNotification(NotificationModel item) {
+    _notifications.removeWhere((n) => n.id == item.id && n.title == item.title);
     _notifications.insert(0, item);
+    PreferencesHelper.instance.then((prefs) => prefs.saveSentNotifications(_notifications));
     notifyListeners();
   }
 }

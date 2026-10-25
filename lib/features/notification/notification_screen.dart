@@ -156,6 +156,10 @@ class NotificationScreen extends StatelessWidget {
   // 1. Filter Chips
   Widget _buildFilterChips(NotificationProvider provider) {
     final active = provider.activeFilter;
+    final tripCount = provider.countByCategory('trip');
+    final hasUnreadAll = provider.allNotifications.any((n) => !n.isRead);
+    final hasUnreadVolcano = provider.allNotifications.any((n) => n.category == 'volcano' && !n.isRead);
+    final hasUnreadSystem = provider.allNotifications.any((n) => n.category == 'system' && !n.isRead);
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -165,7 +169,7 @@ class NotificationScreen extends StatelessWidget {
             label: 'Semua',
             icon: Icons.all_inbox,
             isSelected: active == 'all',
-            hasDot: true,
+            hasDot: hasUnreadAll,
             dotColor: AppColors.secondary,
             onTap: () => provider.setFilter('all'),
           ),
@@ -174,7 +178,7 @@ class NotificationScreen extends StatelessWidget {
             label: 'Pengingat Trip',
             icon: Icons.hiking,
             isSelected: active == 'trip',
-            badgeText: '1',
+            badgeText: tripCount > 0 ? '$tripCount' : null,
             onTap: () => provider.setFilter('trip'),
           ),
           const SizedBox(width: 8),
@@ -182,7 +186,7 @@ class NotificationScreen extends StatelessWidget {
             label: 'Info Vulkanik',
             icon: Icons.volcano,
             isSelected: active == 'volcano',
-            hasDot: true,
+            hasDot: hasUnreadVolcano,
             dotColor: AppColors.error,
             onTap: () => provider.setFilter('volcano'),
           ),
@@ -191,6 +195,8 @@ class NotificationScreen extends StatelessWidget {
             label: 'Sistem & Notifikasi',
             icon: Icons.notifications_active_outlined,
             isSelected: active == 'system',
+            hasDot: hasUnreadSystem,
+            dotColor: AppColors.primary,
             onTap: () => provider.setFilter('system'),
           ),
         ],
@@ -882,7 +888,7 @@ class NotificationScreen extends StatelessWidget {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  notif.timeAgo,
+                                  notif.calculatedTimeAgo,
                                   style: AppTypography.bodySm.copyWith(
                                     color: AppColors.onSurfaceVariant,
                                     fontSize: 11,
