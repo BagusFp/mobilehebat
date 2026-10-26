@@ -163,10 +163,14 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
   // Partikel Abu & Awan Hiasan
   double cloudDecorationX = 300.0;
 
-  // Sensor
+  // Sensor & Optimasi Performa
   bool enableSensorJump = true;
   double accValue = 0.0;
-  double gyroParallaxOffset = 0.0;
+  final ValueNotifier<double> _gyroNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<String> _sensorTextNotifier = ValueNotifier<String>('Acc: 0.0 | Gyro: 0.0');
+  int _lastSensorTextUpdate = 0;
+  bool _isModalOpen = false;
+  bool _assetsPrecached = false;
 
   Timer? gameTimer;
   StreamSubscription<AccelerometerEvent>? _accSub;
@@ -177,6 +181,25 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
     super.initState();
     _loadPreferences();
     _initSensors();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_assetsPrecached) {
+      _assetsPrecached = true;
+      // Precache lazy loading semua asset agar saat menu dibuka tidak ada lag / freeze decoding
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        precacheImage(const AssetImage(backgroundAssetPath), context);
+        for (final v in vehicles) {
+          precacheImage(AssetImage(v.assetPath), context);
+        }
+        for (final o in obstacles) {
+          precacheImage(AssetImage(o.assetPath), context);
+        }
+      });
+    }
   }
 
   Future<void> _loadPreferences() async {
@@ -223,30 +246,48 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
   }
 
   void _initSensors() {
-    // Sensor 1: Accelerometer (Sentak HP untuk melompat)
+    // Tunda listener sensor setelah frame awal selesai dirender agar transisi menu sangat enteng
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _startSensorStreams();
+    });
+  }
+
+  void _startSensorStreams() {
+    // Sensor 1: Accelerometer (Hanya picu jump saat main, tanpa setState global)
     _accSub = accelerometerEventStream().listen((event) {
+      if (_isModalOpen) return;
       final magnitude = sqrt(
         event.x * event.x + event.y * event.y + event.z * event.z,
       );
-      if (mounted) {
-        setState(() => accValue = magnitude);
-      }
+      accValue = magnitude;
+
       if (enableSensorJump && isPlaying && !isJumping && magnitude > 15.5) {
         _jump();
       }
+
+      _updateSensorTextThrottled();
     });
 
-    // Sensor 2: Gyroscope (Efek Parallax halus latar Merapi)
+    // Sensor 2: Gyroscope (Parallax terisolasi via ValueNotifier, tidak rebuild seluruh halaman)
     _gyroSub = gyroscopeEventStream().listen((event) {
-      if (mounted) {
-        setState(() {
-          gyroParallaxOffset = (gyroParallaxOffset + event.y * 2.2).clamp(
-            -25.0,
-            25.0,
-          );
-        });
+      if (_isModalOpen) return;
+      final current = _gyroNotifier.value;
+      final newOffset = (current + event.y * 2.2).clamp(-25.0, 25.0);
+      if ((newOffset - current).abs() > 0.08) {
+        _gyroNotifier.value = newOffset;
+        _updateSensorTextThrottled();
       }
     });
+  }
+
+  void _updateSensorTextThrottled() {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    if (now - _lastSensorTextUpdate > 250) {
+      _lastSensorTextUpdate = now;
+      _sensorTextNotifier.value =
+          'Acc: ${accValue.toStringAsFixed(1)} | Gyro: ${_gyroNotifier.value.toStringAsFixed(1)}';
+    }
   }
 
   void _startGame() {
@@ -371,6 +412,7 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
   }
 
   void _showCarSelectionModal() {
+    _isModalOpen = true;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -378,218 +420,227 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
       builder: (ctx) {
         return StatefulBuilder(
           builder: (modalCtx, setModalState) {
-            return Container(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1E1F24),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              child: SafeArea(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        width: 44,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.white24,
-                          borderRadius: BorderRadius.circular(2),
+            return RepaintBoundary(
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1E1F24),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 44,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.white24,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'PILIH KENDARAAN',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
-                          ),
-                        ),
-                        // Tombol Arah Hadap Kanan
-                        InkWell(
-                          onTap: () {
-                            _toggleDirection();
-                            setModalState(() {});
-                          },
-                          borderRadius: BorderRadius.circular(10),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: faceRight
-                                  ? Colors.orangeAccent.withValues(alpha: 0.2)
-                                  : Colors.white10,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: faceRight ? Colors.orangeAccent : Colors.white24,
-                              ),
+                      const SizedBox(height: 16),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'PILIH KENDARAAN',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
                             ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  faceRight ? Icons.arrow_forward : Icons.arrow_back,
-                                  color: faceRight ? Colors.orangeAccent : Colors.white70,
-                                  size: 16,
+                          ),
+                          // Tombol Arah Hadap Kanan
+                          InkWell(
+                            onTap: () {
+                              _toggleDirection();
+                              setModalState(() {});
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: faceRight
+                                    ? Colors.orangeAccent.withValues(alpha: 0.2)
+                                    : Colors.white10,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: faceRight ? Colors.orangeAccent : Colors.white24,
                                 ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  faceRight ? 'Hadap Kanan' : 'Hadap Kiri',
-                                  style: TextStyle(
+                              ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    faceRight ? Icons.arrow_forward : Icons.arrow_back,
                                     color: faceRight ? Colors.orangeAccent : Colors.white70,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
+                                    size: 16,
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Pilih armada yang ingin dikemudikan di lereng Merapi.',
-                      style: TextStyle(color: Colors.white60, fontSize: 13),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // List Mobil
-                    ...vehicles.map((v) {
-                      final bool isSelected = selectedVehicle.id == v.id;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: InkWell(
-                          onTap: () {
-                            _selectVehicle(v);
-                            setModalState(() {});
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? v.themeColor.withValues(alpha: 0.22)
-                                  : const Color(0xFF282A31),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected ? Colors.orangeAccent : Colors.white12,
-                                width: isSelected ? 2.0 : 1.0,
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    faceRight ? 'Hadap Kanan' : 'Hadap Kiri',
+                                    style: TextStyle(
+                                      color: faceRight ? Colors.orangeAccent : Colors.white70,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            child: Row(
-                              children: [
-                                // Thumbnail Mobil dengan Fungsi Arah Hadap
-                                Container(
-                                  width: 80,
-                                  height: 54,
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black26,
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                  child: Center(
-                                    child: Transform.flip(
-                                      flipX: faceRight,
-                                      child: Image.asset(
-                                        v.assetPath,
-                                        fit: BoxFit.contain,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Pilih armada yang ingin dikemudikan di lereng Merapi.',
+                        style: TextStyle(color: Colors.white60, fontSize: 13),
+                      ),
+                      const SizedBox(height: 18),
+
+                      // List Mobil
+                      ...vehicles.map((v) {
+                        final bool isSelected = selectedVehicle.id == v.id;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: InkWell(
+                            onTap: () {
+                              _selectVehicle(v);
+                              setModalState(() {});
+                            },
+                            borderRadius: BorderRadius.circular(16),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? v.themeColor.withValues(alpha: 0.22)
+                                    : const Color(0xFF282A31),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isSelected ? Colors.orangeAccent : Colors.white12,
+                                  width: isSelected ? 2.0 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  // Thumbnail Mobil dengan Fungsi Arah Hadap
+                                  Container(
+                                    width: 80,
+                                    height: 54,
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black26,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Center(
+                                      child: Transform.flip(
+                                        flipX: faceRight,
+                                        child: Image.asset(
+                                          v.assetPath,
+                                          fit: BoxFit.contain,
+                                          gaplessPlayback: true,
+                                          filterQuality: FilterQuality.low,
+                                          cacheWidth: 160,
+                                        ),
                                       ),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Text(
-                                            v.name,
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 15,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 6,
-                                              vertical: 2,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: v.themeColor.withValues(alpha: 0.3),
-                                              borderRadius: BorderRadius.circular(6),
-                                            ),
-                                            child: Text(
-                                              v.subtitle,
-                                              style: TextStyle(
-                                                color: Colors.white.withValues(alpha: 0.9),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w600,
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Text(
+                                              v.name,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        v.description,
-                                        style: const TextStyle(
-                                          color: Colors.white70,
-                                          fontSize: 11.5,
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 6,
+                                                vertical: 2,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: v.themeColor.withValues(alpha: 0.3),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                v.subtitle,
+                                                style: TextStyle(
+                                                  color: Colors.white.withValues(alpha: 0.9),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          v.description,
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                if (isSelected)
-                                  const Icon(
-                                    Icons.check_circle,
-                                    color: Colors.orangeAccent,
-                                    size: 24,
-                                  ),
-                              ],
+                                  if (isSelected)
+                                    const Icon(
+                                      Icons.check_circle,
+                                      color: Colors.orangeAccent,
+                                      size: 24,
+                                    ),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orangeAccent,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orangeAccent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text(
+                            'Selesai',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                           ),
                         ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          'Selesai',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );
           },
         );
       },
-    );
+    ).then((_) {
+      if (mounted) {
+        _isModalOpen = false;
+      }
+    });
   }
 
   @override
@@ -597,6 +648,8 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
     gameTimer?.cancel();
     _accSub?.cancel();
     _gyroSub?.cancel();
+    _gyroNotifier.dispose();
+    _sensorTextNotifier.dispose();
     super.dispose();
   }
 
@@ -616,6 +669,12 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
         title: const Text('Merapi Jeep Run', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: const Color(0xFF2A1C16),
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          tooltip: 'Kembali',
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
         elevation: 0,
         actions: [
           // Tombol Buka Menu Ganti Mobil
@@ -662,29 +721,39 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 1. BACKGROUND GAMBAR DARI ASSET (baground.png)
-                  Transform.translate(
-                    offset: Offset(gyroParallaxOffset, 0),
-                    child: Transform.scale(
-                      scale: 1.15, // Skala halus untuk mencegah celah saat parallax sensor
-                      child: Image.asset(
-                        backgroundAssetPath,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.bottomCenter,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Container(
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [Color(0xFF8D6E63), Color(0xFF261C18)],
+                  // 1. BACKGROUND GAMBAR DARI ASSET (baground.png) - Terisolasi dengan RepaintBoundary & ValueListenable
+                  RepaintBoundary(
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: _gyroNotifier,
+                      builder: (context, offset, child) {
+                        return Transform.translate(
+                          offset: Offset(offset, 0),
+                          child: child,
+                        );
+                      },
+                      child: Transform.scale(
+                        scale: 1.15, // Skala halus untuk mencegah celah saat parallax sensor
+                        child: Image.asset(
+                          backgroundAssetPath,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.bottomCenter,
+                          gaplessPlayback: true,
+                          filterQuality: FilterQuality.low,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [Color(0xFF8D6E63), Color(0xFF261C18)],
+                                ),
                               ),
-                            ),
-                            child: const Center(
-                              child: Text('🌋', style: TextStyle(fontSize: 100)),
-                            ),
-                          );
-                        },
+                              child: const Center(
+                                child: Text('🌋', style: TextStyle(fontSize: 100)),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
@@ -758,9 +827,14 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                             ],
                           ),
                           const SizedBox(height: 2),
-                          Text(
-                            'Acc: ${accValue.toStringAsFixed(1)} | Gyro: ${gyroParallaxOffset.toStringAsFixed(1)}',
-                            style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          ValueListenableBuilder<String>(
+                            valueListenable: _sensorTextNotifier,
+                            builder: (context, text, _) {
+                              return Text(
+                                text,
+                                style: const TextStyle(color: Colors.white70, fontSize: 10),
+                              );
+                            },
                           ),
                         ],
                       ),
@@ -791,15 +865,19 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                   Positioned(
                     left: jeepLeftPosition,
                     bottom: groundLevel - selectedVehicle.bottomOffset + jeepBottomOffset,
-                    child: Transform.rotate(
-                      angle: jumpTilt,
-                      child: Transform.flip(
-                        flipX: faceRight, // Membalik gambar dari kiri menjadi kanan
-                        child: Image.asset(
-                          selectedVehicle.assetPath,
-                          width: selectedVehicle.width,
-                          height: selectedVehicle.height,
-                          fit: BoxFit.contain,
+                    child: RepaintBoundary(
+                      child: Transform.rotate(
+                        angle: jumpTilt,
+                        child: Transform.flip(
+                          flipX: faceRight, // Membalik gambar dari kiri menjadi kanan
+                          child: Image.asset(
+                            selectedVehicle.assetPath,
+                            width: selectedVehicle.width,
+                            height: selectedVehicle.height,
+                            fit: BoxFit.contain,
+                            gaplessPlayback: true,
+                            filterQuality: FilterQuality.low,
+                          ),
                         ),
                       ),
                     ),
@@ -809,200 +887,209 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                   Positioned(
                     left: obstacleX,
                     bottom: groundLevel - currentObstacle.bottomOffset,
-                    child: Image.asset(
-                      currentObstacle.assetPath,
-                      width: currentObstacle.width,
-                      height: currentObstacle.height,
-                      fit: BoxFit.contain,
+                    child: RepaintBoundary(
+                      child: Image.asset(
+                        currentObstacle.assetPath,
+                        width: currentObstacle.width,
+                        height: currentObstacle.height,
+                        fit: BoxFit.contain,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.low,
+                      ),
                     ),
                   ),
 
-                  // 8. OVERLAY MENU SAAT BELUM MAIN ATAU GAME OVER
+                  // 8. OVERLAY MENU SAAT BELUM MAIN ATAU GAME OVER - Diisolasi dengan RepaintBoundary agar enteng
                   if (!isPlaying)
-                    Center(
-                      child: SingleChildScrollView(
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1B1D22).withValues(alpha: 0.94),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                              color: isGameOver ? Colors.redAccent : Colors.orangeAccent,
-                              width: 1.5,
+                    RepaintBoundary(
+                      child: Center(
+                        child: SingleChildScrollView(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1B1D22).withValues(alpha: 0.94),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isGameOver ? Colors.redAccent : Colors.orangeAccent,
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.6),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // Judul Status
-                              Text(
-                                isGameOver ? 'G A M E   O V E R' : 'MERAPI JEEP RUN',
-                                style: TextStyle(
-                                  color: isGameOver ? const Color(0xFFFF5252) : Colors.orangeAccent,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Judul Status
+                                Text(
+                                  isGameOver ? 'G A M E   O V E R' : 'MERAPI JEEP RUN',
+                                  style: TextStyle(
+                                    color: isGameOver ? const Color(0xFFFF5252) : Colors.orangeAccent,
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 2,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                isGameOver
-                                    ? 'Skor Akhir: $score'
-                                    : 'Lompati rintangan batu, papan, dan sawit!',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                const SizedBox(height: 6),
+                                Text(
+                                  isGameOver
+                                      ? 'Skor Akhir: $score'
+                                      : 'Lompati rintangan batu, papan, dan sawit!',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 14),
+                                const SizedBox(height: 14),
 
-                              // PILIH MOBIL CEPAT
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.black38,
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                child: Column(
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        const Text(
-                                          'PILIH MOBIL:',
-                                          style: TextStyle(
-                                            color: Colors.white70,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1,
-                                          ),
-                                        ),
-                                        // Tombol Ubah Arah Hadap Kanan / Kiri
-                                        InkWell(
-                                          onTap: _toggleDirection,
-                                          borderRadius: BorderRadius.circular(6),
-                                          child: Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                            child: Row(
-                                              children: [
-                                                Icon(
-                                                  faceRight ? Icons.arrow_forward : Icons.arrow_back,
-                                                  color: Colors.orangeAccent,
-                                                  size: 14,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Text(
-                                                  faceRight ? 'Arah Kanan' : 'Arah Kiri',
-                                                  style: const TextStyle(
-                                                    color: Colors.orangeAccent,
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
+                                // PILIH MOBIL CEPAT
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black38,
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          const Text(
+                                            'PILIH MOBIL:',
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 1,
                                             ),
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    // 3 Pilihan Mobil Horizontal
-                                    Row(
-                                      children: vehicles.map((v) {
-                                        final bool isCur = selectedVehicle.id == v.id;
-                                        return Expanded(
-                                          child: GestureDetector(
-                                            onTap: () => _selectVehicle(v),
-                                            child: Container(
-                                              margin: const EdgeInsets.symmetric(horizontal: 3),
-                                              padding: const EdgeInsets.symmetric(vertical: 6),
-                                              decoration: BoxDecoration(
-                                                color: isCur
-                                                    ? v.themeColor.withValues(alpha: 0.3)
-                                                    : Colors.white.withValues(alpha: 0.05),
-                                                borderRadius: BorderRadius.circular(10),
-                                                border: Border.all(
-                                                  color: isCur ? Colors.orangeAccent : Colors.white12,
-                                                  width: isCur ? 1.8 : 1.0,
-                                                ),
-                                              ),
-                                              child: Column(
+                                          // Tombol Ubah Arah Hadap Kanan / Kiri
+                                          InkWell(
+                                            onTap: _toggleDirection,
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Padding(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              child: Row(
                                                 children: [
-                                                  SizedBox(
-                                                    height: 38,
-                                                    child: Transform.flip(
-                                                      flipX: faceRight,
-                                                      child: Image.asset(
-                                                        v.assetPath,
-                                                        fit: BoxFit.contain,
-                                                      ),
-                                                    ),
+                                                  Icon(
+                                                    faceRight ? Icons.arrow_forward : Icons.arrow_back,
+                                                    color: Colors.orangeAccent,
+                                                    size: 14,
                                                   ),
-                                                  const SizedBox(height: 4),
+                                                  const SizedBox(width: 4),
                                                   Text(
-                                                    v.name.split(' ').first,
-                                                    style: TextStyle(
-                                                      color: isCur ? Colors.orangeAccent : Colors.white70,
+                                                    faceRight ? 'Arah Kanan' : 'Arah Kiri',
+                                                    style: const TextStyle(
+                                                      color: Colors.orangeAccent,
                                                       fontSize: 11,
-                                                      fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
+                                                      fontWeight: FontWeight.w600,
                                                     ),
                                                   ),
                                                 ],
                                               ),
                                             ),
                                           ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  ],
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      // 3 Pilihan Mobil Horizontal
+                                      Row(
+                                        children: vehicles.map((v) {
+                                          final bool isCur = selectedVehicle.id == v.id;
+                                          return Expanded(
+                                            child: GestureDetector(
+                                              onTap: () => _selectVehicle(v),
+                                              child: Container(
+                                                margin: const EdgeInsets.symmetric(horizontal: 3),
+                                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                                decoration: BoxDecoration(
+                                                  color: isCur
+                                                      ? v.themeColor.withValues(alpha: 0.3)
+                                                      : Colors.white.withValues(alpha: 0.05),
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: isCur ? Colors.orangeAccent : Colors.white12,
+                                                    width: isCur ? 1.8 : 1.0,
+                                                  ),
+                                                ),
+                                                child: Column(
+                                                  children: [
+                                                    SizedBox(
+                                                      height: 38,
+                                                      child: Transform.flip(
+                                                        flipX: faceRight,
+                                                        child: Image.asset(
+                                                          v.assetPath,
+                                                          fit: BoxFit.contain,
+                                                          gaplessPlayback: true,
+                                                          filterQuality: FilterQuality.low,
+                                                          cacheHeight: 80,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 4),
+                                                    Text(
+                                                      v.name.split(' ').first,
+                                                      style: TextStyle(
+                                                        color: isCur ? Colors.orangeAccent : Colors.white70,
+                                                        fontSize: 11,
+                                                        fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
 
-                              const SizedBox(height: 16),
+                                const SizedBox(height: 16),
 
-                              // Tombol Mulai / Main Lagi
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.orangeAccent,
-                                    foregroundColor: Colors.black,
-                                    padding: const EdgeInsets.symmetric(vertical: 14),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
+                                // Tombol Mulai / Main Lagi
+                                SizedBox(
+                                  width: double.infinity,
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.orangeAccent,
+                                      foregroundColor: Colors.black,
+                                      padding: const EdgeInsets.symmetric(vertical: 14),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      elevation: 4,
                                     ),
-                                    elevation: 4,
-                                  ),
-                                  onPressed: _startGame,
-                                  icon: Icon(
-                                    isGameOver ? Icons.replay : Icons.play_arrow_rounded,
-                                    size: 26,
-                                  ),
-                                  label: Text(
-                                    isGameOver ? 'MAIN LAGI' : 'MULAI MAIN',
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      letterSpacing: 1.2,
+                                    onPressed: _startGame,
+                                    icon: Icon(
+                                      isGameOver ? Icons.replay : Icons.play_arrow_rounded,
+                                      size: 26,
+                                    ),
+                                    label: Text(
+                                      isGameOver ? 'MAIN LAGI' : 'MULAI MAIN',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 8),
-                              const Text(
-                                'Sentuh layar di mana saja untuk LOMPAT',
-                                style: TextStyle(color: Colors.white54, fontSize: 11.5),
-                              ),
-                            ],
+                                const SizedBox(height: 8),
+                                const Text(
+                                  'Sentuh layar di mana saja untuk LOMPAT',
+                                  style: TextStyle(color: Colors.white54, fontSize: 11.5),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
