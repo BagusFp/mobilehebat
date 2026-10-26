@@ -1,7 +1,57 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Model Data Kendaraan Permainan
+class GameVehicle {
+  final String id;
+  final String name;
+  final String subtitle;
+  final String description;
+  final String assetPath;
+  final double width;
+  final double height;
+  final double bottomOffset; // Offset agar roda menempel persis di atas tanah
+  final Color themeColor;
+
+  const GameVehicle({
+    required this.id,
+    required this.name,
+    required this.subtitle,
+    required this.description,
+    required this.assetPath,
+    required this.width,
+    required this.height,
+    required this.bottomOffset,
+    required this.themeColor,
+  });
+}
+
+/// Model Data Rintangan Permainan
+class GameObstacle {
+  final String id;
+  final String name;
+  final String assetPath;
+  final double width;
+  final double height;
+  final double bottomOffset; // Offset agar rintangan menempel persis di atas tanah
+  final double hitboxWidth;
+  final double hitboxHeight;
+
+  const GameObstacle({
+    required this.id,
+    required this.name,
+    required this.assetPath,
+    required this.width,
+    required this.height,
+    required this.bottomOffset,
+    required this.hitboxWidth,
+    required this.hitboxHeight,
+  });
+}
 
 class MerapiJeepGamePage extends StatefulWidget {
   const MerapiJeepGamePage({super.key});
@@ -11,9 +61,83 @@ class MerapiJeepGamePage extends StatefulWidget {
 }
 
 class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
-  // URL Foto Gunung Merapi (Otomatis di-cache oleh Flutter)
-  static const String merapiImageUrl =
-      'https://images.unsplash.com/photo-1588668214407-6ea9a6d8c272?auto=format&fit=crop&w=1000&q=80';
+  // Asset Latar Belakang Baru
+  static const String backgroundAssetPath = 'lib/img/game/baground.png';
+
+  // Daftar Pilihan Mobil (Jeep, Kopdes, SPPG)
+  static const List<GameVehicle> vehicles = [
+    GameVehicle(
+      id: 'jeep',
+      name: 'Jeep Willys',
+      subtitle: 'Off-Road 4x4',
+      description: 'Mobil off-road legendaris wisata Lava Tour Merapi.',
+      assetPath: 'lib/img/game/jeep.png',
+      width: 86.0,
+      height: 60.0,
+      bottomOffset: 12.0,
+      themeColor: Color(0xFF2E7D32),
+    ),
+    GameVehicle(
+      id: 'kopdes',
+      name: 'Truk Kopdes',
+      subtitle: 'Koperasi Desa',
+      description: 'Truk logistik Kopdes Kel Merah Putih yang kokoh.',
+      assetPath: 'lib/img/game/kopdes.png',
+      width: 94.0,
+      height: 62.0,
+      bottomOffset: 11.0,
+      themeColor: Color(0xFFC62828),
+    ),
+    GameVehicle(
+      id: 'sppg',
+      name: 'Mobil SPPG',
+      subtitle: 'Pelayanan Gizi',
+      description: 'Mobil Satuan Pelayanan Pemenuhan Gizi yang gesit.',
+      assetPath: 'lib/img/game/sppg.png',
+      width: 92.0,
+      height: 50.0,
+      bottomOffset: 8.5,
+      themeColor: Color(0xFF1565C0),
+    ),
+  ];
+
+  // Daftar Rintangan (Batu, Papan !AWAS, Pohon Sawit)
+  static const List<GameObstacle> obstacles = [
+    GameObstacle(
+      id: 'batu',
+      name: 'Batu Merapi',
+      assetPath: 'lib/img/game/batu.png',
+      width: 44.0,
+      height: 44.0,
+      bottomOffset: 4.5,
+      hitboxWidth: 32.0,
+      hitboxHeight: 32.0,
+    ),
+    GameObstacle(
+      id: 'papan',
+      name: 'Papan Awas',
+      assetPath: 'lib/img/game/papan.png',
+      width: 40.0,
+      height: 52.0,
+      bottomOffset: 3.0,
+      hitboxWidth: 28.0,
+      hitboxHeight: 42.0,
+    ),
+    GameObstacle(
+      id: 'sawit',
+      name: 'Pohon Sawit',
+      assetPath: 'lib/img/game/sawit.png',
+      width: 62.0,
+      height: 62.0,
+      bottomOffset: 11.0,
+      hitboxWidth: 40.0,
+      hitboxHeight: 44.0,
+    ),
+  ];
+
+  // Status Mobil Terpilih & Arah
+  GameVehicle selectedVehicle = vehicles[0];
+  bool faceRight = true; // Fungsi membalik gambar yang aslinya menghadap kiri menjadi menghadap kanan
 
   // Status Permainan
   bool isPlaying = false;
@@ -22,27 +146,27 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
   int highScore = 0;
   int frameCount = 0;
 
-  // Fisika Lompatan (Persis Chrome Dino menggunakan Piksel)
-  final double jeepLeftPosition = 45.0; // Posisi X dikunci (tidak maju-mundur)
-  double jeepBottomOffset = 0.0; // 0 = menapak tanah
+  // Fisika Lompatan
+  final double groundLevel = 48.0;
+  final double jeepLeftPosition = 45.0; // Posisi X tetap
+  double jeepBottomOffset = 0.0; // 0 = menapak di atas tanah
   double velocityY = 0.0;
-  final double jumpPower = 13.0; // Kekuatan lompat tinggi & ringan
-  final double gravity = 0.58; // Gravitasi nyaman seperti Dino Chrome
+  final double jumpPower = 13.5;
+  final double gravity = 0.60;
   bool isJumping = false;
 
-  // Rintangan (1 antrean agar tidak pernah menumpuk mustahil)
-  double obstacleX = 450.0;
-  double gameSpeed = 4.5; // Kecepatan awal santai
-  String currentObstacleEmoji = '🪨';
-  final List<String> obstacleTypes = ['🪨', '🌵', '🪵'];
+  // Rintangan
+  double obstacleX = 500.0;
+  double gameSpeed = 4.5;
+  GameObstacle currentObstacle = obstacles[0];
 
-  // Awan hiasan di langit
+  // Partikel Abu & Awan Hiasan
   double cloudDecorationX = 300.0;
 
-  // Sensor (Untuk memenuhi syarat wajib dosen tanpa mengganggu kontrol mobil)
+  // Sensor
   bool enableSensorJump = true;
   double accValue = 0.0;
-  double gyroParallaxOffset = 0.0; // Hanya menggeser halus gambar background
+  double gyroParallaxOffset = 0.0;
 
   Timer? gameTimer;
   StreamSubscription<AccelerometerEvent>? _accSub;
@@ -51,11 +175,55 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
   @override
   void initState() {
     super.initState();
+    _loadPreferences();
     _initSensors();
   }
 
+  Future<void> _loadPreferences() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedCarId = prefs.getString('game_car_id');
+      final savedHighScore = prefs.getInt('game_high_score') ?? 0;
+      final savedFaceRight = prefs.getBool('game_car_face_right') ?? true;
+
+      if (mounted) {
+        setState(() {
+          if (savedCarId != null) {
+            selectedVehicle = vehicles.firstWhere(
+              (v) => v.id == savedCarId,
+              orElse: () => vehicles[0],
+            );
+          }
+          highScore = savedHighScore;
+          faceRight = savedFaceRight;
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveCarPreference(String carId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('game_car_id', carId);
+    } catch (_) {}
+  }
+
+  Future<void> _saveDirectionPreference(bool isRight) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('game_car_face_right', isRight);
+    } catch (_) {}
+  }
+
+  Future<void> _saveHighScore(int newHighScore) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('game_high_score', newHighScore);
+    } catch (_) {}
+  }
+
   void _initSensors() {
-    // Sensor 1: Accelerometer (Bisa lompat dengan sentak HP sedikit)
+    // Sensor 1: Accelerometer (Sentak HP untuk melompat)
     _accSub = accelerometerEventStream().listen((event) {
       final magnitude = sqrt(
         event.x * event.x + event.y * event.y + event.z * event.z,
@@ -63,16 +231,16 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
       if (mounted) {
         setState(() => accValue = magnitude);
       }
-      if (enableSensorJump && isPlaying && !isJumping && magnitude > 15.0) {
+      if (enableSensorJump && isPlaying && !isJumping && magnitude > 15.5) {
         _jump();
       }
     });
 
-    // Sensor 2: Gyroscope (Efek Parallax halus pada foto Gunung Merapi)
+    // Sensor 2: Gyroscope (Efek Parallax halus latar Merapi)
     _gyroSub = gyroscopeEventStream().listen((event) {
       if (mounted) {
         setState(() {
-          gyroParallaxOffset = (gyroParallaxOffset + event.y * 2.5).clamp(
+          gyroParallaxOffset = (gyroParallaxOffset + event.y * 2.2).clamp(
             -25.0,
             25.0,
           );
@@ -82,6 +250,10 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
   }
 
   void _startGame() {
+    final double initialX = MediaQuery.sizeOf(context).width > 0
+        ? MediaQuery.sizeOf(context).width + 60.0
+        : 450.0;
+
     setState(() {
       isPlaying = true;
       isGameOver = false;
@@ -90,13 +262,14 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
       jeepBottomOffset = 0.0;
       velocityY = 0.0;
       isJumping = false;
-      obstacleX = 420.0; // Muncul dari luar kanan layar
-      gameSpeed = 4.5; // Mulai dengan kecepatan santai
-      currentObstacleEmoji = '🪨';
+      obstacleX = initialX;
+      gameSpeed = 4.6;
+      currentObstacle = obstacles[Random().nextInt(obstacles.length)];
     });
 
+    HapticFeedback.lightImpact();
+
     gameTimer?.cancel();
-    // Loop 60 FPS (setiap 16 milidetik)
     gameTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
       _updateGame();
     });
@@ -108,6 +281,7 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
         isJumping = true;
         velocityY = jumpPower;
       });
+      HapticFeedback.selectionClick();
     }
   }
 
@@ -115,21 +289,19 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
     setState(() {
       frameCount++;
 
-      // 1. Skor berjalan otomatis seperti Dino Chrome
+      // 1. Tambah skor otomatis seiring jarak tempuh
       if (frameCount % 6 == 0) {
         score++;
-        // Kecepatan bertambah sangat halus seiring skor naik
-        if (gameSpeed < 8.5) {
+        if (gameSpeed < 8.8) {
           gameSpeed += 0.003;
         }
       }
 
-      // 2. Fisika Lompat (Atas - Bawah)
+      // 2. Fisika Lompatan Mobil
       if (isJumping) {
         jeepBottomOffset += velocityY;
         velocityY -= gravity;
 
-        // Kembali menapak tanah
         if (jeepBottomOffset <= 0.0) {
           jeepBottomOffset = 0.0;
           velocityY = 0.0;
@@ -139,24 +311,30 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
 
       // 3. Gerakkan Rintangan dari Kanan ke Kiri
       obstacleX -= gameSpeed;
-      cloudDecorationX -= 1.2;
+      cloudDecorationX -= 1.0;
 
-      if (cloudDecorationX < -60) {
-        cloudDecorationX = 400.0;
+      if (cloudDecorationX < -80.0) {
+        final screenW = MediaQuery.sizeOf(context).width;
+        cloudDecorationX = screenW > 0 ? screenW + 50.0 : 400.0;
       }
 
-      // Jika rintangan sudah lewat di kiri, munculkan lagi di kanan dengan jarak aman
-      if (obstacleX < -50) {
-        obstacleX = 380.0 + Random().nextInt(180); // Jarak jeda lega
-        currentObstacleEmoji =
-            obstacleTypes[Random().nextInt(obstacleTypes.length)];
+      // Munculkan rintangan baru secara acak (Batu, Papan, atau Sawit)
+      if (obstacleX < -80.0) {
+        final screenW = MediaQuery.sizeOf(context).width;
+        obstacleX = (screenW > 0 ? screenW : 360.0) + 40.0 + Random().nextInt(150);
+        currentObstacle = obstacles[Random().nextInt(obstacles.length)];
       }
 
-      // 4. Deteksi Tabrakan yang Toleran (Tidak gampang mati)
-      // Jeep berada di X: 45 s/d 85. Kita persempit area tabrak ke X: 52 s/d 75
-      final bool isHorizontalHit = obstacleX < 75.0 && obstacleX + 24.0 > 52.0;
-      // Hanya tertabrak jika posisi Jeep masih rendah (< 26 piksel dari tanah)
-      final bool isVerticalHit = jeepBottomOffset < 26.0;
+      // 4. Deteksi Tabrakan Presisi & Adil
+      final double carHitboxLeft = jeepLeftPosition + 12.0;
+      final double carHitboxRight = jeepLeftPosition + selectedVehicle.width - 12.0;
+
+      final double obsPaddingH = (currentObstacle.width - currentObstacle.hitboxWidth) / 2;
+      final double obsHitboxLeft = obstacleX + obsPaddingH;
+      final double obsHitboxRight = obsHitboxLeft + currentObstacle.hitboxWidth;
+
+      final bool isHorizontalHit = (carHitboxRight > obsHitboxLeft) && (carHitboxLeft < obsHitboxRight);
+      final bool isVerticalHit = jeepBottomOffset < currentObstacle.hitboxHeight;
 
       if (isHorizontalHit && isVerticalHit) {
         _triggerGameOver();
@@ -168,9 +346,250 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
     gameTimer?.cancel();
     isPlaying = false;
     isGameOver = true;
+    HapticFeedback.heavyImpact();
+
     if (score > highScore) {
       highScore = score;
+      _saveHighScore(highScore);
     }
+  }
+
+  void _selectVehicle(GameVehicle vehicle) {
+    setState(() {
+      selectedVehicle = vehicle;
+    });
+    _saveCarPreference(vehicle.id);
+    HapticFeedback.selectionClick();
+  }
+
+  void _toggleDirection() {
+    setState(() {
+      faceRight = !faceRight;
+    });
+    _saveDirectionPreference(faceRight);
+    HapticFeedback.selectionClick();
+  }
+
+  void _showCarSelectionModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              decoration: const BoxDecoration(
+                color: Color(0xFF1E1F24),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SafeArea(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'PILIH KENDARAAN',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
+                        // Tombol Arah Hadap Kanan
+                        InkWell(
+                          onTap: () {
+                            _toggleDirection();
+                            setModalState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: faceRight
+                                  ? Colors.orangeAccent.withValues(alpha: 0.2)
+                                  : Colors.white10,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: faceRight ? Colors.orangeAccent : Colors.white24,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  faceRight ? Icons.arrow_forward : Icons.arrow_back,
+                                  color: faceRight ? Colors.orangeAccent : Colors.white70,
+                                  size: 16,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  faceRight ? 'Hadap Kanan' : 'Hadap Kiri',
+                                  style: TextStyle(
+                                    color: faceRight ? Colors.orangeAccent : Colors.white70,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Pilih armada yang ingin dikemudikan di lereng Merapi.',
+                      style: TextStyle(color: Colors.white60, fontSize: 13),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // List Mobil
+                    ...vehicles.map((v) {
+                      final bool isSelected = selectedVehicle.id == v.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: InkWell(
+                          onTap: () {
+                            _selectVehicle(v);
+                            setModalState(() {});
+                          },
+                          borderRadius: BorderRadius.circular(16),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? v.themeColor.withValues(alpha: 0.22)
+                                  : const Color(0xFF282A31),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: isSelected ? Colors.orangeAccent : Colors.white12,
+                                width: isSelected ? 2.0 : 1.0,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Thumbnail Mobil dengan Fungsi Arah Hadap
+                                Container(
+                                  width: 80,
+                                  height: 54,
+                                  padding: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.black26,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Center(
+                                    child: Transform.flip(
+                                      flipX: faceRight,
+                                      child: Image.asset(
+                                        v.assetPath,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Text(
+                                            v.name,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                              vertical: 2,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: v.themeColor.withValues(alpha: 0.3),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Text(
+                                              v.subtitle,
+                                              style: TextStyle(
+                                                color: Colors.white.withValues(alpha: 0.9),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        v.description,
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 11.5,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(
+                                    Icons.check_circle,
+                                    color: Colors.orangeAccent,
+                                    size: 24,
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orangeAccent,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text(
+                          'Selesai',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -181,34 +600,53 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
     super.dispose();
   }
 
-  String _formatDinoScore(int val) {
+  String _formatScore(int val) {
     return val.toString().padLeft(5, '0');
   }
 
   @override
   Widget build(BuildContext context) {
+    final double jumpTilt = isJumping
+        ? (velocityY > 0 ? (faceRight ? -0.10 : 0.10) : (faceRight ? 0.08 : -0.08))
+        : 0.0;
+
     return Scaffold(
+      backgroundColor: const Color(0xFF191A1E),
       appBar: AppBar(
-        title: const Text('Merapi Jeep Run'),
-        backgroundColor: const Color(0xFF3E2723),
+        title: const Text('Merapi Jeep Run', style: TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: const Color(0xFF2A1C16),
         foregroundColor: Colors.white,
+        elevation: 0,
         actions: [
-          Row(
-            children: [
-              const Text('Lompat Sensor', style: TextStyle(fontSize: 12)),
-              Switch(
-                value: enableSensorJump,
-                activeThumbColor: Colors.orangeAccent,
-                onChanged: (v) => setState(() => enableSensorJump = v),
-              ),
-            ],
+          // Tombol Buka Menu Ganti Mobil
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.orangeAccent,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            icon: const Icon(Icons.directions_car, size: 20),
+            label: Text(
+              selectedVehicle.name.split(' ').first,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            onPressed: _showCarSelectionModal,
+          ),
+          // Toggle Sensor Accelerometer
+          IconButton(
+            tooltip: enableSensorJump ? 'Sensor Lompat: Aktif' : 'Sensor Lompat: Mati',
+            icon: Icon(
+              enableSensorJump ? Icons.sensors : Icons.sensors_off,
+              color: enableSensorJump ? Colors.orangeAccent : Colors.white38,
+            ),
+            onPressed: () {
+              setState(() => enableSensorJump = !enableSensorJump);
+            },
           ),
         ],
       ),
       body: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) {
-          // Respons instan begitu jari menyentuh layar
           if (!isPlaying) {
             _startGame();
           } else {
@@ -217,39 +655,33 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
         },
         child: Column(
           children: [
+            // ==========================================
             // AREA GAME UTAMA
+            // ==========================================
             Expanded(
-              flex: 3,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  // 1. BACKGROUND FOTO GUNUNG MERAPI DARI INTERNET
+                  // 1. BACKGROUND GAMBAR DARI ASSET (baground.png)
                   Transform.translate(
                     offset: Offset(gyroParallaxOffset, 0),
                     child: Transform.scale(
-                      scale:
-                          1.12, // Diperbesar sedikit agar saat parallax tidak bocor
-                      child: Image.network(
-                        merapiImageUrl,
+                      scale: 1.15, // Skala halus untuk mencegah celah saat parallax sensor
+                      child: Image.asset(
+                        backgroundAssetPath,
                         fit: BoxFit.cover,
-                        // Fallback jika internet dimatikan dan gambar belum ke-cache
+                        alignment: Alignment.bottomCenter,
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             decoration: const BoxDecoration(
                               gradient: LinearGradient(
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
-                                colors: [Color(0xFF90CAF9), Color(0xFFFFF3E0)],
+                                colors: [Color(0xFF8D6E63), Color(0xFF261C18)],
                               ),
                             ),
                             child: const Center(
-                              child: Opacity(
-                                opacity: 0.25,
-                                child: Text(
-                                  '⛰️',
-                                  style: TextStyle(fontSize: 180),
-                                ),
-                              ),
+                              child: Text('🌋', style: TextStyle(fontSize: 100)),
                             ),
                           );
                         },
@@ -257,34 +689,32 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                     ),
                   ),
 
-                  // Lapisan putih tipis agar mobil & batu terlihat kontras jelas
-                  Container(color: Colors.white.withValues(alpha: 0.28)),
-
                   // 2. AWAN HIASAN DI LANGIT
                   Positioned(
-                    top: 60,
+                    top: 40,
                     left: cloudDecorationX,
-                    child: const Text('☁️', style: TextStyle(fontSize: 36)),
+                    child: Opacity(
+                      opacity: 0.65,
+                      child: const Text('☁️', style: TextStyle(fontSize: 34)),
+                    ),
                   ),
 
-                  // 3. PAPAN SKOR ALA DINO CHROME (Pojok Kanan Atas)
+                  // 3. PAPAN SKOR RETRO (Pojok Kanan Atas)
                   Positioned(
-                    top: 16,
-                    right: 20,
+                    top: 14,
+                    right: 16,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(8),
+                        color: Colors.black.withValues(alpha: 0.65),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.3)),
                       ),
                       child: Text(
-                        'HI ${_formatDinoScore(highScore)}   ${_formatDinoScore(score)}',
+                        'HI ${_formatScore(highScore)}   ${_formatScore(score)}',
                         style: const TextStyle(
                           fontFamily: 'monospace',
-                          fontSize: 17,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 1.5,
@@ -293,41 +723,62 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                     ),
                   ),
 
-                  // 4. INDIKATOR SENSOR KECIL (Pojok Kiri Atas untuk bukti ke Dosen)
+                  // 4. INDIKATOR SENSOR & MOBIL (Pojok Kiri Atas)
                   Positioned(
-                    top: 18,
+                    top: 14,
                     left: 16,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.45),
-                        borderRadius: BorderRadius.circular(6),
+                        color: Colors.black.withValues(alpha: 0.60),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text(
-                        'Acc: ${accValue.toStringAsFixed(1)} | Gyro: ${gyroParallaxOffset.toStringAsFixed(1)}',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 11,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: selectedVehicle.themeColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                selectedVehicle.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Acc: ${accValue.toStringAsFixed(1)} | Gyro: ${gyroParallaxOffset.toStringAsFixed(1)}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 10),
+                          ),
+                        ],
                       ),
                     ),
                   ),
 
-                  // 5. GARIS TANAH JALUR JEEP
+                  // 5. GARIS TANAH HIJAU
                   Positioned(
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    height: 48,
+                    height: groundLevel,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4E342E),
+                        color: const Color(0xFF4E342E), // Tanah cokelat
                         border: Border(
                           top: BorderSide(
-                            color: Colors.green.shade800,
+                            color: Colors.green.shade800, // Rumput hijau
                             width: 6,
                           ),
                         ),
@@ -335,74 +786,224 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                     ),
                   ),
 
-                  // 6. MOBIL JEEP (SUDAH DIBALIK MENGHADAP KE KANAN)
+                  // 6. KENDARAAN (JEEP / KOPDES / SPPG)
+                  // FUNGSI MEMBALIK KE KANAN MENGGUNAKAN Transform.flip(flipX: faceRight)
                   Positioned(
                     left: jeepLeftPosition,
-                    bottom: 42 + jeepBottomOffset,
-                    child: Transform.flip(
-                      flipX:
-                          true, // Membalik emoji mobil agar menghadap kanan ->
-                      child: const Text('🚙', style: TextStyle(fontSize: 44)),
+                    bottom: groundLevel - selectedVehicle.bottomOffset + jeepBottomOffset,
+                    child: Transform.rotate(
+                      angle: jumpTilt,
+                      child: Transform.flip(
+                        flipX: faceRight, // Membalik gambar dari kiri menjadi kanan
+                        child: Image.asset(
+                          selectedVehicle.assetPath,
+                          width: selectedVehicle.width,
+                          height: selectedVehicle.height,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
                     ),
                   ),
 
-                  // 7. RINTANGAN (BATU / POHON)
+                  // 7. RINTANGAN ASSET (BATU / PAPAN AWAS / POHON SAWIT)
                   Positioned(
                     left: obstacleX,
-                    bottom: 44,
-                    child: Text(
-                      currentObstacleEmoji,
-                      style: const TextStyle(fontSize: 34),
+                    bottom: groundLevel - currentObstacle.bottomOffset,
+                    child: Image.asset(
+                      currentObstacle.assetPath,
+                      width: currentObstacle.width,
+                      height: currentObstacle.height,
+                      fit: BoxFit.contain,
                     ),
                   ),
 
-                  // 8. LAYAR MULAI / GAME OVER (Tengah Layar)
+                  // 8. OVERLAY MENU SAAT BELUM MAIN ATAU GAME OVER
                   if (!isPlaying)
                     Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 24,
-                          vertical: 18,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.75),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              isGameOver
-                                  ? 'G A M E   O V E R'
-                                  : 'MERAPI JEEP RUN',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 2,
-                              ),
+                      child: SingleChildScrollView(
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1B1D22).withValues(alpha: 0.94),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isGameOver ? Colors.redAccent : Colors.orangeAccent,
+                              width: 1.5,
                             ),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Ketuk layar di mana saja untuk LOMPAT',
-                              style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.6),
+                                blurRadius: 20,
+                                offset: const Offset(0, 10),
                               ),
-                            ),
-                            const SizedBox(height: 14),
-                            IconButton.filled(
-                              onPressed: _startGame,
-                              iconSize: 32,
-                              style: IconButton.styleFrom(
-                                backgroundColor: Colors.orangeAccent,
-                                foregroundColor: Colors.black,
+                            ],
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Judul Status
+                              Text(
+                                isGameOver ? 'G A M E   O V E R' : 'MERAPI JEEP RUN',
+                                style: TextStyle(
+                                  color: isGameOver ? const Color(0xFFFF5252) : Colors.orangeAccent,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
                               ),
-                              icon: Icon(
-                                isGameOver ? Icons.refresh : Icons.play_arrow,
+                              const SizedBox(height: 6),
+                              Text(
+                                isGameOver
+                                    ? 'Skor Akhir: $score'
+                                    : 'Lompati rintangan batu, papan, dan sawit!',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 14),
+
+                              // PILIH MOBIL CEPAT
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: Colors.black38,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Text(
+                                          'PILIH MOBIL:',
+                                          style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                        // Tombol Ubah Arah Hadap Kanan / Kiri
+                                        InkWell(
+                                          onTap: _toggleDirection,
+                                          borderRadius: BorderRadius.circular(6),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            child: Row(
+                                              children: [
+                                                Icon(
+                                                  faceRight ? Icons.arrow_forward : Icons.arrow_back,
+                                                  color: Colors.orangeAccent,
+                                                  size: 14,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  faceRight ? 'Arah Kanan' : 'Arah Kiri',
+                                                  style: const TextStyle(
+                                                    color: Colors.orangeAccent,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    // 3 Pilihan Mobil Horizontal
+                                    Row(
+                                      children: vehicles.map((v) {
+                                        final bool isCur = selectedVehicle.id == v.id;
+                                        return Expanded(
+                                          child: GestureDetector(
+                                            onTap: () => _selectVehicle(v),
+                                            child: Container(
+                                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                                              padding: const EdgeInsets.symmetric(vertical: 6),
+                                              decoration: BoxDecoration(
+                                                color: isCur
+                                                    ? v.themeColor.withValues(alpha: 0.3)
+                                                    : Colors.white.withValues(alpha: 0.05),
+                                                borderRadius: BorderRadius.circular(10),
+                                                border: Border.all(
+                                                  color: isCur ? Colors.orangeAccent : Colors.white12,
+                                                  width: isCur ? 1.8 : 1.0,
+                                                ),
+                                              ),
+                                              child: Column(
+                                                children: [
+                                                  SizedBox(
+                                                    height: 38,
+                                                    child: Transform.flip(
+                                                      flipX: faceRight,
+                                                      child: Image.asset(
+                                                        v.assetPath,
+                                                        fit: BoxFit.contain,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    v.name.split(' ').first,
+                                                    style: TextStyle(
+                                                      color: isCur ? Colors.orangeAccent : Colors.white70,
+                                                      fontSize: 11,
+                                                      fontWeight: isCur ? FontWeight.bold : FontWeight.normal,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              const SizedBox(height: 16),
+
+                              // Tombol Mulai / Main Lagi
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.orangeAccent,
+                                    foregroundColor: Colors.black,
+                                    padding: const EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 4,
+                                  ),
+                                  onPressed: _startGame,
+                                  icon: Icon(
+                                    isGameOver ? Icons.replay : Icons.play_arrow_rounded,
+                                    size: 26,
+                                  ),
+                                  label: Text(
+                                    isGameOver ? 'MAIN LAGI' : 'MULAI MAIN',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              const Text(
+                                'Sentuh layar di mana saja untuk LOMPAT',
+                                style: TextStyle(color: Colors.white54, fontSize: 11.5),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -410,16 +1011,36 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
               ),
             ),
 
-            // KETERANGAN SINGKAT DI BAWAH
+            // ==========================================
+            // KETERANGAN & KONTROL DI BAGIAN BAWAH
+            // ==========================================
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              color: const Color(0xFF3E2723),
-              child: const Text(
-                'Ketuk layar untuk melompati rintangan seperti Dino Chrome.\n'
-                'Sensor Accelerometer (sentak HP) & Gyroscope (efek kamera latar Merapi) aktif otomatis.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              color: const Color(0xFF1E2026),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Mobil: ${selectedVehicle.name} • Latar: Gunung Merapi • Rintangan: Batu, Papan, Sawit',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11.5),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.orangeAccent,
+                      side: const BorderSide(color: Colors.orangeAccent, width: 1.2),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: const Icon(Icons.tune, size: 16),
+                    label: const Text('Menu Mobil', style: TextStyle(fontSize: 11.5)),
+                    onPressed: _showCarSelectionModal,
+                  ),
+                ],
               ),
             ),
           ],
