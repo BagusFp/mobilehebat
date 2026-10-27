@@ -689,36 +689,42 @@ class _NatureScannerScreenState extends State<NatureScannerScreen>
           children: const [
             Icon(Icons.shield_rounded, color: Color(0xFF4EE39D)),
             SizedBox(width: 8),
-            Text(
-              'Panduan & Keselamatan',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            Expanded(
+              child: Text(
+                'Panduan & Keselamatan',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            Text(
-              '1. Privasi Terjaga',
-              style: TextStyle(color: Color(0xFFB5EFD2), fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'Pemrosesan analisis AI berjalan 100% lokal di HP Anda tanpa mengunggah foto ke internet.',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-            SizedBox(height: 12),
-            Text(
-              '2. Penafian Keselamatan (Safety Disclaimer)',
-              style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 13),
-            ),
-            SizedBox(height: 2),
-            Text(
-              'Deteksi objek ini murni untuk edukasi wisata alam. Fitur ini BUKAN acuan keselamatan medan atau sertifikasi pijakan aman saat mendaki.',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
-            ),
-          ],
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                '1. Privasi Terjaga',
+                style: TextStyle(color: Color(0xFFB5EFD2), fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Pemrosesan analisis AI berjalan 100% lokal di HP Anda tanpa mengunggah foto ke internet.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              SizedBox(height: 12),
+              Text(
+                '2. Penafian Keselamatan (Safety Disclaimer)',
+                style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Deteksi objek ini murni untuk edukasi wisata alam. Fitur ini BUKAN acuan keselamatan medan atau sertifikasi pijakan aman saat mendaki.',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

@@ -463,6 +463,8 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                     const SizedBox(height: 2),
                     Text(
                       trip.tripName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.titleMedium.copyWith(
                         fontWeight: FontWeight.bold,
                         color: AppColors.onSurface,
@@ -471,26 +473,33 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusBgColor,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(statusIcon, size: 14, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusText,
-                      style: AppTypography.labelSm.copyWith(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+              const SizedBox(width: 8),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusBgColor,
+                    borderRadius: BorderRadius.circular(AppDimensions.radiusFull),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 14, color: statusColor),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          statusText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.labelSm.copyWith(
+                            color: statusColor,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -945,10 +954,14 @@ class _BlockchainScreenState extends State<BlockchainScreen>
                         color: AppColors.primary,
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        'Audit Verifikasi Bukti Digital',
-                        style: AppTypography.titleMedium.copyWith(
-                          fontWeight: FontWeight.bold,
+                      Expanded(
+                        child: Text(
+                          'Audit Verifikasi Bukti Digital',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.titleMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ],
@@ -1470,10 +1483,14 @@ class _BlockchainScreenState extends State<BlockchainScreen>
               children: [
                 const Icon(Icons.shield, color: AppColors.primary, size: 20),
                 const SizedBox(width: 8),
-                Text(
-                  'Cek Integritas Rantai',
-                  style: AppTypography.titleMd.copyWith(
-                    fontWeight: FontWeight.bold,
+                Expanded(
+                  child: Text(
+                    'Cek Integritas Rantai',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.titleMd.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

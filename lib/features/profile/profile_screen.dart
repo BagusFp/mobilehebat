@@ -242,11 +242,15 @@ class ProfileScreen extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'Edit Profil',
-                          style: AppTypography.titleMd.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.onSurface,
+                        Expanded(
+                          child: Text(
+                            'Edit Profil',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.titleMd.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.onSurface,
+                            ),
                           ),
                         ),
                         IconButton(
@@ -344,12 +348,16 @@ class ProfileScreen extends StatelessWidget {
                                 children: [
                                   const Icon(Icons.auto_awesome, color: AppColors.primary, size: 14),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    'WebP: $compressionStats',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
+                                  Flexible(
+                                    child: Text(
+                                      'WebP: $compressionStats',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: AppColors.primary,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],

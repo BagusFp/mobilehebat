@@ -446,13 +446,17 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'PILIH KENDARAAN',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                          Flexible(
+                            child: const Text(
+                              'PILIH KENDARAAN',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.2,
+                              ),
                             ),
                           ),
                           // Tombol Arah Hadap Kanan
@@ -557,12 +561,16 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                                       children: [
                                         Row(
                                           children: [
-                                            Text(
-                                              v.name,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.bold,
+                                            Flexible(
+                                              child: Text(
+                                                v.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
                                               ),
                                             ),
                                             const SizedBox(width: 8),
@@ -779,14 +787,17 @@ class _MerapiJeepGamePageState extends State<MerapiJeepGamePage> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.3)),
                       ),
-                      child: Text(
-                        'HI ${_formatScore(highScore)}   ${_formatScore(score)}',
-                        style: const TextStyle(
-                          fontFamily: 'monospace',
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                          letterSpacing: 1.5,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'HI ${_formatScore(highScore)}   ${_formatScore(score)}',
+                          style: const TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 1.5,
+                          ),
                         ),
                       ),
                     ),

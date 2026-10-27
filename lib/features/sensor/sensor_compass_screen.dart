@@ -165,7 +165,7 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> {
               const SizedBox(height: 28),
 
               // 2. Dial Kompas Sederhana (Penunjuk Arah Mata Angin)
-              _buildSimpleCompassDial(heading),
+              _buildSimpleCompassDial(heading, context),
 
               const SizedBox(height: 28),
 
@@ -257,13 +257,17 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
-            Text(
-              degrees,
-              style: TextStyle(
-                color: isActive ? Colors.white70 : AppColors.onSurfaceVariant,
-                fontSize: 10,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                degrees,
+                style: TextStyle(
+                  color: isActive ? Colors.white70 : AppColors.onSurfaceVariant,
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 1,
               ),
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -272,8 +276,9 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> {
   }
 
   /// Dial Kompas Klasik yang Berputar
-  Widget _buildSimpleCompassDial(double heading) {
-    const double dialSize = 280.0;
+  Widget _buildSimpleCompassDial(double heading, BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final double dialSize = (screenWidth - 64).clamp(200.0, 280.0);
 
     return Center(
       child: Stack(
@@ -311,13 +316,13 @@ class _SensorCompassScreenState extends State<SensorCompassScreen> {
                 children: [
                   // Latar Piringan dengan Skala Derajat & Huruf Mata Angin
                   CustomPaint(
-                    size: const Size(dialSize, dialSize),
+                    size: Size(dialSize, dialSize),
                     painter: SimpleCompassDialPainter(),
                   ),
 
                   // Jarum Magnetik (Merah ke Utara, Gelap ke Selatan)
                   CustomPaint(
-                    size: const Size(dialSize, dialSize),
+                    size: Size(dialSize, dialSize),
                     painter: SimpleCompassNeedlePainter(),
                   ),
 

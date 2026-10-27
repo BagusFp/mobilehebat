@@ -142,11 +142,14 @@ class QuizScreen extends StatelessWidget {
                     quiz.isQuizFinished ? Icons.emoji_events : Icons.arrow_forward,
                     color: AppColors.onPrimary,
                   ),
-                  label: Text(
-                    quiz.isQuizFinished ? 'Selesaikan Kuis & Lihat Hasil' : 'Pertanyaan Berikutnya',
-                    style: AppTypography.titleMd.copyWith(
-                      color: AppColors.onPrimary,
-                      fontWeight: FontWeight.bold,
+                  label: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      quiz.isQuizFinished ? 'Selesaikan Kuis & Lihat Hasil' : 'Pertanyaan Berikutnya',
+                      style: AppTypography.titleMd.copyWith(
+                        color: AppColors.onPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   style: ElevatedButton.styleFrom(

@@ -637,6 +637,8 @@ class _ExploreScreenState extends State<ExploreScreen> {
                         children: [
                           Text(
                             dest.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                             style: AppTypography.headlineSm.copyWith(
                               fontWeight: FontWeight.bold,
                               color: AppColors.onSurface,

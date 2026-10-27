@@ -177,27 +177,36 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: AppColors.primary,
-                  shape: BoxShape.circle,
+          Flexible(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primary,
+                    shape: BoxShape.circle,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Merapi Hub Utility',
-                style: AppTypography.labelMd.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    'Merapi Hub Utility',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTypography.labelMd.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+          const SizedBox(width: 8),
           Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.signal_cellular_alt, size: 16, color: AppColors.onSurfaceVariant),
               const SizedBox(width: 4),
@@ -247,13 +256,17 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                           : AppColors.onSurfaceVariant,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Kurs Valuta',
-                      style: AppTypography.labelLg.copyWith(
-                        color: _activeTab == 'currency'
-                            ? AppColors.onPrimary
-                            : AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        'Kurs Valuta',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.labelLg.copyWith(
+                          color: _activeTab == 'currency'
+                              ? AppColors.onPrimary
+                              : AppColors.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -286,13 +299,17 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                           : AppColors.onSurfaceVariant,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'Zona Waktu',
-                      style: AppTypography.labelLg.copyWith(
-                        color: _activeTab == 'time'
-                            ? AppColors.onPrimary
-                            : AppColors.onSurfaceVariant,
-                        fontWeight: FontWeight.bold,
+                    Flexible(
+                      child: Text(
+                        'Zona Waktu',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.labelLg.copyWith(
+                          color: _activeTab == 'time'
+                              ? AppColors.onPrimary
+                              : AppColors.onSurfaceVariant,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ],
@@ -669,9 +686,13 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                       children: [
                         const Icon(Icons.info_outline, size: 14, color: AppColors.secondary),
                         const SizedBox(width: 4),
-                        Text(
-                          provider.exchangeRateReferenceText,
-                          style: AppTypography.labelMd.copyWith(color: AppColors.secondary),
+                        Flexible(
+                          child: Text(
+                            provider.exchangeRateReferenceText,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTypography.labelMd.copyWith(color: AppColors.secondary),
+                          ),
                         ),
                       ],
                     ),
@@ -855,14 +876,18 @@ class _CurrencyTimeScreenState extends State<CurrencyTimeScreen> with SingleTick
                           children: [
                             const Icon(Icons.calendar_month, color: AppColors.secondary, size: 20),
                             const SizedBox(width: 10),
-                            Text(
-                              provider.formattedDepartureWib,
-                              style: AppTypography.titleMd.copyWith(
-                                color: AppColors.onSurface,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Text(
+                                provider.formattedDepartureWib,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.titleMd.copyWith(
+                                  color: AppColors.onSurface,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            const Spacer(),
+                            const SizedBox(width: 8),
                             const Icon(Icons.edit_calendar, color: AppColors.onSurfaceVariant, size: 18),
                           ],
                         ),

@@ -139,6 +139,17 @@ class MeraTripApp extends StatelessWidget {
         title: 'MerapiTrip',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
+        builder: (context, child) {
+          final mediaQuery = MediaQuery.of(context);
+          final clampedTextScaler = mediaQuery.textScaler.clamp(
+            minScaleFactor: 0.85,
+            maxScaleFactor: 1.15,
+          );
+          return MediaQuery(
+            data: mediaQuery.copyWith(textScaler: clampedTextScaler),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         home: const AuthGate(),
       ),
     );
@@ -221,7 +232,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
   }
 
   /// Menampilkan ikon avatar profil (dengan gambar jika ada) di navigasi bar
-  Widget _buildNavAvatar(UserModel? user, {required bool isSelected}) {
+  Widget _buildNavAvatar(UserModel? user, {required bool isSelected, bool isNarrow = false}) {
     final photo = user?.profilePhoto;
     final initial = (user?.name.isNotEmpty == true) ? user!.name[0].toUpperCase() : 'P';
     ImageProvider? imageProvider;
@@ -246,7 +257,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
         ),
       ),
       child: CircleAvatar(
-        radius: 11,
+        radius: isNarrow ? 9.5 : 11,
         backgroundColor: isSelected ? AppColors.primary : AppColors.secondaryContainer,
         backgroundImage: imageProvider,
         onBackgroundImageError: imageProvider != null ? (exception, stackTrace) {} : null,
@@ -256,7 +267,7 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
                 style: TextStyle(
                   color: isSelected ? Colors.white : AppColors.primary,
                   fontWeight: FontWeight.bold,
-                  fontSize: 10,
+                  fontSize: isNarrow ? 8.5 : 10,
                 ),
               )
             : null,
@@ -423,54 +434,60 @@ class _MeraTripShellScreenState extends State<MeraTripShellScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentTabIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedFontSize: 11,
-        unselectedFontSize: 10,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.onSurfaceVariant,
-        onTap: (index) {
-          if (index == 5) {
-            _showLogoutConfirmation(context, authProvider);
-            return;
-          }
-          setState(() {
-            _currentTabIndex = index;
-          });
+      bottomNavigationBar: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 360;
+          return BottomNavigationBar(
+            currentIndex: _currentTabIndex,
+            type: BottomNavigationBarType.fixed,
+            selectedFontSize: isNarrow ? 9.5 : 11,
+            unselectedFontSize: isNarrow ? 8.5 : 10,
+            iconSize: isNarrow ? 20 : 24,
+            selectedItemColor: AppColors.primary,
+            unselectedItemColor: AppColors.onSurfaceVariant,
+            onTap: (index) {
+              if (index == 5) {
+                _showLogoutConfirmation(context, authProvider);
+                return;
+              }
+              setState(() {
+                _currentTabIndex = index;
+              });
+            },
+            items: [
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.home_outlined),
+                activeIcon: Icon(Icons.home_rounded),
+                label: 'Home',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.explore_outlined),
+                activeIcon: Icon(Icons.explore_rounded),
+                label: 'Explore',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.map_outlined),
+                activeIcon: Icon(Icons.map_rounded),
+                label: 'MyTrip',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.school_outlined),
+                activeIcon: Icon(Icons.school_rounded),
+                label: 'PAM',
+              ),
+              BottomNavigationBarItem(
+                icon: _buildNavAvatar(user, isSelected: false, isNarrow: isNarrow),
+                activeIcon: _buildNavAvatar(user, isSelected: true, isNarrow: isNarrow),
+                label: 'Profil',
+              ),
+              const BottomNavigationBarItem(
+                icon: Icon(Icons.logout_rounded, color: AppColors.error),
+                activeIcon: Icon(Icons.logout_rounded, color: AppColors.error),
+                label: 'Logout',
+              ),
+            ],
+          );
         },
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.explore_outlined),
-            activeIcon: Icon(Icons.explore_rounded),
-            label: 'Explore',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined),
-            activeIcon: Icon(Icons.map_rounded),
-            label: 'MyTrip',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.school_outlined),
-            activeIcon: Icon(Icons.school_rounded),
-            label: 'PAM',
-          ),
-          BottomNavigationBarItem(
-            icon: _buildNavAvatar(user, isSelected: false),
-            activeIcon: _buildNavAvatar(user, isSelected: true),
-            label: 'Profil',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.logout_rounded, color: AppColors.error),
-            activeIcon: Icon(Icons.logout_rounded, color: AppColors.error),
-            label: 'Logout',
-          ),
-        ],
       ),
     );
   }

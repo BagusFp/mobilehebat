@@ -555,6 +555,9 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                             top: 12,
                             left: 12,
                             child: Container(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.sizeOf(context).width * 0.48,
+                              ),
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
                                 color: AppColors.surfaceContainerLowest.withAlpha(230),
@@ -569,11 +572,15 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                                     color: AppColors.primary,
                                   ),
                                   const SizedBox(width: 4),
-                                  Text(
-                                    '${dest.categoryName} Vulkanik',
-                                    style: AppTypography.labelSm.copyWith(
-                                      color: AppColors.primary,
-                                      fontWeight: FontWeight.w600,
+                                  Flexible(
+                                    child: Text(
+                                      '${dest.categoryName} Vulkanik',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: AppTypography.labelSm.copyWith(
+                                        color: AppColors.primary,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                 ],
@@ -762,7 +769,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
                         physics: const NeverScrollableScrollPhysics(),
                         crossAxisSpacing: AppDimensions.spaceSm,
                         mainAxisSpacing: AppDimensions.spaceSm,
-                        childAspectRatio: 1.25,
+                        childAspectRatio: MediaQuery.sizeOf(context).width < 360 ? 1.12 : 1.25,
                         children: [
                           // Card 1: Tiket Masuk
                           _buildInfoTile(
@@ -1281,7 +1288,7 @@ class _DestinationDetailScreenState extends State<DestinationDetailScreen> {
     bool isPrimaryHighlight = false,
   }) {
     return Container(
-      padding: const EdgeInsets.all(AppDimensions.spaceMd),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: AppDimensions.roundedXl,

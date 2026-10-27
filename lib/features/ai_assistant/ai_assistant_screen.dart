@@ -435,6 +435,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
         ),
         title: Text(
           'Jagawana MeraTrip AI Assistant',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: AppTypography.titleMd.copyWith(
             color: AppColors.onSurface,
             fontWeight: FontWeight.bold,

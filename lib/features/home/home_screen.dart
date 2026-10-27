@@ -51,6 +51,8 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'HALO, $userName 👋',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: AppTypography.labelMd.copyWith(
                         color: AppColors.primary,
                         fontWeight: FontWeight.bold,
@@ -506,9 +508,12 @@ class HomeScreen extends StatelessWidget {
                             );
                           },
                           icon: const Icon(Icons.add, size: 20),
-                          label: Text(
-                            'Buat Perencanaan Trip Baru',
-                            style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.bold),
+                          label: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Buat Perencanaan Trip Baru',
+                              style: AppTypography.labelLarge.copyWith(fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                       ),
@@ -668,6 +673,8 @@ class HomeScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   'Kawasan Wisata Kaliadem & Merapi View',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: AppTypography.headlineSm.copyWith(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,

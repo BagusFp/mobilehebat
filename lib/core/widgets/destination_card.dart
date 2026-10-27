@@ -94,6 +94,7 @@ class DestinationCard extends StatelessWidget {
                     top: 10,
                     left: 10,
                     child: Container(
+                      constraints: const BoxConstraints(maxWidth: 110),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.primary.withAlpha(220),
@@ -101,6 +102,8 @@ class DestinationCard extends StatelessWidget {
                       ),
                       child: Text(
                         category,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: AppTypography.labelSmall.copyWith(
                           color: Colors.white,
                           fontSize: 10,
@@ -234,6 +237,7 @@ class DestinationCard extends StatelessWidget {
                                   color: AppColors.primary,
                                   fontWeight: FontWeight.w700,
                                 ),
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],

@@ -47,6 +47,8 @@ class AppScaffold extends StatelessWidget {
                         fontWeight: FontWeight.w800,
                         color: AppColors.primary,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     )
                   : Row(
                       mainAxisSize: MainAxisSize.min,
