@@ -130,19 +130,11 @@ class _MyTripScreenState extends State<MyTripScreen> {
       return 'Belum dijadwalkan';
     }
 
-    final match = RegExp(r'\b(\d{1,2}):(\d{2})\b').firstMatch(plannedTime);
-    if (match == null) {
-      return 'Belum dijadwalkan';
+    final rawTime = plannedTime.trim();
+    final timeMatches = RegExp(r'\b(\d{1,2}):(\d{2})\b').allMatches(rawTime);
+    if (timeMatches.isEmpty) {
+      return rawTime;
     }
-
-    final hour = int.tryParse(match.group(1)!);
-    final minute = int.tryParse(match.group(2)!);
-    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-      return 'Belum dijadwalkan';
-    }
-
-    final baseHourStr = hour.toString().padLeft(2, '0');
-    final baseMinStr = minute.toString().padLeft(2, '0');
 
     int offset = 0;
     String tzCode = 'WIB';
@@ -163,15 +155,22 @@ class _MyTripScreenState extends State<MyTripScreen> {
       tzCode = 'SGT';
     }
 
-    if (tzCode == 'WIB') {
-      return '$baseHourStr:$baseMinStr WIB';
-    }
+    // Ubah setiap jam HH:mm dalam rentang waktu yang diinput di awal
+    final converted = rawTime.replaceAllMapped(RegExp(r'\b(\d{1,2}):(\d{2})\b'), (m) {
+      final hour = int.tryParse(m.group(1)!);
+      final minute = int.tryParse(m.group(2)!);
+      if (hour == null || minute == null) return m.group(0)!;
 
-    int adjustedHour = (hour + offset) % 24;
-    if (adjustedHour < 0) adjustedHour += 24;
-    final adjustedHourStr = adjustedHour.toString().padLeft(2, '0');
-    final adjustedMinStr = minute.toString().padLeft(2, '0');
-    return '$baseHourStr:$baseMinStr WIB ($adjustedHourStr:$adjustedMinStr $tzCode)';
+      int adjustedHour = (hour + offset) % 24;
+      if (adjustedHour < 0) adjustedHour += 24;
+      final adjustedHourStr = adjustedHour.toString().padLeft(2, '0');
+      final adjustedMinStr = minute.toString().padLeft(2, '0');
+      return '$adjustedHourStr:$adjustedMinStr';
+    });
+
+    // Bersihkan akhiran timezone lama jika ada
+    final cleaned = converted.replaceAll(RegExp(r'\s*(WIB|WITA|WIT|UTC|JST|SGT)\s*$', caseSensitive: false), '').trim();
+    return '$cleaned $tzCode';
   }
 
   @override
@@ -1394,8 +1393,7 @@ class _MyTripScreenState extends State<MyTripScreen> {
                                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                         ),
                                         onPressed: () {
-                                          tripProvider.selectTrip(t);
-                                          Navigator.pop(ctx);
+                                          tripProvider.selectTrip(t); setState(() { _applyDefaultPreferencesFromTrip(t); }); Navigator.pop(ctx);
                                         },
                                         child: const Text(
                                           'Pilih Aktif',
@@ -2188,21 +2186,26 @@ class _MyTripScreenState extends State<MyTripScreen> {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFFDCFCE7) : const Color(0xFFF0FDF4),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isSelected ? const Color(0xFF86EFAC) : const Color(0xFFDCFCE7),
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: isSelected ? const Color(0xFFDCFCE7) : const Color(0xFFF0FDF4),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: isSelected ? const Color(0xFF86EFAC) : const Color(0xFFDCFCE7),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        timeDisplay,
-                        style: TextStyle(
-                          color: isSelected ? const Color(0xFF045E44) : const Color(0xFF059669),
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            timeDisplay,
+                            style: TextStyle(
+                              color: isSelected ? const Color(0xFF045E44) : const Color(0xFF059669),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
                       ),
                     ),

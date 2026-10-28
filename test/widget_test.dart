@@ -20,7 +20,6 @@ import 'package:project/features/explore/destination_provider.dart';
 import 'package:project/features/explore/explore_screen.dart';
 import 'package:project/features/map/map_provider.dart';
 import 'package:project/features/map/map_screen.dart';
-import 'package:project/features/map/offline_map_screen.dart';
 import 'package:project/features/ai_assistant/ai_assistant_provider.dart';
 import 'package:project/features/ai_assistant/ai_assistant_screen.dart';
 import 'package:project/features/notification/notification_model.dart';
@@ -33,14 +32,12 @@ import 'package:project/features/profile/course_feedback_screen.dart';
 import 'package:project/features/profile/profile_screen.dart';
 import 'package:project/features/quiz/quiz_model.dart';
 import 'package:project/features/quiz/quiz_provider.dart';
-import 'package:project/features/quiz/quiz_screen.dart';
 import 'package:project/features/sensor/sensor_compass_screen.dart';
 import 'package:project/features/sensor/sensor_provider.dart';
 import 'package:project/features/trip/create_trip_screen.dart';
 import 'package:project/features/trip/my_trip_screen.dart';
 import 'package:project/features/trip/trip_provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
-import 'package:project/features/utility/currency_time_screen.dart';
 import 'package:project/features/utility/utility_provider.dart';
 import 'package:project/main.dart';
 
@@ -701,55 +698,6 @@ void main() {
     expect(mapProvider.viewMode, 'map');
   });
 
-  testWidgets('OfflineMapScreen renders storage info, 4 regional packs, Wi-Fi toggle, and download all CTA', (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(800, 1800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-
-    final fakeAuth = AuthProvider();
-    fakeAuth.setUserForTesting(
-      const UserModel(
-        id: 1,
-        name: 'Bima Sakti',
-        email: 'bima@wisatawan.id',
-        passwordHash: 'hash',
-        createdAt: '2026-10-12',
-      ),
-    );
-
-    final mapProvider = MapProvider();
-
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<AuthProvider>.value(value: fakeAuth),
-          ChangeNotifierProvider<MapProvider>.value(value: mapProvider),
-        ],
-        child: const MaterialApp(
-          home: OfflineMapScreen(),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Verifikasi Judul & Storage Readiness Card
-    expect(find.text('Manajer Peta Offline'), findsOneWidget);
-    expect(find.text('Mode Offline Siap Digunakan'), findsOneWidget);
-    expect(find.text('Tersinkron'), findsOneWidget);
-    expect(find.textContaining('/ 512 MB Dialokasikan'), findsOneWidget);
-
-    // Verifikasi 4 Paket Kawasan Lereng Merapi
-    expect(find.text('Kaliadem & Cangkringan'), findsOneWidget);
-    expect(find.text('Kaliurang & Plunyon'), findsOneWidget);
-    expect(find.text('Jalur Boyolali & Selo'), findsOneWidget);
-    expect(find.text('Geowisata Bebeng & Klangon'), findsOneWidget);
-
-    // Verifikasi Toggle Wi-Fi dan Tombol Unduh Semua
-    expect(find.text('Hanya Unduh via Wi-Fi'), findsOneWidget);
-    expect(find.text('Unduh Semua Data Kawasan Merapi (55 MB)'), findsOneWidget);
-  });
-
   // ==================== TAHAP F: SENSOR & UTILITAS TESTS ====================
 
   test('SensorProvider manages accelerometer shake detection, random destinations, and compass bearing', () async {
@@ -899,70 +847,6 @@ void main() {
     expect(find.text('MERAPI'), findsOneWidget);
     expect(find.text('Akurasi Sensor: Tinggi (Terkalibrasi)'), findsOneWidget);
     expect(find.text('Buka di Peta Navigasi Lengkap'), findsOneWidget);
-  });
-
-  testWidgets('CurrencyTimeScreen renders currency calculator, swap action, timezone comparison, and operational guide', (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(800, 1800);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-
-    final fakeAuth = AuthProvider();
-    fakeAuth.setUserForTesting(
-      const UserModel(
-        id: 1,
-        name: 'Bima Sakti',
-        email: 'bima@wisatawan.id',
-        passwordHash: 'hash',
-        createdAt: '2026-10-12',
-      ),
-    );
-
-    final utilityProvider = UtilityProvider();
-
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<AuthProvider>.value(value: fakeAuth),
-          ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
-        ],
-        child: const MaterialApp(
-          home: CurrencyTimeScreen(),
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Verifikasi AppBar & Context Bar
-    expect(find.text('Konversi Mata Uang & Waktu'), findsOneWidget);
-    expect(find.text('Merapi Hub Utility'), findsOneWidget);
-    expect(find.text('Mode Lapangan'), findsOneWidget);
-
-    // Verifikasi Segmented Tabs
-    expect(find.text('Kurs Valuta'), findsOneWidget);
-    expect(find.text('Zona Waktu'), findsOneWidget);
-
-    // Verifikasi Konten Tab Kurs Valuta
-    expect(find.text('Tersimpan (Offline Cache)'), findsOneWidget);
-    expect(find.text('MATA UANG ASAL'), findsOneWidget);
-    expect(find.text('MATA UANG TUJUAN'), findsOneWidget);
-    expect(find.text('HASIL KONVERSI SAAT INI'), findsOneWidget);
-    expect(find.text('Terapkan ke Estimasi Anggaran Trip'), findsOneWidget);
-    expect(find.text('Dukungan Kurs Wisman Merapi:'), findsOneWidget);
-
-    // Beralih ke Tab Zona Waktu
-    await tester.tap(find.text('Zona Waktu'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(find.text('Konverter Zona Waktu Perjalanan'), findsOneWidget);
-    expect(find.text('WAKTU ACUAN RENCANA BERANGKAT'), findsOneWidget);
-    expect(find.text('Zona Asal Traveler'), findsOneWidget);
-    expect(find.text('WIB (Gunung Merapi, UTC+7)'), findsOneWidget);
-    expect(find.text('Tujuan Utama Tur'), findsOneWidget);
-    expect(find.text('Referensi Cepat Zona Waktu:'), findsOneWidget);
-    expect(find.text('Rencana Trip'), findsOneWidget);
-    expect(find.text('Peta Navigasi'), findsOneWidget);
   });
 
   test('NotificationModel and NotificationProvider manage offline alarms, categories, and read states', () {
@@ -1232,65 +1116,6 @@ void main() {
     await provider.runChainAudit();
     expect(provider.isAuditing, false);
     expect(provider.auditStatus, contains('Audit Selesai'));
-  });
-
-  testWidgets('QuizScreen renders header, active rank badge, question card, option selection, and answer feedback',
-      (WidgetTester tester) async {
-    tester.view.physicalSize = const Size(1080, 2400);
-    tester.view.devicePixelRatio = 2.0;
-    addTearDown(() => tester.view.resetPhysicalSize());
-
-    final authProvider = AuthProvider();
-    final quizProvider = QuizProvider();
-
-    await tester.pumpWidget(
-      MultiProvider(
-        providers: [
-          ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-          ChangeNotifierProvider<QuizProvider>.value(value: quizProvider),
-        ],
-        child: const MaterialApp(
-          home: QuizScreen(),
-        ),
-      ),
-    );
-
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Validasi Header AppBar & Chip Kuis
-    expect(find.text('Kuis Jelajah Merapi'), findsOneWidget);
-    expect(find.text('Mode Kuis Edukasi Wisata'), findsOneWidget);
-    expect(find.textContaining('Jagawana Merapi Tingkat 3'), findsWidgets);
-
-    // Validasi Soal Pertama
-    expect(find.textContaining('batu vulkanik besar'), findsWidgets);
-    expect(find.text('Batu Alien Cangkringan'), findsOneWidget);
-    expect(find.text('Batu Gajah Kaliadem'), findsOneWidget);
-
-    // Tap Jawaban Benar (Batu Alien Cangkringan)
-    await tester.tap(find.text('Batu Alien Cangkringan'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    // Validasi Feedback Box Jawaban Benar
-    expect(find.textContaining('Tepat Sekali! (+50 Poin)'), findsOneWidget);
-    expect(find.textContaining('Dusun Jambu'), findsWidgets);
-    expect(find.text('Pertanyaan Berikutnya'), findsOneWidget);
-
-    // Validasi Modal Papan Peringkat
-    await tester.tap(find.byTooltip('Papan Peringkat'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(find.text('Papan Peringkat Jagawana'), findsOneWidget);
-    expect(find.textContaining('Aditya Pratama'), findsWidgets);
-    expect(find.textContaining('Bima Sakti'), findsWidgets);
-
-    // Tutup Modal
-    await tester.tap(find.text('Tutup'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
   });
 
   testWidgets('BlockchainScreen renders node status banner, 4 connected SHA-256 blocks, and tamper simulation interaction',

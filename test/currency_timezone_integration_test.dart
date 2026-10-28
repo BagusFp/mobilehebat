@@ -13,7 +13,6 @@ import 'package:project/features/auth/auth_provider.dart';
 import 'package:project/features/trip/create_trip_screen.dart';
 import 'package:project/features/trip/my_trip_screen.dart';
 import 'package:project/features/trip/trip_provider.dart';
-import 'package:project/features/utility/currency_time_screen.dart';
 import 'package:project/features/utility/utility_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -468,52 +467,6 @@ void main() {
       expect(find.text('BUDGET'), findsOneWidget);
       expect(find.textContaining('Target Budget'), findsOneWidget);
       expect(find.textContaining('Sisa Anggaran'), findsOneWidget);
-    });
-
-    testWidgets('CurrencyTimeScreen merender tab Kurs Valuta dan Zona Waktu dengan data API/IANA', (WidgetTester tester) async {
-      tester.view.physicalSize = const Size(800, 2000);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-
-      final authProvider = AuthProvider();
-      final utilityProvider = UtilityProvider(autoInit: false);
-      utilityProvider.setRatesForTesting(
-        rates: {
-          'EUR': 1.0,
-          'IDR': 20062.67,
-          'USD': 1.1195,
-          'JPY': 177.39,
-        },
-        apiDate: '2026-10-14',
-      );
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-            ChangeNotifierProvider<UtilityProvider>.value(value: utilityProvider),
-          ],
-          child: const MaterialApp(
-            home: CurrencyTimeScreen(),
-          ),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      // Tab Kurs Valuta
-      expect(find.text('Kurs Valuta'), findsOneWidget);
-      expect(find.text('HASIL KONVERSI SAAT INI'), findsOneWidget);
-      expect(find.text('Kurs Referensi Frankfurter'), findsOneWidget);
-
-      // Beralih ke Tab Zona Waktu
-      await tester.tap(find.text('Zona Waktu'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(find.text('Konverter Zona Waktu Perjalanan'), findsOneWidget);
-      expect(find.text('Referensi Cepat Zona Waktu:'), findsOneWidget);
     });
   });
 

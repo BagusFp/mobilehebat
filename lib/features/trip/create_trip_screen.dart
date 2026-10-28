@@ -211,7 +211,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
       final origin = widget.existingTrip!.originTimezone!;
       const availableTimezones = [
         'WIB (GMT+7) – Lokal Merapi',
-        'London / GMT (-7 Jam)',
         'WITA (GMT+8) – Bali/Makassar',
         'WIT (GMT+9) – Maluku/Papua',
         'UTC (GMT+0) – Internasional',
@@ -223,7 +222,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
           if (tz == origin) return true;
           if (tz.startsWith('WITA') && origin.contains('WITA')) return true;
           if (tz.startsWith('WIT ') && origin.contains('WIT') && !origin.contains('WITA')) return true;
-          if (tz.startsWith('London') && (origin.contains('London') || origin.contains('-7 Jam'))) return true;
           final code = tz.substring(0, 3);
           return origin.contains(code);
         },
@@ -1541,42 +1539,36 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  'Destinasi Terpilih',
-                                  style: AppTypography.titleMd.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.onSurface,
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'Destinasi Terpilih',
+                              style: AppTypography.titleMd.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.onSurface,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                borderRadius: AppDimensions.roundedFull,
+                              ),
+                              child: Text(
+                                '${items.length}',
+                                style: AppTypography.labelSm.copyWith(
+                                  color: AppColors.onPrimary,
+                                  fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryContainer,
-                                  borderRadius: AppDimensions.roundedFull,
-                                ),
-                                child: Text(
-                                  '${items.length} Destinasi',
-                                  style: AppTypography.labelSm.copyWith(
-                                    color: AppColors.onPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
                         Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1587,7 +1579,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                             ),
                             const SizedBox(width: 4),
                             Text(
-                              'Geser untuk urutan',
+                              'Geser urutan',
                               style: AppTypography.labelSm.copyWith(
                                 color: AppColors.onSurfaceVariant,
                               ),
@@ -2644,7 +2636,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
     TripProvider provider,
   ) {
     return Container(
-      padding: const EdgeInsets.all(AppDimensions.spaceMd),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       decoration: BoxDecoration(
         color: AppColors.surfaceContainerLowest,
         borderRadius: AppDimensions.roundedXl,
@@ -2660,18 +2652,18 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
               ReorderableDragStartListener(
                 index: index,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
                   child: const Icon(
                     Icons.drag_indicator,
-                    size: 20,
+                    size: 18,
                     color: Color(0xFF64748B),
                   ),
                 ),
               ),
               const SizedBox(height: 2),
               Container(
-                width: 24,
-                height: 24,
+                width: 22,
+                height: 22,
                 decoration: const BoxDecoration(
                   color: AppColors.primaryContainer,
                   shape: BoxShape.circle,
@@ -2682,12 +2674,13 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     style: AppTypography.labelSm.copyWith(
                       color: AppColors.onPrimary,
                       fontWeight: FontWeight.bold,
+                      fontSize: 11,
                     ),
                   ),
                 ),
               ),
               if (totalItems > 1) ...[
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
                 if (index > 0)
                   InkWell(
                     onTap: () {
@@ -2696,7 +2689,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     borderRadius: BorderRadius.circular(4),
                     child: const Padding(
                       padding: EdgeInsets.all(1.0),
-                      child: Icon(Icons.arrow_drop_up, size: 20, color: Color(0xFF045E44)),
+                      child: Icon(Icons.arrow_drop_up, size: 18, color: Color(0xFF045E44)),
                     ),
                   ),
                 if (index < totalItems - 1)
@@ -2707,20 +2700,20 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                     borderRadius: BorderRadius.circular(4),
                     child: const Padding(
                       padding: EdgeInsets.all(1.0),
-                      child: Icon(Icons.arrow_drop_down, size: 20, color: Color(0xFF045E44)),
+                      child: Icon(Icons.arrow_drop_down, size: 18, color: Color(0xFF045E44)),
                     ),
                   ),
               ],
             ],
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
 
           // Thumbnail with Image
           ClipRRect(
             borderRadius: AppDimensions.roundedMd,
             child: Container(
-              width: 72,
-              height: 72,
+              width: 64,
+              height: 64,
               color: AppColors.primaryContainer,
               child: item.imageUrl != null && item.imageUrl!.startsWith('http')
                   ? Image.network(
@@ -2734,7 +2727,7 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   : const Icon(Icons.landscape, color: AppColors.onPrimary),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
           // Content
           Expanded(
@@ -2776,53 +2769,57 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
 
-                // Jam Kunjungan yang Jelas & Redesigned
+                // Jam Kunjungan yang Jelas & Redesigned (FittedBox prevents any overflow)
                 InkWell(
                   onTap: () => _showEditTimeDialog(context, index, item, provider),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     margin: const EdgeInsets.only(top: 6, bottom: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF0FDF4),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFFA7F3D0)),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.access_time_filled,
-                          size: 14,
-                          color: Color(0xFF045E44),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          item.plannedTime,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.access_time_filled,
+                            size: 13,
                             color: Color(0xFF045E44),
                           ),
-                        ),
-                        const SizedBox(width: 6),
-                        Container(width: 1, height: 12, color: const Color(0xFF6EE7B7)),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${item.durationHours} Jam',
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF065F46),
+                          const SizedBox(width: 4),
+                          Text(
+                            item.plannedTime,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF045E44),
+                            ),
                           ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.edit_note_rounded,
-                          size: 15,
-                          color: Color(0xFF059669),
-                        ),
-                      ],
+                          const SizedBox(width: 5),
+                          Container(width: 1, height: 11, color: const Color(0xFF6EE7B7)),
+                          const SizedBox(width: 5),
+                          Text(
+                            '${item.durationHours} Jam',
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF065F46),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.edit_note_rounded,
+                            size: 14,
+                            color: Color(0xFF059669),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -3285,7 +3282,6 @@ class _CreateTripScreenState extends State<CreateTripScreen> {
                       value: _selectedTimezoneDisplay,
                       items: const [
                         DropdownMenuItem(value: 'WIB (GMT+7) – Lokal Merapi', child: Text('WIB (GMT+7) – Lokal Merapi', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
-                        DropdownMenuItem(value: 'London / GMT (-7 Jam)', child: Text('London / GMT (-7 Jam)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                         DropdownMenuItem(value: 'WITA (GMT+8) – Bali/Makassar', child: Text('WITA (GMT+8) – Bali/Makassar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                         DropdownMenuItem(value: 'WIT (GMT+9) – Maluku/Papua', child: Text('WIT (GMT+9) – Maluku/Papua', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),
                         DropdownMenuItem(value: 'UTC (GMT+0) – Internasional', child: Text('UTC (GMT+0) – Internasional', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold))),

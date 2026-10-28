@@ -139,6 +139,13 @@ class TripRepository {
               : remote.totalActualCost,
           currentStep: cached.currentStep > 1 ? cached.currentStep : remote.currentStep,
           targetBudget: cached.targetBudget > 0 ? cached.targetBudget : remote.targetBudget,
+          targetBudgetOriginal: cached.targetBudgetOriginal ?? remote.targetBudgetOriginal,
+          originTimezone: (cached.originTimezone != null && cached.originTimezone!.isNotEmpty)
+              ? cached.originTimezone
+              : remote.originTimezone,
+          currencySource: (cached.currencySource != null && cached.currencySource!.isNotEmpty)
+              ? cached.currencySource
+              : remote.currencySource,
           updatedAt: cached.updatedAt ?? remote.updatedAt,
           items: itemsToKeep,
         );
