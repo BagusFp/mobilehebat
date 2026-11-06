@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:image/image.dart' as img;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../data/mock/mock_destinations.dart';
 import '../../data/models/destination_model.dart';
@@ -69,9 +71,9 @@ Future<String> chatWithGemini(
 class GeminiService {
   // Kunci API resmi bawaan aplikasi (built-in) - User tinggal pakai tanpa perlu input API
   static final String defaultApiKey = utf8.decode(
-    base64.decode('QVEuQWI4Uk42SXk3ZGx2RWVOMlltbjNXUnJMRVVKTG50SjA1QlpnWVJDclVLQTZjb25DcUE='),
+    base64.decode('QVEuQWI4Uk42SUZFelVuNURqeW5fTkpVWmZ6MFpmc2oycG1RekVoZ2REX0hObk10U2t1NVE='),
   );
-  static const String defaultModel = 'gemini-3.7-flash';
+  static const String defaultModel = 'gemini-3.5-flash-lite';
   static const String _prefApiKey = 'custom_gemini_api_key';
 
   static final GeminiService _instance = GeminiService._internal();
@@ -96,22 +98,17 @@ class GeminiService {
 
   /// Daftar model kandidat resmi berkecepatan tinggi yang kompatibel dengan API key
   List<String> get candidateModels => [
-        'gemini-3.7-flash',
-        'gemini-3.8-flash',
-        'gemini-flash-latest',
         'gemini-3.5-flash-lite',
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-flash-latest',
       ];
 
   /// Menginisialisasi service dan membaca API key bawaan
   Future<String> init({String? customApiKey, String? modelName}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final savedKey = prefs.getString(_prefApiKey);
-
       if (customApiKey != null && customApiKey.trim().isNotEmpty) {
         _activeApiKey = sanitizeApiKey(customApiKey);
-      } else if (savedKey != null && savedKey.trim().isNotEmpty && savedKey.startsWith('AQ.')) {
-        _activeApiKey = sanitizeApiKey(savedKey);
       } else {
         _activeApiKey = sanitizeApiKey(defaultApiKey);
       }
@@ -309,6 +306,142 @@ class GeminiService {
       _history.removeLast();
     }
 
+    return null;
+  }
+
+  /// Analisis visual gambar resolusi penuh layaknya Google Lens via Google Gemini Vision API
+  Future<Map<String, dynamic>?> analyzeImageWithVision(String imagePath) async {
+    _lastError = null;
+    final file = File(imagePath);
+    if (!await file.exists()) return null;
+
+    if (_activeApiKey.isEmpty) {
+      await init();
+    }
+
+    final key = sanitizeApiKey(
+      _activeApiKey.isNotEmpty ? _activeApiKey : defaultApiKey,
+    );
+
+    // Baca dan resize foto jika terlalu besar agar transfer cepat & hemat kuota
+    List<int> bytes;
+    try {
+      final rawBytes = await file.readAsBytes();
+      if (rawBytes.length > 700 * 1024) {
+        final decoded = img.decodeImage(rawBytes);
+        if (decoded != null) {
+          final resized = img.copyResize(decoded, width: 720);
+          bytes = img.encodeJpg(resized, quality: 80);
+        } else {
+          bytes = rawBytes;
+        }
+      } else {
+        bytes = rawBytes;
+      }
+    } catch (_) {
+      bytes = await file.readAsBytes();
+    }
+
+    final base64Image = base64Encode(bytes);
+
+    const prompt = '''
+Kamu adalah AI Visual Intelligence layaknya Google Lens untuk aplikasi jelajah alam dan deteksi objek.
+Analisis foto ini dan kenali objek UTAMA secara akurat.
+
+PANDUAN KLASIFIKASI OBJEK:
+1. JIKA FOTO MENAMPILKAN MANUSIA / ORANG / WAJAH / DOSEN / MAHASISWA / WISATAWAN:
+   - "category": "person"
+   - "label": "Manusia / Pengunjung" (atau "Sosok Manusia", "Orang")
+   - "englishLabel": "Human / Visitor"
+   - "educationalDetail": "Terdeteksi sosok manusia atau pengunjung di depan fokus kamera."
+2. JIKA FOTO MENAMPILKAN BENDA BUATAN / FURNITURE / PERABOT (misalnya Kursi, Meja, Kursi Kayu, Laptop, dll.):
+   - "category": "object" (atau "wood" jika dominan bertekstur kayu)
+   - "label": nama spesifik benda (contoh: "Kursi Kayu", "Kursi", "Meja", "Laptop")
+   - "englishLabel": nama benda dalam Bahasa Inggris (contoh: "Wooden Chair", "Chair", "Desk")
+   - "educationalDetail": penjelasan ringkas mengenai objek benda dan fungsinya.
+3. JIKA FOTO MENAMPILKAN GUNUNG / BENTANG ALAM / BUKIT (baik Gunung Merapi, Gunung Bromo, Semeru, Fuji, atau gunung acak dari Google):
+   - "category": "mountain"
+   - "label": sebutkan nama gunung secara spesifik jika dikenali, atau "Puncak Gunung / Bentang Vulkanik"
+   - "englishLabel": "Mount ... / Mountain Peak"
+   - "educationalDetail": informasi geologis, elevasi, atau keunikan bentang alam tersebut.
+4. JIKA FOTO MENAMPILKAN POHON / VEGETASI / TANAMAN:
+   - "category": "vegetation"
+   - "label": nama tanaman/pohon
+   - "englishLabel": nama dalam Bahasa Inggris
+   - "educationalDetail": edukasi ekosistem flora.
+5. JIKA FOTO MENAMPILKAN AIR TERJUN / SUNGAI / DANAU:
+   - "category": "waterfall" atau "water"
+6. JIKA FOTO MENAMPILKAN BEBATUAN / TEBING:
+   - "category": "rock"
+7. JIKA FOTO MENAMPILKAN BANGUNAN / FASILITAS WISATA / CANDI:
+   - "category": "building"
+
+KEMBALIKAN HANYA FORMAT JSON VALID (tanpa tanda kutip backtick ```json):
+{
+  "label": "Nama spesifik objek dalam Bahasa Indonesia",
+  "englishLabel": "English label",
+  "category": "mountain|person|object|vegetation|wood|rock|water|waterfall|soil|building",
+  "educationalDetail": "Penjelasan ringkas dan edukatif 2-3 kalimat",
+  "confidence": 0.96
+}
+''';
+
+    for (final model in candidateModels) {
+      try {
+        final url = Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=$key',
+        );
+
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'contents': [
+              {
+                'parts': [
+                  {'text': prompt},
+                  {
+                    'inline_data': {
+                      'mime_type': 'image/jpeg',
+                      'data': base64Image,
+                    }
+                  }
+                ]
+              }
+            ],
+            'generationConfig': {
+              'temperature': 0.1,
+              'maxOutputTokens': 400,
+            }
+          }),
+        ).timeout(const Duration(seconds: 14));
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          final candidates = data['candidates'] as List?;
+          if (candidates != null && candidates.isNotEmpty) {
+            final parts = candidates[0]['content']?['parts'] as List?;
+            if (parts != null && parts.isNotEmpty) {
+              final rawText = (parts[0]['text'] ?? '').toString();
+              final clean = rawText
+                  .replaceAll('```json', '')
+                  .replaceAll('```', '')
+                  .trim();
+              final startIdx = clean.indexOf('{');
+              final endIdx = clean.lastIndexOf('}');
+              if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
+                final jsonSubstring = clean.substring(startIdx, endIdx + 1);
+                final map = jsonDecode(jsonSubstring) as Map<String, dynamic>;
+                map['_model'] = model;
+                return map;
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Gemini Vision error dengan model $model: $e');
+      }
+    }
     return null;
   }
 

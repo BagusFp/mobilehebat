@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-/// Kategori objek alam resmi yang didukung AI Nature Scanner MeraTrip.
-/// Sesuai dengan bentang alam kawasan Gunung Merapi.
+/// Kategori objek alam & visual resmi yang didukung AI Nature Scanner MeraTrip.
+/// Mendukung bentang alam pegunungan, objek umum (seperti kursi/meja), hingga deteksi manusia (dosen/pengunjung).
 enum NatureCategory {
   mountain, // Gunung / Puncak Vulkanik
   water, // Air / Sungai / Danau
@@ -11,6 +11,8 @@ enum NatureCategory {
   rock, // Batu / Bebatuan Andesit
   soil, // Tanah / Pasir Vulkanik
   building, // Bangunan / Fasilitas Wisata
+  person, // Manusia / Wisatawan / Dosen / Wajah
+  object, // Objek Umum / Perabot / Kursi / Meja
   unknown,
 }
 
@@ -56,6 +58,10 @@ class DetectedNatureObject {
         return const Color(0xFF92400E); // Cokelat Tanah Vulkanik
       case NatureCategory.building:
         return const Color(0xFF475569); // Slate Struktur
+      case NatureCategory.person:
+        return const Color(0xFF8B5CF6); // Ungu / Violet (Manusia / Pengunjung)
+      case NatureCategory.object:
+        return const Color(0xFFD97706); // Amber Hangat (Perabot / Kursi / Meja)
       case NatureCategory.unknown:
         return const Color(0xFF94A3B8);
     }
@@ -80,6 +86,10 @@ class DetectedNatureObject {
         return Icons.grain_rounded;
       case NatureCategory.building:
         return Icons.cottage_rounded;
+      case NatureCategory.person:
+        return Icons.person_pin_rounded;
+      case NatureCategory.object:
+        return Icons.chair_rounded;
       case NatureCategory.unknown:
         return Icons.help_outline_rounded;
     }
@@ -110,12 +120,14 @@ class NatureScanResult {
   final String? imagePath;
   final DateTime scanTime;
   final int inferenceTimeMs;
+  final String engineName;
 
   const NatureScanResult({
     required this.objects,
     this.imagePath,
     required this.scanTime,
     required this.inferenceTimeMs,
+    this.engineName = 'On-Device',
   });
 
   bool get hasDetections => objects.isNotEmpty;

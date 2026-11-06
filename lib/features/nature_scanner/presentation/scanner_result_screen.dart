@@ -69,16 +69,29 @@ class ScannerResultScreen extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryContainer.withAlpha(40),
+                      color: result.engineName.contains('Google')
+                          ? const Color(0xFFE0E7FF)
+                          : AppColors.primaryContainer.withAlpha(40),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      '${result.inferenceTimeMs} ms • On-Device',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (result.engineName.contains('Google')) ...[
+                          const Icon(Icons.auto_awesome, size: 12, color: Color(0xFF4338CA)),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          '${result.inferenceTimeMs} ms • ${result.engineName}',
+                          style: TextStyle(
+                            color: result.engineName.contains('Google')
+                                ? const Color(0xFF4338CA)
+                                : AppColors.primary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

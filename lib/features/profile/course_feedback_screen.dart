@@ -7,6 +7,29 @@ import '../../core/constants/app_typography.dart';
 import '../../core/database/database_helper.dart';
 import '../auth/auth_provider.dart';
 
+/// Model internal untuk item masukan evaluasi mata kuliah
+class _FeedbackItem {
+  final int id;
+  final int userId;
+  final String name;
+  final String nim;
+  final String kesan;
+  final String saran;
+  final int rating;
+  final String submittedAt;
+
+  const _FeedbackItem({
+    required this.id,
+    required this.userId,
+    required this.name,
+    required this.nim,
+    required this.kesan,
+    required this.saran,
+    required this.rating,
+    required this.submittedAt,
+  });
+}
+
 class CourseFeedbackScreen extends StatefulWidget {
   final bool isTab;
   const CourseFeedbackScreen({super.key, this.isTab = false});
@@ -16,90 +39,41 @@ class CourseFeedbackScreen extends StatefulWidget {
 }
 
 class _CourseFeedbackScreenState extends State<CourseFeedbackScreen> {
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _nimController = TextEditingController();
-  final TextEditingController _kesanController = TextEditingController();
-  final TextEditingController _saranController = TextEditingController();
-
-  // Snapshot controller untuk membatalkan perubahan saat mode edit dibatalkan
-  String _backupName = '';
-  String _backupNim = '';
-  String _backupKesan = '';
-  String _backupSaran = '';
-
+  List<_FeedbackItem> _feedbackList = [];
   bool _isLoading = true;
-  bool _isSubmitting = false;
-  bool _hasSavedData = false;
-  bool _isEditing = false;
-  String? _savedAt;
-  int? _savedDbId;
 
   @override
   void initState() {
     super.initState();
-    _loadSavedFeedback();
+    _loadAllFeedbacks();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _nimController.dispose();
-    _kesanController.dispose();
-    _saranController.dispose();
-    super.dispose();
-  }
-
-  /// Memuat evaluasi yang pernah disimpan dari SharedPreferences dan/atau SQLite
-  Future<void> _loadSavedFeedback() async {
+  /// Memuat semua daftar evaluasi dari tabel SQLite `course_feedback`
+  Future<void> _loadAllFeedbacks() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final hasSaved = prefs.getBool('pam_eval_saved') ?? false;
+      final db = await DatabaseHelper.instance.database;
 
-      if (hasSaved) {
-        final name = prefs.getString('pam_eval_name') ?? '';
-        final nim = prefs.getString('pam_eval_nim') ?? '';
-        final kesan = prefs.getString('pam_eval_kesan') ?? '';
-        final saran = prefs.getString('pam_eval_saran') ?? '';
-        final time = prefs.getString('pam_eval_time');
-        final dbId = prefs.getInt('pam_eval_db_id');
+      // Migrasi data SharedPreferences lama jika database SQLite masih kosong
+      final countResult = await db.rawQuery('SELECT COUNT(*) as cnt FROM course_feedback');
+      final currentCount = (countResult.first['cnt'] as int?) ?? 0;
 
-        _nameController.text = name;
-        _nimController.text = nim;
-        _kesanController.text = kesan;
-        _saranController.text = saran;
-
-        _backupName = name;
-        _backupNim = nim;
-        _backupKesan = kesan;
-        _backupSaran = saran;
-
-        _savedAt = time;
-        _savedDbId = dbId;
-
-        if (mounted) {
-          setState(() {
-            _hasSavedData = true;
-            _isEditing = false;
-            _isLoading = false;
-          });
-        }
-        return;
+      if (currentCount == 0) {
+        await _migrateLegacyPreferences(db);
       }
 
-      // Fallback: periksa tabel course_feedback di SQLite
-      final db = await DatabaseHelper.instance.database;
       final rows = await db.query(
         'course_feedback',
         orderBy: 'id DESC',
-        limit: 1,
       );
 
-      if (rows.isNotEmpty) {
-        final row = rows.first;
+      final List<_FeedbackItem> items = [];
+      for (final row in rows) {
+        final id = row['id'] as int? ?? 0;
+        final userId = row['user_id'] as int? ?? 0;
         final rawStudentName = row['student_name'] as String? ?? '';
         final rawMessage = row['message'] as String? ?? '';
+        final rating = row['rating'] as int? ?? 5;
         final submittedAt = row['submitted_at'] as String? ?? '';
-        final dbId = row['id'] as int?;
 
         String name = rawStudentName;
         String nim = '';
@@ -119,192 +93,410 @@ class _CourseFeedbackScreenState extends State<CourseFeedbackScreen> {
           kesan = rawMessage;
         }
 
-        _nameController.text = name;
-        _nimController.text = nim;
-        _kesanController.text = kesan;
-        _saranController.text = saran;
-
-        _backupName = name;
-        _backupNim = nim;
-        _backupKesan = kesan;
-        _backupSaran = saran;
-
-        _savedAt = submittedAt;
-        _savedDbId = dbId;
-
-        // Sinkronisasi ke SharedPreferences untuk akses instan & aman saat logout
-        await prefs.setBool('pam_eval_saved', true);
-        await prefs.setString('pam_eval_name', name);
-        await prefs.setString('pam_eval_nim', nim);
-        await prefs.setString('pam_eval_kesan', kesan);
-        await prefs.setString('pam_eval_saran', saran);
-        await prefs.setString('pam_eval_time', submittedAt);
-        if (dbId != null) {
-          await prefs.setInt('pam_eval_db_id', dbId);
-        }
-
-        if (mounted) {
-          setState(() {
-            _hasSavedData = true;
-            _isEditing = false;
-            _isLoading = false;
-          });
-        }
-        return;
-      }
-    } catch (e) {
-      debugPrint('Error loading saved feedback: $e');
-    }
-
-    // Default jika belum pernah mengisi: gunakan nama pengguna jika login
-    if (mounted) {
-      final auth = context.read<AuthProvider>();
-      if (auth.currentUser?.name.isNotEmpty == true && _nameController.text.isEmpty) {
-        _nameController.text = auth.currentUser!.name;
+        items.add(_FeedbackItem(
+          id: id,
+          userId: userId,
+          name: name,
+          nim: nim,
+          kesan: kesan,
+          saran: saran,
+          rating: rating,
+          submittedAt: submittedAt,
+        ));
       }
 
-      setState(() {
-        _hasSavedData = false;
-        _isEditing = true;
-        _isLoading = false;
-      });
-    }
-  }
-
-  /// Menyimpan atau memperbarui data evaluasi ke SQLite & SharedPreferences
-  Future<void> _submitFeedback() async {
-    final name = _nameController.text.trim();
-    final nim = _nimController.text.trim();
-    final kesan = _kesanController.text.trim();
-    final saran = _saranController.text.trim();
-
-    if (name.isEmpty || nim.isEmpty || kesan.isEmpty || saran.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harap lengkapi seluruh isian: Nama, NIM, Kesan, dan Saran.'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-      return;
-    }
-
-    setState(() => _isSubmitting = true);
-
-    final nowIso = DateTime.now().toIso8601String();
-    final auth = context.read<AuthProvider>();
-    final userId = auth.currentUser?.id ?? 0;
-    final studentNameFull = '$name ($nim)';
-    final messageFull = 'Kesan:\n$kesan\n\nSaran:\n$saran';
-
-    // 1. Simpan ke SQLite
-    try {
-      final db = await DatabaseHelper.instance.database;
-      if (_savedDbId != null) {
-        await db.update(
-          'course_feedback',
-          {
-            'user_id': userId,
-            'student_name': studentNameFull,
-            'rating': 5,
-            'message': messageFull,
-            'submitted_at': nowIso,
-          },
-          where: 'id = ?',
-          whereArgs: [_savedDbId],
-        );
-      } else {
-        _savedDbId = await db.insert('course_feedback', {
-          'user_id': userId,
-          'student_name': studentNameFull,
-          'rating': 5,
-          'message': messageFull,
-          'submitted_at': nowIso,
+      if (mounted) {
+        setState(() {
+          _feedbackList = items;
+          _isLoading = false;
         });
       }
     } catch (e) {
-      debugPrint('Error writing to SQLite: $e');
+      debugPrint('Error loading course feedbacks: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
 
-    // 2. Simpan ke SharedPreferences (Bertahan meskipun logout / ganti akun)
+  /// Migrasi data evaluasi lama yang tersimpan di SharedPreferences ke SQLite agar tidak hilang
+  Future<void> _migrateLegacyPreferences(dynamic db) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('pam_eval_saved', true);
-      await prefs.setString('pam_eval_name', name);
-      await prefs.setString('pam_eval_nim', nim);
-      await prefs.setString('pam_eval_kesan', kesan);
-      await prefs.setString('pam_eval_saran', saran);
-      await prefs.setString('pam_eval_time', nowIso);
-      if (_savedDbId != null) {
-        await prefs.setInt('pam_eval_db_id', _savedDbId!);
+      final nowIso = DateTime.now().toIso8601String();
+
+      // Cek mahasiswa 1
+      final name1 = prefs.getString('pam_eval_name_1') ?? prefs.getString('pam_eval_name') ?? '';
+      final nim1 = prefs.getString('pam_eval_nim_1') ?? prefs.getString('pam_eval_nim') ?? '';
+      final kesan1 = prefs.getString('pam_eval_kesan_1') ?? prefs.getString('pam_eval_kesan') ?? '';
+      final saran1 = prefs.getString('pam_eval_saran_1') ?? prefs.getString('pam_eval_saran') ?? '';
+      final time1 = prefs.getString('pam_eval_time_1') ?? prefs.getString('pam_eval_time') ?? nowIso;
+
+      if (name1.isNotEmpty && kesan1.isNotEmpty) {
+        await db.insert('course_feedback', {
+          'user_id': 1,
+          'student_name': nim1.isNotEmpty ? '$name1 ($nim1)' : name1,
+          'rating': 5,
+          'message': 'Kesan:\n$kesan1\n\nSaran:\n$saran1',
+          'submitted_at': time1,
+        });
       }
-    } catch (e) {
-      debugPrint('Error writing to SharedPreferences: $e');
+
+      // Cek mahasiswa 2
+      final name2 = prefs.getString('pam_eval_name_2') ?? '';
+      final nim2 = prefs.getString('pam_eval_nim_2') ?? '';
+      final kesan2 = prefs.getString('pam_eval_kesan_2') ?? '';
+      final saran2 = prefs.getString('pam_eval_saran_2') ?? '';
+      final time2 = prefs.getString('pam_eval_time_2') ?? nowIso;
+
+      if (name2.isNotEmpty && kesan2.isNotEmpty) {
+        await db.insert('course_feedback', {
+          'user_id': 1,
+          'student_name': nim2.isNotEmpty ? '$name2 ($nim2)' : name2,
+          'rating': 5,
+          'message': 'Kesan:\n$kesan2\n\nSaran:\n$saran2',
+          'submitted_at': time2,
+        });
+      }
+    } catch (_) {}
+  }
+
+  /// Menampilkan form modal (Tambah atau Edit Kesan Pesan)
+  void _showFeedbackFormModal({_FeedbackItem? existingItem}) {
+    final isEdit = existingItem != null;
+
+    final nameController = TextEditingController(text: isEdit ? existingItem.name : '');
+    final nimController = TextEditingController(text: isEdit ? existingItem.nim : '');
+    final kesanController = TextEditingController(text: isEdit ? existingItem.kesan : '');
+    final saranController = TextEditingController(text: isEdit ? existingItem.saran : '');
+
+    // Jika form tambah baru dan pengguna sedang login, isi default nama
+    if (!isEdit && nameController.text.isEmpty) {
+      final auth = context.read<AuthProvider>();
+      if (auth.currentUser?.name.isNotEmpty == true) {
+        nameController.text = auth.currentUser!.name;
+      }
     }
 
-    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomCtx) {
+        bool isSubmitting = false;
+        final messenger = ScaffoldMessenger.of(context);
+        final navigator = Navigator.of(bottomCtx);
 
-    // Perbarui state lokal & backup
-    _backupName = name;
-    _backupNim = nim;
-    _backupKesan = kesan;
-    _backupSaran = saran;
+        return StatefulBuilder(
+          builder: (modalCtx, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                left: AppDimensions.margin,
+                right: AppDimensions.margin,
+                top: 20,
+                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(AppDimensions.radiusXl)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Handle Bar
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.outlineVariant,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
 
-    setState(() {
-      _isSubmitting = false;
-      _hasSavedData = true;
-      _isEditing = false;
-      _savedAt = nowIso;
-    });
+                    // Header Modal
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          isEdit ? 'Edit Kesan & Pesan' : 'Tambah Kesan & Pesan',
+                          style: AppTypography.titleMd.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.onSurface,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded, color: AppColors.onSurfaceVariant),
+                          onPressed: () => Navigator.pop(bottomCtx),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 18),
+
+                    // Input Nama
+                    Text(
+                      'Nama Mahasiswa',
+                      style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: nameController,
+                      decoration: InputDecoration(
+                        hintText: 'Nama lengkap mahasiswa...',
+                        filled: true,
+                        fillColor: AppColors.surfaceContainerLow,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                        prefixIcon: const Icon(Icons.person_outline, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Input NIM
+                    Text(
+                      'NIM (Nomor Induk Mahasiswa)',
+                      style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: nimController,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        hintText: 'Contoh: 124240xxx',
+                        filled: true,
+                        fillColor: AppColors.surfaceContainerLow,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                        prefixIcon: const Icon(Icons.badge_outlined, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Input Kesan
+                    Text(
+                      'Kesan Perkuliahan',
+                      style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: kesanController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Tuliskan kesan Anda selama mengikuti perkuliahan PAM...',
+                        filled: true,
+                        fillColor: AppColors.surfaceContainerLow,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Input Saran
+                    Text(
+                      'Saran Perkuliahan',
+                      style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: saranController,
+                      maxLines: 3,
+                      decoration: InputDecoration(
+                        hintText: 'Tuliskan saran dan masukan untuk materi / dosen perkuliahan...',
+                        filled: true,
+                        fillColor: AppColors.surfaceContainerLow,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+
+                    // Tombol Submit
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                final name = nameController.text.trim();
+                                final nim = nimController.text.trim();
+                                final kesan = kesanController.text.trim();
+                                final saran = saranController.text.trim();
+
+                                if (name.isEmpty || nim.isEmpty || kesan.isEmpty || saran.isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Harap lengkapi semua isian: Nama, NIM, Kesan, dan Saran.'),
+                                      backgroundColor: AppColors.error,
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                setModalState(() => isSubmitting = true);
+
+                                final nowIso = DateTime.now().toIso8601String();
+                                final studentNameFull = '$name ($nim)';
+                                final messageFull = 'Kesan:\n$kesan\n\nSaran:\n$saran';
+                                final auth = context.read<AuthProvider>();
+                                final userId = auth.currentUser?.id ?? 1;
+
+                                try {
+                                  final db = await DatabaseHelper.instance.database;
+                                  if (isEdit) {
+                                    await db.update(
+                                      'course_feedback',
+                                      {
+                                        'student_name': studentNameFull,
+                                        'message': messageFull,
+                                        'submitted_at': nowIso,
+                                      },
+                                      where: 'id = ?',
+                                      whereArgs: [existingItem.id],
+                                    );
+                                  } else {
+                                    await db.insert('course_feedback', {
+                                      'user_id': userId,
+                                      'student_name': studentNameFull,
+                                      'rating': 5,
+                                      'message': messageFull,
+                                      'submitted_at': nowIso,
+                                    });
+                                  }
+
+                                  navigator.pop();
+                                  await _loadAllFeedbacks();
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          isEdit
+                                              ? 'Evaluasi atas nama $name berhasil diperbarui!'
+                                              : 'Kesan & pesan $name berhasil ditambahkan!',
+                                        ),
+                                        backgroundColor: AppColors.primary,
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  setModalState(() => isSubmitting = false);
+                                  if (mounted) {
+                                    messenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text('Gagal menyimpan evaluasi: $e'),
+                                        backgroundColor: AppColors.error,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: isSubmitting
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : Icon(isEdit ? Icons.check_circle_outline : Icons.send_rounded),
+                        label: Text(
+                          isSubmitting
+                              ? 'Menyimpan...'
+                              : (isEdit ? 'Simpan Perubahan' : 'Kirim Kesan & Pesan'),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: AppColors.onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  /// Dialog konfirmasi penghapusan data masukan
+  void _confirmDeleteFeedback(_FeedbackItem item) {
+    final messenger = ScaffoldMessenger.of(context);
 
     showDialog(
       context: context,
-      barrierDismissible: false,
       builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusXl)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppDimensions.radiusLg)),
         title: Row(
           children: const [
-            Icon(Icons.check_circle, color: AppColors.primary, size: 28),
+            Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 24),
             SizedBox(width: 8),
-            Expanded(child: Text('Evaluasi Tersimpan!')),
+            Text('Hapus Evaluasi?'),
           ],
         ),
         content: Text(
-          'Terima kasih telah mengisi evaluasi mata kuliah Pemrograman Aplikasi Mobile ^^',
-          style: AppTypography.bodyMd,
+          'Kesan & pesan dari "${item.name}" akan dihapus secara permanen dari database lokal aplikasi.',
+          style: AppTypography.bodyMedium,
         ),
         actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal'),
+          ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(dialogCtx);
-              if (!widget.isTab) {
-                Navigator.of(context).maybePop();
+              try {
+                final db = await DatabaseHelper.instance.database;
+                await db.delete(
+                  'course_feedback',
+                  where: 'id = ?',
+                  whereArgs: [item.id],
+                );
+                await _loadAllFeedbacks();
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Kesan & pesan "${item.name}" berhasil dihapus.'),
+                      backgroundColor: AppColors.onSurface,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus data: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: AppColors.onPrimary,
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
             ),
-            child: const Text('Selesai'),
+            child: const Text('Hapus'),
           ),
         ],
       ),
     );
-  }
-
-  void _startEditing() {
-    _backupName = _nameController.text;
-    _backupNim = _nimController.text;
-    _backupKesan = _kesanController.text;
-    _backupSaran = _saranController.text;
-    setState(() => _isEditing = true);
-  }
-
-  void _cancelEditing() {
-    _nameController.text = _backupName;
-    _nimController.text = _backupNim;
-    _kesanController.text = _backupKesan;
-    _saranController.text = _backupSaran;
-    setState(() => _isEditing = false);
   }
 
   String _formatDate(String? isoString) {
@@ -324,6 +516,13 @@ class _CourseFeedbackScreenState extends State<CourseFeedbackScreen> {
     } catch (_) {
       return isoString;
     }
+  }
+
+  String _getInitials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts[0].isEmpty) return '?';
+    if (parts.length == 1) return parts[0][0].toUpperCase();
+    return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
   }
 
   @override
@@ -351,502 +550,259 @@ class _CourseFeedbackScreenState extends State<CourseFeedbackScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
             )
-          : ListView(
-              padding: const EdgeInsets.all(AppDimensions.margin),
-              children: [
-                // 1. Header Card
-                Container(
-                  padding: const EdgeInsets.all(AppDimensions.spaceMd),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceContainerLowest,
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withAlpha(6),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: AppColors.secondaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.school, color: AppColors.primary, size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Kesan & Saran Mata Kuliah',
-                              style: AppTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
-                            ),
-                            Text(
-                              'Pemrograman Aplikasi Mobile (PAM)',
-                              style: AppTypography.bodySm.copyWith(color: AppColors.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // 2. Konten Tampilan: Tampilan Tersimpan vs Mode Edit/Input
-                if (_hasSavedData && !_isEditing)
-                  _buildSavedView()
-                else
-                  _buildFormView(),
-              ],
-            ),
-    );
-  }
-
-  /// Tampilan saat data evaluasi telah disimpan (dengan tombol Edit Inputan)
-  Widget _buildSavedView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Status Badge Tersimpan
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: const Color(0xFFD1FAE5),
-            borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-            border: Border.all(color: const Color(0xFFA7F3D0)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.verified, color: Color(0xFF047857), size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Evaluasi Anda Telah Tersimpan',
-                      style: TextStyle(
-                        color: Color(0xFF065F46),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (_savedAt != null)
-                      Text(
-                        'Terakhir diperbarui: ${_formatDate(_savedAt)}',
-                        style: const TextStyle(
-                          color: Color(0xFF047857),
-                          fontSize: 11,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Kartu Identitas Mahasiswa
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceMd),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(6),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+          : RefreshIndicator(
+              onRefresh: _loadAllFeedbacks,
+              color: AppColors.primary,
+              child: ListView(
+                padding: const EdgeInsets.all(AppDimensions.margin),
                 children: [
-                  const Icon(Icons.person_pin, size: 20, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Identitas Mahasiswa',
-                    style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
-                  ),
+                  _buildHeaderCard(),
+                  const SizedBox(height: 14),
+
+                  if (_feedbackList.isEmpty)
+                    _buildEmptyStateCard()
+                  else
+                    ..._feedbackList.map((item) => _buildFeedbackCard(item)),
+
+                  const SizedBox(height: 72),
                 ],
               ),
-              const Divider(height: 20),
-              _buildSavedInfoRow(label: 'Nama Mahasiswa', value: _nameController.text),
-              const SizedBox(height: 10),
-              _buildSavedInfoRow(label: 'NIM', value: _nimController.text),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Kartu Catatan Evaluasi (Kesan & Saran)
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceMd),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withAlpha(6),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.rate_review_outlined, size: 20, color: AppColors.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Catatan Evaluasi',
-                    style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const Divider(height: 20),
-
-              // Kesan
-              Text(
-                'Kesan Perkuliahan:',
-                style: AppTypography.labelMd.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                ),
-                child: Text(
-                  _kesanController.text.isNotEmpty ? _kesanController.text : '-',
-                  style: AppTypography.bodyMedium,
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Saran
-              Text(
-                'Saran Perkuliahan:',
-                style: AppTypography.labelMd.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceContainerLow,
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                ),
-                child: Text(
-                  _saranController.text.isNotEmpty ? _saranController.text : '-',
-                  style: AppTypography.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Tombol Edit Inputan Evaluasi
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton.icon(
-            onPressed: _startEditing,
-            icon: const Icon(Icons.edit_outlined, size: 20),
-            label: const Text(
-              'Edit Evaluasi',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
             ),
-            style: ElevatedButton.styleFrom(
+      floatingActionButton: _isLoading
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showFeedbackFormModal(),
               backgroundColor: AppColors.primary,
               foregroundColor: AppColors.onPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-              ),
+              icon: const Icon(Icons.add_comment_rounded),
+              label: const Text('Isi Kesan Pesan', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-          ),
-        ),
-      ],
     );
   }
 
-  Widget _buildSavedInfoRow({required String label, required String value}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 120,
-          child: Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: AppColors.onSurfaceVariant,
-              fontWeight: FontWeight.w500,
-            ),
+  Widget _buildHeaderCard() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(6),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
-        ),
-        const Text(': ', style: TextStyle(fontWeight: FontWeight.bold)),
-        Expanded(
-          child: Text(
-            value.isNotEmpty ? value : '-',
-            style: AppTypography.bodyMedium.copyWith(
-              fontWeight: FontWeight.bold,
-              color: AppColors.onSurface,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Tampilan Form Input / Edit Evaluasi
-  Widget _buildFormView() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (_hasSavedData)
+        ],
+      ),
+      child: Row(
+        children: [
           Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-              border: Border.all(color: const Color(0xFFFDE68A)),
+            width: 42,
+            height: 42,
+            decoration: const BoxDecoration(
+              color: AppColors.secondaryContainer,
+              shape: BoxShape.circle,
             ),
-            child: Row(
-              children: const [
-                Icon(Icons.edit_note, color: Color(0xFFD97706), size: 20),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Mode Edit: Anda dapat memperbarui data nama, NIM, kesan, dan saran di bawah ini.',
-                    style: TextStyle(
-                      color: Color(0xFF92400E),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+            child: const Icon(Icons.school, color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Kesan & Saran',
+                  style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  'Pemrograman Aplikasi Mobile (PAM)',
+                  style: AppTypography.bodySmall.copyWith(color: AppColors.onSurfaceVariant),
                 ),
               ],
             ),
           ),
-
-        // Input Identitas Mahasiswa (Nama & NIM)
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceMd),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Nama Mahasiswa / Evaluator',
-                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  hintText: 'Nama lengkap...',
-                  filled: true,
-                  fillColor: AppColors.surfaceContainerLow,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'NIM',
-                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _nimController,
-                decoration: InputDecoration(
-                  hintText: 'Contoh: 124240xxx',
-                  filled: true,
-                  fillColor: AppColors.surfaceContainerLow,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        // Input Catatan Evaluasi (Kesan & Saran)
-        Container(
-          padding: const EdgeInsets.all(AppDimensions.spaceMd),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainerLowest,
-            borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Catatan Evaluasi',
-                style: AppTypography.labelMd.copyWith(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Tempat Input Kesan
-              Text(
-                'Kesan Perkuliahan',
-                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _kesanController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Tuliskan kesan Anda selama mengikuti perkuliahan PAM...',
-                  filled: true,
-                  fillColor: AppColors.surfaceContainerLow,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Tempat Input Saran
-              Text(
-                'Saran Perkuliahan',
-                style: AppTypography.labelMd.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: _saranController,
-                maxLines: 4,
-                decoration: InputDecoration(
-                  hintText: 'Tuliskan saran dan masukan untuk perkuliahan PAM...',
-                  filled: true,
-                  fillColor: AppColors.surfaceContainerLow,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Tombol Aksi (Simpan / Simpan Perubahan & Batal)
-        if (_hasSavedData)
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: OutlinedButton(
-                    onPressed: _isSubmitting ? null : _cancelEditing,
-                    style: OutlinedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                      ),
-                    ),
-                    child: const Text('Batal'),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSubmitting ? null : _submitFeedback,
-                    icon: _isSubmitting
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                          )
-                        : const Icon(Icons.check),
-                    label: Text(
-                      _isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          )
-        else
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: _isSubmitting ? null : _submitFeedback,
-              icon: _isSubmitting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                    )
-                  : const Icon(Icons.send),
-              label: Text(
-                _isSubmitting ? 'Menyimpan...' : 'Simpan',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 15,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: AppColors.onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppDimensions.radiusMd),
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withAlpha(50),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              '${_feedbackList.length} Masukan',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.primary,
               ),
             ),
           ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyStateCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: AppColors.surfaceContainer),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: const BoxDecoration(
+              color: Color(0xFFFEF3C7),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.rate_review_outlined, color: Color(0xFFB45309), size: 32),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Belum Ada Kesan & Pesan',
+            style: AppTypography.titleMedium.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Tekan tombol di pojok kanan bawah untuk menambahkan kesan dan saran perkuliahan.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppColors.onSurfaceVariant, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeedbackCard(_FeedbackItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(AppDimensions.radiusLg),
+        border: Border.all(color: AppColors.surfaceContainer.withAlpha(150)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(5),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Baris Atas: Avatar + Nama + NIM + Tombol Aksi (Edit & Hapus)
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 18,
+                  backgroundColor: AppColors.primaryContainer,
+                  child: Text(
+                    _getInitials(item.name),
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name,
+                        style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          if (item.nim.isNotEmpty) ...[
+                            Text(
+                              item.nim,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                            const Text(' • ', style: TextStyle(color: AppColors.outline, fontSize: 11)),
+                          ],
+                          Flexible(
+                            child: Text(
+                              _formatDate(item.submittedAt),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                color: AppColors.outline,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Tombol Edit
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 18, color: AppColors.primary),
+                  tooltip: 'Edit',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _showFeedbackFormModal(existingItem: item),
+                ),
+
+                // Tombol Hapus
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppColors.error),
+                  tooltip: 'Hapus',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _confirmDeleteFeedback(item),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+
+            // Konten Kesan
+            RichText(
+              text: TextSpan(
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                children: [
+                  const TextSpan(
+                    text: 'Kesan: ',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                  TextSpan(text: item.kesan.isNotEmpty ? item.kesan : '-'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Konten Saran
+            RichText(
+              text: TextSpan(
+                style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                children: [
+                  const TextSpan(
+                    text: 'Saran: ',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+                  ),
+                  TextSpan(text: item.saran.isNotEmpty ? item.saran : '-'),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

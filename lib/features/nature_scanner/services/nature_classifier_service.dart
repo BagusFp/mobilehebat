@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
+import '../../../core/services/gemini_service.dart';
 import '../models/detected_nature_object.dart';
 import '../models/scanner_debug_info.dart';
 
@@ -146,6 +147,7 @@ class NatureClassifierService {
     double topSkyBluePixels = 0;
     double bottomWaterPixels = 0;
     double lowerWaterfallPixels = 0;
+    double personPixels = 0;
 
     // Statistik khusus Lingkaran Fokus Kamera (Center: 0.50, 0.42, Radius: 0.35)
     double focusSamples = 0;
@@ -156,6 +158,7 @@ class NatureClassifierService {
     double focusRockPixels = 0;
     double focusSoilPixels = 0;
     double focusWaterPixels = 0;
+    double focusPersonPixels = 0;
 
     // Profil kolom vertikal untuk mendeteksi jalur air terjun vs awan/landscape
     final List<double> colWaterfall = List.filled(5, 0.0);
@@ -293,6 +296,12 @@ class NatureClassifierService {
           colRock[colIdx]++;
           if (inFocus) focusRockPixels++;
         }
+
+        // 8. Rona Kulit Manusia / Wajah / Orang (Skin Tone Detection)
+        else if (red > 0.38 && green > 0.22 && blue > 0.15 && red > green && green > blue && (red - green) >= 0.06 && (red - blue) >= 0.12 && lightness >= 0.25 && lightness <= 0.85) {
+          personPixels++;
+          if (inFocus) focusPersonPixels++;
+        }
       }
     }
 
@@ -305,6 +314,7 @@ class NatureClassifierService {
     final focusRockRatio = focusRockPixels / validFocus;
     final focusSoilRatio = focusSoilPixels / validFocus;
     final focusWaterRatio = focusWaterPixels / validFocus;
+    final focusPersonRatio = focusPersonPixels / validFocus;
 
     final greenRatio = greenPixels / totalSamples;
     final woodRatio = woodPixels / totalSamples;
@@ -315,6 +325,7 @@ class NatureClassifierService {
     final cloudRatio = skyCloudPixels / totalSamples;
     final topSkyRatio = topSkyBluePixels / totalSamples;
     final soilRatio = soilPixels / totalSamples;
+    final personRatio = personPixels / totalSamples;
 
     // Catat statistik untuk developer debug overlay
     _latestDebugInfo = _latestDebugInfo.copyWith(
@@ -581,6 +592,31 @@ class NatureClassifierService {
       }
     }
 
+    // 8. MANUSIA / PENGUNJUNG / DOSEN (Deteksi rona kulit dan fokus manusia secara langsung)
+    final bool isPersonInFocus = focusPersonRatio >= 0.18;
+    final bool isPersonDominant = personRatio >= 0.22;
+
+    if (isPersonInFocus || isPersonDominant) {
+      final conf = isPersonInFocus
+          ? (0.82 + focusPersonRatio * 0.8).clamp(0.85, 0.96)
+          : (0.70 + personRatio * 0.8).clamp(0.72, 0.88);
+      if (conf >= _confidenceThreshold) {
+        detected.add(
+          DetectedNatureObject(
+            id: 'live_person',
+            category: NatureCategory.person,
+            label: 'Manusia / Pengunjung',
+            englishLabel: 'Human / Visitor',
+            educationalDetail: 'Terdeteksi sosok manusia atau pengunjung di depan fokus kamera.',
+            confidence: double.parse(conf.toStringAsFixed(2)),
+            boundingBox: isPersonInFocus
+                ? const Rect.fromLTWH(0.24, 0.15, 0.52, 0.68)
+                : const Rect.fromLTWH(0.18, 0.12, 0.64, 0.72),
+          ),
+        );
+      }
+    }
+
     // Urutkan objek terdeteksi dari confidence tertinggi
     detected.sort((a, b) => b.confidence.compareTo(a.confidence));
     return detected;
@@ -792,8 +828,11 @@ class NatureClassifierService {
     return result;
   }
 
-  /// Memproses foto utuh hasil tangkapan kamera (High-resolution offline inference)
-  Future<NatureScanResult> analyzeCapturedPhoto(String imagePath) async {
+  /// Memproses foto utuh hasil tangkapan kamera (Hybrid: Google Gemini Vision AI + On-Device Offline Fallback)
+  Future<NatureScanResult> analyzeCapturedPhoto(
+    String imagePath, {
+    bool enableCloudVision = true,
+  }) async {
     final stopwatch = Stopwatch()..start();
     final file = File(imagePath);
 
@@ -806,6 +845,68 @@ class NatureClassifierService {
       );
     }
 
+    // 1. TAHAP PRIORITAS UTAMA: Google Gemini Vision AI (Mirip Google Lens)
+    // Mampu mengenali manusia/dosen, kursi/furnitur, atau jenis gunung acak dari internet
+    // Catatan: Dilewati saat eksekusi unit test agar pengujian instan & tanpa jaringan
+    final bool isTestMode = Platform.environment.containsKey('FLUTTER_TEST');
+    if (enableCloudVision && !isTestMode) {
+      try {
+        final geminiService = GeminiService();
+        final visionMap = await geminiService.analyzeImageWithVision(imagePath);
+
+      if (visionMap != null && visionMap['label'] != null) {
+        final label = visionMap['label'].toString();
+        final englishLabel = (visionMap['englishLabel'] ?? label).toString();
+        final rawCat = (visionMap['category'] ?? 'unknown').toString().toLowerCase();
+        final eduDetail = (visionMap['educationalDetail'] ?? '').toString();
+        final confVal = visionMap['confidence'];
+        final double confidence = confVal is num ? confVal.toDouble() : 0.95;
+        final modelUsed = visionMap['_model'] ?? 'Gemini Vision';
+
+        NatureCategory cat = NatureCategory.unknown;
+        for (final c in NatureCategory.values) {
+          if (c.name.toLowerCase() == rawCat) {
+            cat = c;
+            break;
+          }
+        }
+        if (cat == NatureCategory.unknown) {
+          if (rawCat.contains('person') || rawCat.contains('human')) {
+            cat = NatureCategory.person;
+          } else if (rawCat.contains('chair') || rawCat.contains('object') || rawCat.contains('furniture')) {
+            cat = NatureCategory.object;
+          } else if (rawCat.contains('mountain') || rawCat.contains('volcano')) {
+            cat = NatureCategory.mountain;
+          } else if (rawCat.contains('wood')) {
+            cat = NatureCategory.wood;
+          }
+        }
+
+        final detectedObject = DetectedNatureObject(
+          id: 'cloud_lens_${DateTime.now().millisecondsSinceEpoch}',
+          category: cat,
+          label: label,
+          englishLabel: englishLabel,
+          educationalDetail: eduDetail,
+          confidence: confidence,
+          boundingBox: const Rect.fromLTWH(0.15, 0.15, 0.70, 0.70),
+        );
+
+        stopwatch.stop();
+        return NatureScanResult(
+          objects: [detectedObject],
+          imagePath: imagePath,
+          scanTime: DateTime.now(),
+          inferenceTimeMs: stopwatch.elapsedMilliseconds,
+          engineName: 'Google Vision AI ($modelUsed)',
+        );
+      }
+    } catch (e) {
+      debugPrint('Gemini Vision AI gagal, beralih ke On-Device Fallback: $e');
+    }
+    }
+
+    // 2. TAHAP CADANGAN: On-Device Computer Vision (Offline Heuristic)
     try {
       final bytes = await file.readAsBytes();
       final decoded = img.decodeImage(bytes);
@@ -816,6 +917,7 @@ class NatureClassifierService {
           imagePath: imagePath,
           scanTime: DateTime.now(),
           inferenceTimeMs: stopwatch.elapsedMilliseconds,
+          engineName: 'On-Device CV (Offline)',
         );
       }
 
@@ -829,6 +931,7 @@ class NatureClassifierService {
         imagePath: imagePath,
         scanTime: DateTime.now(),
         inferenceTimeMs: stopwatch.elapsedMilliseconds,
+        engineName: 'On-Device CV (Offline)',
       );
     } catch (e) {
       debugPrint('NatureClassifierService.analyzeCapturedPhoto error: $e');
@@ -838,6 +941,7 @@ class NatureClassifierService {
         imagePath: imagePath,
         scanTime: DateTime.now(),
         inferenceTimeMs: stopwatch.elapsedMilliseconds,
+        engineName: 'On-Device CV (Offline)',
       );
     }
   }
