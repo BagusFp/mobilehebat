@@ -152,6 +152,27 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Reset kata sandi in-app
+  Future<AuthResult> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    final result = await _repository.resetPassword(
+      email: email,
+      newPassword: newPassword,
+    );
+
+    _setLoading(false);
+    if (!result.isSuccess) {
+      _errorMessage = result.message;
+    }
+    notifyListeners();
+    return result;
+  }
+
   /// Login via sensor biometrik (hanya diizinkan jika sesi Supabase masih valid)
   Future<bool> loginWithBiometrics() async {
     _setLoading(true);

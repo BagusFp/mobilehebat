@@ -115,6 +115,13 @@ class SupabaseService {
     }
   }
 
+  /// Kirim tautan pemulihan / reset kata sandi ke email pengguna melalui Supabase Auth
+  Future<void> resetPasswordForEmail(String email) async {
+    if (isInitialized) {
+      await client.auth.resetPasswordForEmail(email.trim());
+    }
+  }
+
   // ===========================================================================
   // PROFILES
   // ===========================================================================
@@ -392,7 +399,6 @@ class SupabaseService {
         'reminder_enabled': trip.reminderEnabled,
         'is_saved_offline': trip.isSavedOffline,
         'banner_image_url': trip.bannerImageUrl,
-        'current_step': trip.currentStep,
         'items': trip.items.map((it) => it.toMap()).toList(),
         'created_at': DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
@@ -403,6 +409,78 @@ class SupabaseService {
     } catch (e) {
       debugPrint('SupabaseService.createTrip error: $e');
       return false;
+    }
+  }
+
+  /// Memastikan data trip dan item destinasinya telah terunggah ke database cloud Supabase
+  /// dengan status 'completed' milik user yang sedang aktif.
+  /// Mengembalikan cloud ID trip jika sukses, atau null jika gagal/offline.
+  Future<int?> ensureTripSyncedForProof(TripModel trip) async {
+    if (!isInitialized) return null;
+    final user = currentUser;
+    if (user == null) return null;
+
+    try {
+      final itemsPayload = trip.items.map((it) => it.toMap()).toList();
+      final nowStr = DateTime.now().toIso8601String();
+
+      // 1. Cari apakah trip dengan nama yang sama sudah ada di Supabase untuk user aktif
+      final existingCloudTrip = await client
+          .from('trips')
+          .select('id, status, items')
+          .eq('user_id', user.id)
+          .ilike('trip_name', trip.tripName.trim())
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
+
+      if (existingCloudTrip != null) {
+        final cloudTripId = (existingCloudTrip['id'] as num).toInt();
+        // Pastikan status di cloud adalah 'completed' dan items terisi
+        await client.from('trips').update({
+          'status': 'completed',
+          'items': itemsPayload,
+          'completed_at': trip.completedAt ?? nowStr,
+          'updated_at': nowStr,
+        }).eq('id', cloudTripId).timeout(const Duration(seconds: 5));
+
+        debugPrint('SupabaseService.ensureTripSyncedForProof: existing cloud trip updated id=$cloudTripId');
+        return cloudTripId;
+      } else {
+        // 2. Jika belum ada di cloud, buat trip baru dengan status 'completed'
+        final insertPayload = {
+          'user_id': user.id,
+          'trip_name': trip.tripName.trim(),
+          'start_date': trip.startDate,
+          'participant_count': trip.participantCount,
+          'target_budget': trip.targetBudget,
+          'total_estimated_cost': trip.totalEstimatedCost,
+          'total_actual_cost': trip.totalActualCost,
+          'status': 'completed',
+          'reminder_enabled': trip.reminderEnabled,
+          'is_saved_offline': trip.isSavedOffline,
+          if (trip.bannerImageUrl != null) 'banner_image_url': trip.bannerImageUrl,
+          'completed_at': trip.completedAt ?? nowStr,
+          'items': itemsPayload,
+          'created_at': nowStr,
+          'updated_at': nowStr,
+        };
+
+        final inserted = await client
+            .from('trips')
+            .insert(insertPayload)
+            .select('id')
+            .single()
+            .timeout(const Duration(seconds: 6));
+
+        final newCloudId = (inserted['id'] as num).toInt();
+        debugPrint('SupabaseService.ensureTripSyncedForProof: new cloud trip created id=$newCloudId');
+        return newCloudId;
+      }
+    } catch (e) {
+      debugPrint('SupabaseService.ensureTripSyncedForProof error: $e');
+      return null;
     }
   }
 
@@ -451,13 +529,6 @@ class SupabaseService {
         if (trip.bannerImageUrl != null) 'banner_image_url': trip.bannerImageUrl,
         if (trip.startedAt != null) 'started_at': trip.startedAt,
         if (trip.completedAt != null) 'completed_at': trip.completedAt,
-        if (trip.originCity != null) 'origin_city': trip.originCity,
-        if (trip.originTimezone != null) 'origin_timezone': trip.originTimezone,
-        if (trip.destinationCity != null) 'destination_city': trip.destinationCity,
-        if (trip.destinationTimezone != null) 'destination_timezone': trip.destinationTimezone,
-        'currency_source': trip.currencySource,
-        'currency_target': trip.currencyTarget,
-        'current_step': trip.currentStep,
         'items': trip.items.map((it) => it.toMap()).toList(),
         'updated_at': DateTime.now().toIso8601String(),
       };

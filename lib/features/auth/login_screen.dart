@@ -71,6 +71,294 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showResetPasswordBottomSheet(BuildContext context) {
+    final resetEmailController = TextEditingController(text: _emailController.text.trim());
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isSubmitting = false;
+    String? localError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (bottomSheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 20,
+                right: 20,
+                top: 16,
+              ),
+              decoration: const BoxDecoration(
+                color: AppColors.surfaceContainerLowest,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Drag Handle Indicator
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.outlineVariant.withAlpha(120),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Header Bottom Sheet
+                    Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer.withAlpha(40),
+                            borderRadius: AppDimensions.roundedMd,
+                          ),
+                          child: const Icon(
+                            Icons.lock_reset_rounded,
+                            color: AppColors.primary,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Atur Ulang Kata Sandi',
+                                style: AppTypography.titleMedium.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Masukkan email dan buat kata sandi baru akun Anda.',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.onSurfaceVariant,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.of(bottomSheetContext).pop(),
+                          icon: const Icon(Icons.close_rounded, size: 20, color: AppColors.onSurfaceVariant),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(height: 1),
+                    const SizedBox(height: 16),
+
+                    if (localError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorContainer.withAlpha(60),
+                          borderRadius: AppDimensions.roundedSm,
+                          border: Border.all(color: AppColors.error.withAlpha(80)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline_rounded, color: AppColors.error, size: 18),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                localError!,
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: AppColors.error,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Input Email
+                    Text(
+                      'Email Akun Terdaftar',
+                      style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: resetEmailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                      decoration: const InputDecoration(
+                        hintText: 'nama@email.com',
+                        prefixIcon: Icon(Icons.alternate_email_rounded, color: AppColors.primary, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Input Kata Sandi Baru
+                    Text(
+                      'Kata Sandi Baru',
+                      style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: newPasswordController,
+                      obscureText: obscureNew,
+                      style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Minimal 6 karakter',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppColors.primary, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureNew ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppColors.onSurfaceVariant,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setModalState(() {
+                              obscureNew = !obscureNew;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Input Konfirmasi Kata Sandi
+                    Text(
+                      'Konfirmasi Kata Sandi Baru',
+                      style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: confirmPasswordController,
+                      obscureText: obscureConfirm,
+                      style: AppTypography.bodyMedium.copyWith(color: AppColors.onSurface),
+                      decoration: InputDecoration(
+                        hintText: 'Ulangi kata sandi baru',
+                        prefixIcon: const Icon(Icons.lock_reset_rounded, color: AppColors.primary, size: 20),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            color: AppColors.onSurfaceVariant,
+                            size: 20,
+                          ),
+                          onPressed: () {
+                            setModalState(() {
+                              obscureConfirm = !obscureConfirm;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Tombol Submit Reset
+                    PrimaryButton(
+                      text: 'Simpan & Perbarui Kata Sandi',
+                      icon: Icons.check_circle_rounded,
+                      isLoading: isSubmitting,
+                      onPressed: isSubmitting
+                          ? null
+                          : () async {
+                              final email = resetEmailController.text.trim();
+                              final newPass = newPasswordController.text;
+                              final confirmPass = confirmPasswordController.text;
+
+                              if (email.isEmpty) {
+                                setModalState(() {
+                                  localError = 'Silakan masukkan email akun Anda.';
+                                });
+                                return;
+                              }
+                              if (!email.contains('@') || !email.contains('.')) {
+                                setModalState(() {
+                                  localError = 'Format email tidak valid.';
+                                });
+                                return;
+                              }
+                              if (newPass.length < 6) {
+                                setModalState(() {
+                                  localError = 'Kata sandi baru minimal 6 karakter.';
+                                });
+                                return;
+                              }
+                              if (newPass != confirmPass) {
+                                setModalState(() {
+                                  localError = 'Konfirmasi kata sandi tidak cocok.';
+                                });
+                                return;
+                              }
+
+                              setModalState(() {
+                                isSubmitting = true;
+                                localError = null;
+                              });
+
+                              final auth = context.read<AuthProvider>();
+                              final res = await auth.resetPassword(
+                                email: email,
+                                newPassword: newPass,
+                              );
+
+                              if (!bottomSheetContext.mounted) return;
+
+                              if (res.isSuccess) {
+                                Navigator.of(bottomSheetContext).pop();
+                                setState(() {
+                                  _emailController.text = email;
+                                  _passwordController.text = newPass;
+                                });
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                          const SizedBox(width: 8),
+                                          Expanded(child: Text(res.message)),
+                                        ],
+                                      ),
+                                      backgroundColor: AppColors.secondary,
+                                      duration: const Duration(seconds: 4),
+                                    ),
+                                  );
+                                }
+                              } else {
+                                setModalState(() {
+                                  isSubmitting = false;
+                                  localError = res.message;
+                                });
+                              }
+                            },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
@@ -250,11 +538,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: AppTypography.titleSmall.copyWith(fontWeight: FontWeight.bold),
                         ),
                         InkWell(
-                          onTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Gunakan kata sandi demo: merapiraya2024')),
-                            );
-                          },
+                          onTap: () => _showResetPasswordBottomSheet(context),
                           child: Text(
                             'Lupa Kata Sandi?',
                             style: AppTypography.labelSmall.copyWith(

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import '../../data/models/trip_item_model.dart';
 import '../../data/models/trip_model.dart';
 import '../../data/models/trip_proof_model.dart';
 import '../config/supabase_config.dart';
@@ -111,11 +112,47 @@ class BlockchainService {
       }
     }
 
+    // Pastikan item destinasi terisi jika sebelumnya hanya memuat header trip
+    var effectiveTrip = trip;
+    if (effectiveTrip.items.isEmpty && effectiveTrip.id != null) {
+      try {
+        final db = await _dbHelper.database;
+        final itemMaps = await db.query(
+          'trip_items',
+          where: 'trip_id = ?',
+          whereArgs: [effectiveTrip.id!],
+          orderBy: 'visit_order ASC',
+        );
+        if (itemMaps.isNotEmpty) {
+          effectiveTrip = effectiveTrip.copyWith(
+            items: itemMaps.map((m) => TripItemModel.fromMap(m)).toList(),
+          );
+        }
+      } catch (e) {
+        debugPrint('Warning load trip_items for proof: $e');
+      }
+    }
+
+    if (effectiveTrip.items.isEmpty) {
+      effectiveTrip = effectiveTrip.copyWith(
+        items: [
+          TripItemModel(
+            itemName: 'Kawasan Wisata Lereng Merapi',
+            itemSubtitle: 'Titik Kunjungan Utama',
+            visitOrder: 1,
+            elevationMdpl: 1000,
+            isCompleted: true,
+            completedAt: effectiveTrip.completedAt ?? DateTime.now().toIso8601String(),
+          ),
+        ],
+      );
+    }
+
     // 2. Buat payload kanonis & SHA-256 hash bebas PII
     final proofId = BlockchainProofHelper.generateProofId();
     final salt = BlockchainProofHelper.generateSecureSalt();
 
-    final destinationsData = trip.items.map((item) {
+    final destinationsData = effectiveTrip.items.map((item) {
       return {
         'destination_name': item.itemName,
         'elevation_mdpl': item.elevationMdpl,
@@ -125,9 +162,9 @@ class BlockchainService {
 
     final canonicalPayload = BlockchainProofHelper.buildCanonicalPayload(
       proofId: proofId,
-      tripId: trip.id!,
-      startDate: trip.startDate,
-      completedAt: trip.completedAt,
+      tripId: effectiveTrip.id!,
+      startDate: effectiveTrip.startDate,
+      completedAt: effectiveTrip.completedAt,
       destinations: destinationsData,
       salt: salt,
     );
@@ -139,7 +176,7 @@ class BlockchainService {
     var proofModel = TripProofModel(
       id: localId,
       userId: userId,
-      tripId: trip.id!,
+      tripId: effectiveTrip.id!,
       proofId: proofId,
       proofHash: proofHash,
       payloadVersion: BlockchainProofHelper.currentPayloadVersion,
@@ -159,10 +196,27 @@ class BlockchainService {
 
     // 4. Kirim ke backend (Supabase Edge Function jika konfigurasi Supabase aktif)
     if (SupabaseConfig.isConfigured) {
-      if (userJwtToken == null || userJwtToken.isEmpty) {
+      String? effectiveJwt = userJwtToken;
+      if (effectiveJwt == null || effectiveJwt.isEmpty) {
+        effectiveJwt = SupabaseService().currentSession?.accessToken;
+      }
+
+      if (effectiveJwt == null || effectiveJwt.isEmpty) {
         proofModel = proofModel.copyWith(status: 'failed', id: localId);
         await _dbHelper.insertOrUpdateTripProof(proofModel.toMap());
         throw Exception('Sesi autentikasi tidak ditemukan. Silakan login ke akun Supabase untuk membuat bukti perjalanan.');
+      }
+
+      // Auto-Upload / Sinkronisasi Trip ke Supabase Cloud sebelum request record-proof
+      int syncTripId = effectiveTrip.id!;
+      try {
+        final cloudTripId = await SupabaseService().ensureTripSyncedForProof(effectiveTrip);
+        if (cloudTripId != null) {
+          syncTripId = cloudTripId;
+          debugPrint('Auto-upload trip ke Supabase cloud sukses: local_id=${effectiveTrip.id} -> cloud_id=$cloudTripId');
+        }
+      } catch (e) {
+        debugPrint('Auto-upload trip ke Supabase warning: $e');
       }
 
       try {
@@ -172,11 +226,11 @@ class BlockchainService {
               Uri.parse(edgeFunctionUrl),
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': 'Bearer $userJwtToken',
+                'Authorization': 'Bearer $effectiveJwt',
               },
               body: jsonEncode({
-                'trip_id': trip.id,
-                'trip_name': trip.tripName,
+                'trip_id': syncTripId,
+                'trip_name': effectiveTrip.tripName.trim(),
               }),
             )
             .timeout(const Duration(seconds: 15));

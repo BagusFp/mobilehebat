@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:latlong2/latlong.dart' as ll;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:project/core/utils/geo_helper.dart';
+import 'package:project/data/models/destination_model.dart';
 import 'package:project/features/explore/destination_provider.dart';
 import 'package:project/features/map/map_provider.dart';
 import 'package:project/features/map/map_screen.dart';
@@ -108,6 +110,139 @@ void main() {
 
     expect(find.text('Mini Kompas'), findsNothing);
   });
+
+  testWidgets('MapScreen Redesign UI: Clean compact header, priority chips, subtle markers, compact bottom sheet', (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final destProvider = DestinationProvider();
+    final mapProvider = MapProvider();
+    final sensorProvider = SensorProvider(autoInitSensors: false);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<DestinationProvider>.value(value: destProvider),
+          ChangeNotifierProvider<MapProvider>.value(value: mapProvider),
+          ChangeNotifierProvider<SensorProvider>.value(value: sensorProvider),
+        ],
+        child: const MaterialApp(
+          home: MapScreen(),
+        ),
+      ),
+    );
+
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    // 1. Header Compact
+    expect(find.text('Peta Merapi Navigasi'), findsOneWidget);
+
+    // 2. Summit Marker Badge
+    expect(find.text('PUNCAK MERAPI (2.930 MDPL)'), findsOneWidget);
+
+    // 3. Toggle Mode Peta / Daftar
+    expect(find.text('Peta'), findsOneWidget);
+    expect(find.text('Daftar'), findsOneWidget);
+
+    // 4. Compact Bottom Sheet: Bunker Kaliadem
+    expect(find.text('Bunker Kaliadem'), findsWidgets);
+    expect(find.textContaining('1165 mdpl'), findsOneWidget);
+    expect(find.textContaining('Aspal & Pasir'), findsOneWidget);
+    expect(find.text('Petunjuk Arah'), findsOneWidget);
+    expect(find.text('Detail'), findsOneWidget);
+
+    // 5. Test Zoom In / Out Controls
+    final zoomInFinder = find.byKey(const ValueKey('zoomInBtn'));
+    expect(zoomInFinder, findsOneWidget);
+    await tester.tap(zoomInFinder);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // 6. Test Switch to List Mode & back to Map Mode
+    await tester.tap(find.text('Daftar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(mapProvider.viewMode, 'list');
+
+    await tester.tap(find.text('Peta'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(mapProvider.viewMode, 'map');
+  });
+
+  for (final width in [320.0, 360.0, 390.0, 412.0]) {
+    testWidgets('MapScreen Responsive Layout on ${width.toInt()}px width has zero overflow and safe chips/buttons', (tester) async {
+      tester.view.physicalSize = Size(width, 750);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final destProvider = DestinationProvider();
+      final mapProvider = MapProvider();
+      final sensorProvider = SensorProvider(autoInitSensors: false);
+
+      // Long-named destination model as in user request: "Jeep Lava Tour Merapi Basecamp"
+      const longDest = DestinationModel(
+        id: 99,
+        categoryId: 3,
+        name: 'Jeep Lava Tour Merapi Basecamp',
+        categoryName: 'Petualangan',
+        latitude: -7.5890,
+        longitude: 110.4320,
+        elevationMdpl: 810,
+        ticketPrice: 350000,
+        address: 'Kaliurang & Cangkringan, Sleman',
+        rating: 4.8,
+        description: 'Petualangan offroad menyusuri jejak erupsi Merapi.',
+      );
+      mapProvider.selectDestination(longDest);
+      mapProvider.setRouteForTesting(
+        points: const [
+          ll.LatLng(-7.5950, 110.4280),
+          ll.LatLng(-7.5890, 110.4320),
+        ],
+        distanceKm: 20.5248,
+        durationMinutes: 24,
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<DestinationProvider>.value(value: destProvider),
+            ChangeNotifierProvider<MapProvider>.value(value: mapProvider),
+            ChangeNotifierProvider<SensorProvider>.value(value: sensorProvider),
+          ],
+          child: const MaterialApp(
+            home: MapScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      // 1. Verifikasi Header & Toggle aman
+      expect(find.text('Peta Merapi Navigasi'), findsOneWidget);
+      expect(find.text('Peta'), findsOneWidget);
+      expect(find.text('Daftar'), findsOneWidget);
+
+      // 2. Verifikasi Route Banner formatted
+      expect(find.textContaining('20.5 km • 24 mnt'), findsOneWidget);
+
+      // 3. Verifikasi Bottom sheet layout (2-baris name, 810 mdpl, Kaliurang, 350.000, Aspal & Pasir, buttons)
+      expect(find.text('Jeep Lava Tour Merapi Basecamp'), findsWidgets);
+      expect(find.textContaining('810 mdpl'), findsOneWidget);
+      expect(find.textContaining('Aspal & Pasir'), findsOneWidget);
+      expect(find.text('Petunjuk Arah'), findsOneWidget);
+      expect(find.text('Detail'), findsOneWidget);
+
+      // 4. Verifikasi Marker label disingkat sehingga tidak clipping
+      expect(find.text('Jeep Lava Tour'), findsOneWidget);
+
+      // 5. Zero overflow check (tester.takeException() returns null)
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   test('SensorProvider calculates accurate heading for East (90°), North (0°), South (180°), West (270°)', () {
     final provider = SensorProvider(autoInitSensors: false);

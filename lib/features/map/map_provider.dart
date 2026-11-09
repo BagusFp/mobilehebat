@@ -402,6 +402,17 @@ class MapProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setRouteForTesting({
+    required List<LatLng> points,
+    required double distanceKm,
+    required int durationMinutes,
+  }) {
+    _routePoints = points;
+    _routeDistanceKm = distanceKm;
+    _routeDurationMinutes = durationMinutes;
+    notifyListeners();
+  }
+
   /// Melakukan pencarian tempat wisata online via OpenStreetMap / Overpass
   Future<void> searchDestinationsOnline(String query) async {
     _searchQuery = query.trim();

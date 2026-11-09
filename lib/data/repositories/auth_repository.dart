@@ -173,15 +173,36 @@ class AuthRepository {
         }
         if (e.message.toLowerCase().contains('invalid login credentials') ||
             e.message.toLowerCase().contains('invalid credentials')) {
-          return const AuthResult(
+          // Cek verifikasi kata sandi di SQLite lokal (mendukung in-app reset password & akun demo)
+          final db = await _dbHelper.database;
+          final localCheck = await db.query(
+            'users',
+            where: 'LOWER(email) = ?',
+            whereArgs: [cleanEmail],
+          );
+          if (localCheck.isNotEmpty) {
+            final storedHash = localCheck.first['password_hash'] as String?;
+            if (storedHash == inputPasswordHash) {
+              debugPrint('Supabase credentials invalid, but local SQLite password matches. Melanjutkan login sesi lokal.');
+              // Lanjut ke sinkronisasi sesi lokal tanpa mengembalikan error
+            } else {
+              return const AuthResult(
+                isSuccess: false,
+                message: 'Email atau kata sandi tidak sesuai. Silakan periksa kembali.',
+              );
+            }
+          } else {
+            return const AuthResult(
+              isSuccess: false,
+              message: 'Email atau kata sandi tidak sesuai. Silakan periksa kembali.',
+            );
+          }
+        } else {
+          return AuthResult(
             isSuccess: false,
-            message: 'Email atau kata sandi tidak sesuai. Silakan periksa kembali.',
+            message: 'Supabase Auth: ${e.message}',
           );
         }
-        return AuthResult(
-          isSuccess: false,
-          message: 'Supabase Auth: ${e.message}',
-        );
       } catch (e) {
         debugPrint('Supabase network unreachable, trying offline login: $e');
       }
@@ -270,6 +291,80 @@ class AuthRepository {
       return AuthResult(
         isSuccess: false,
         message: 'Terjadi kesalahan saat masuk: $e',
+      );
+    }
+  }
+
+  /// Reset kata sandi langsung di aplikasi (In-App Reset Password)
+  /// Memperbarui hash kata sandi pada SQLite lokal, serta mencoba sinkronisasi email ke Supabase
+  Future<AuthResult> resetPassword({
+    required String email,
+    required String newPassword,
+  }) async {
+    final cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail.isEmpty) {
+      return const AuthResult(
+        isSuccess: false,
+        message: 'Email tidak boleh kosong.',
+      );
+    }
+    if (newPassword.length < 6) {
+      return const AuthResult(
+        isSuccess: false,
+        message: 'Kata sandi baru minimal 6 karakter.',
+      );
+    }
+
+    try {
+      final newPasswordHash = CryptoHelper.hashPassword(newPassword);
+      final db = await _dbHelper.database;
+      final existing = await db.query(
+        'users',
+        where: 'LOWER(email) = ?',
+        whereArgs: [cleanEmail],
+      );
+
+      if (existing.isNotEmpty) {
+        final localUserId = existing.first['id'] as int;
+        await db.update(
+          'users',
+          {'password_hash': newPasswordHash},
+          where: 'id = ?',
+          whereArgs: [localUserId],
+        );
+
+        // Best effort: panggil resetPasswordForEmail di Supabase jika server tersedia
+        try {
+          await _supabaseService.resetPasswordForEmail(cleanEmail);
+        } catch (e) {
+          debugPrint('Supabase resetPasswordForEmail note: $e');
+        }
+
+        return const AuthResult(
+          isSuccess: true,
+          message: 'Kata sandi berhasil diatur ulang! Silakan masuk dengan kata sandi baru Anda.',
+        );
+      } else {
+        // Cek jika akun ada di Supabase
+        try {
+          await _supabaseService.resetPasswordForEmail(cleanEmail);
+          return const AuthResult(
+            isSuccess: true,
+            message: 'Tautan pemulihan kata sandi telah dikirim ke email Anda melalui Supabase.',
+          );
+        } catch (e) {
+          debugPrint('Supabase resetPassword error: $e');
+          return const AuthResult(
+            isSuccess: false,
+            message: 'Email tidak ditemukan di sistem. Pastikan email terdaftar atau lakukan registrasi akun.',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error resetPassword: $e');
+      return AuthResult(
+        isSuccess: false,
+        message: 'Gagal mengatur ulang kata sandi: $e',
       );
     }
   }
@@ -445,6 +540,7 @@ class AuthRepository {
         message: 'Email atau kata sandi tidak boleh kosong.',
       );
     }
+    final inputPasswordHash = CryptoHelper.hashPassword(password);
 
     try {
       final res = await _supabaseService.signIn(
@@ -491,6 +587,21 @@ class AuthRepository {
       debugPrint('Supabase verifyAccountPassword AuthException: ${e.message}');
       if (e.message.toLowerCase().contains('invalid login credentials') ||
           e.message.toLowerCase().contains('invalid credentials')) {
+        final db = await _dbHelper.database;
+        final localCheck = await db.query(
+          'users',
+          where: 'LOWER(email) = ?',
+          whereArgs: [cleanEmail],
+        );
+        if (localCheck.isNotEmpty) {
+          final storedHash = localCheck.first['password_hash'] as String?;
+          if (storedHash == inputPasswordHash) {
+            return const AuthResult(
+              isSuccess: true,
+              message: 'Kata sandi akun berhasil diverifikasi.',
+            );
+          }
+        }
         return const AuthResult(
           isSuccess: false,
           message: 'Kata sandi akun tidak sesuai. Silakan periksa kembali.',

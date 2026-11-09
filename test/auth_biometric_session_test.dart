@@ -296,5 +296,33 @@ void main() {
       expect(canLoginBiometric, false);
       expect(authProvider.errorMessage, contains('Sesi akun tidak aktif atau telah logout'));
     });
+
+    // Skenario 15: Fitur Lupa Kata Sandi (In-App Reset Password)
+    testWidgets('15. Pengguna menekan Lupa Kata Sandi -> Modal Bottom Sheet muncul dengan form lengkap dan validasi', (tester) async {
+      tester.view.physicalSize = const Size(800, 1600);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      final authProvider = AuthProvider();
+      await tester.pumpWidget(MeraTripApp(authProvider: authProvider));
+      await tester.pump();
+
+      expect(find.byType(LoginScreen), findsOneWidget);
+      expect(find.text('Lupa Kata Sandi?'), findsOneWidget);
+
+      await tester.tap(find.text('Lupa Kata Sandi?'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Atur Ulang Kata Sandi'), findsOneWidget);
+      expect(find.text('Email Akun Terdaftar'), findsOneWidget);
+      expect(find.text('Kata Sandi Baru'), findsOneWidget);
+      expect(find.text('Konfirmasi Kata Sandi Baru'), findsOneWidget);
+      expect(find.text('Simpan & Perbarui Kata Sandi'), findsOneWidget);
+
+      // Uji validasi input kosong
+      await tester.tap(find.text('Simpan & Perbarui Kata Sandi'));
+      await tester.pump();
+      expect(find.text('Silakan masukkan email akun Anda.'), findsOneWidget);
+    });
   });
 }
